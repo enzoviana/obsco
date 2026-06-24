@@ -13,11 +13,13 @@ function Page() {
   const navigate = useNavigate();
   const state = useScopeState();
   const data = useScopedReportData(state.scope, state.countryCode, state.agencyId);
-  useEffect(() => { if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" }); }, [navigate]);
+  useEffect(() => {
+    if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" });
+  }, [navigate]);
   return (
     <AppShell title="Rapport 4 — Évolution CA" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
-      <ReportEvolutionCA data={data.evCa} countries={data.visibleCountries} suffix={state.fileSuffix} />
+      <ReportEvolutionCA data={data} suffix={state.fileSuffix} />
     </AppShell>
   );
 }

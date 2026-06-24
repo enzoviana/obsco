@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import {
   LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, Search, LogOut, Pill, ChevronDown, ChevronRight,
-  FileBarChart2, Truck, Boxes, Upload, FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen,
+  FileBarChart2, Boxes, Upload, FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen, Target, Tag,
 } from "lucide-react";
 import { logout, setRole, useUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ type GroupItem = {
   group: string;
   icon: typeof LayoutDashboard;
   adminOnly?: boolean;
+  to?: string;
   children: LeafItem[];
 };
 
@@ -33,25 +34,26 @@ const NAV: NavEntry[] = [
     children: [
       { to: "/laboratoires", label: "Laboratoires", icon: FlaskConical },
       { to: "/produits", label: "Produits", icon: Boxes },
+      { to: "/produits-objectifs", label: "Objectifs produits", icon: Target },
+      { to: "/produits-tarifs", label: "Tarifs produits", icon: Tag },
       { to: "/pays", label: "Pays", icon: Globe2 },
       { to: "/agences", label: "Agences", icon: Building2 },
       { to: "/grossistes", label: "Grossistes", icon: Store },
     ],
   },
   {
-    group: "Sorties Locales", icon: PackageOpen, adminOnly: true,
+    group: "Sorties Locales", icon: PackageOpen, adminOnly: true, to: "/sorties-locales",
     children: [
-      { to: "/sorties-locales", label: "Vue d'ensemble", icon: PackageOpen },
-      { to: "/fournisseurs", label: "Stocks fournisseurs", icon: Truck },
-      { to: "/sorties-locales/objectifs-pays", label: "R1 · Obj. par pays", icon: FileBarChart2 },
-      { to: "/sorties-locales/objectifs-anf", label: "R2 · Obj. ANF", icon: FileBarChart2 },
-      { to: "/sorties-locales/ventes-un", label: "R3 · Ventes UN", icon: FileBarChart2 },
-      { to: "/sorties-locales/ventes-ca", label: "R3 bis · Ventes CA", icon: FileBarChart2 },
-      { to: "/sorties-locales/evolution-ca", label: "R4 · Évolution CA", icon: FileBarChart2 },
-      { to: "/sorties-locales/evolution-un", label: "R4 bis · Évolution UN", icon: FileBarChart2 },
-      { to: "/sorties-locales/stocks-pays", label: "R5 · Stocks pays", icon: FileBarChart2 },
-      { to: "/sorties-locales/stocks-en-cours", label: "R5 bis · Stocks + en cours", icon: FileBarChart2 },
-      { to: "/sorties-locales/vue-panoramique", label: "R6 · Vue panoramique", icon: FileBarChart2 },
+      { to: "/sorties-locales", label: "Stocks fournisseurs", icon: Boxes, exact: true },
+      { to: "/sorties-locales/vue-panoramique", label: "Vue panoramique", icon: LayoutDashboard },
+      { to: "/sorties-locales/objectifs-pays", label: "R1 · Objectifs / Pays", icon: Target },
+      { to: "/sorties-locales/objectifs-anf", label: "R2 · Objectifs ANF", icon: Target },
+      { to: "/sorties-locales/ventes-un", label: "R3 · Ventes (UN)", icon: BarChart3 },
+      { to: "/sorties-locales/ventes-ca", label: "R4 · Ventes (CA)", icon: BarChart3 },
+      { to: "/sorties-locales/evolution-un", label: "R5 · Évolution (UN)", icon: BarChart3 },
+      { to: "/sorties-locales/evolution-ca", label: "R5bis · Évolution (CA)", icon: BarChart3 },
+      { to: "/sorties-locales/stocks-pays", label: "R6 · Stocks / Pays", icon: Package },
+      { to: "/sorties-locales/stocks-en-cours", label: "Stocks en cours", icon: Package },
     ],
   },
   { to: "/rapports", label: "Rapports", icon: FileBarChart2, adminOnly: true },
@@ -216,23 +218,43 @@ export function AppShell({ children, title, subtitle, actions }: {
 }
 
 function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
-  const isChildActive = entry.children.some(c => pathname === c.to.split("#")[0]);
-  const [open, setOpen] = useState(isChildActive);
+  const isChildActive = entry.children.some(c => {
+    const base = c.to.split("#")[0];
+    return c.exact ? pathname === base : pathname === base || pathname.startsWith(base + "/");
+  });
+  const selfActive = entry.to ? pathname === entry.to : false;
+  const [open, setOpen] = useState(isChildActive || selfActive);
   const Icon = entry.icon;
+
+  const headerClass = `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+    isChildActive || selfActive
+      ? "bg-card text-foreground shadow-sm font-medium"
+      : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+  }`;
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-          isChildActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <Icon className="h-4 w-4" />
-        <span>{entry.group}</span>
-        <ChevronRight className={`ml-auto h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
-      </button>
+      <div className={headerClass}>
+        {entry.to ? (
+          <Link to={entry.to as never} className="flex flex-1 items-center gap-3" onClick={() => setOpen(true)}>
+            <Icon className="h-4 w-4" />
+            <span>{entry.group}</span>
+          </Link>
+        ) : (
+          <button type="button" onClick={() => setOpen(o => !o)} className="flex flex-1 items-center gap-3">
+            <Icon className="h-4 w-4" />
+            <span>{entry.group}</span>
+          </button>
+        )}
+        <button
+          type="button"
+          aria-label={open ? "Réduire" : "Développer"}
+          onClick={() => setOpen(o => !o)}
+          className="ml-auto -mr-1 p-1 text-muted-foreground hover:text-foreground"
+        >
+          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
+        </button>
+      </div>
       {open && (
         <div className="mt-0.5 ml-3 border-l border-border pl-2 space-y-0.5">
           {entry.children.map(c => {

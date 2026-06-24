@@ -1,28 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
-  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from "recharts";
 import { Download, FileSpreadsheet, Globe2, MapPin, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  COUNTRIES, evolutionByRevenue, evolutionByUnits, getAgencies, salesByRevenue, salesByUnit,
-  salesObjectivesANF, salesObjectivesByCountry, stockSituation, getPanoramicProducts, type Agency,
+  COUNTRIES, getAgencies, getPanoramicProducts, MONTHS, type Agency, type ProductPanoramic,
 } from "@/lib/agencies";
 import { exportCSV, exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export type Scope = "all" | "country" | "agency";
-const PALETTE = ["#10b981", "#0ea5e9", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#22d3ee", "#84cc16"];
-const tooltipStyle = { background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 };
 
+function fmt(n: number) { return Number.isFinite(n) ? Math.round(n).toLocaleString("fr-FR") : "-"; }
+function pct(n: number) { return Number.isFinite(n) ? `${n.toFixed(1)}%` : "-"; }
+function eur(n: number) { return `€${fmt(n)}`; }
+function prodRand(seedStr: string) {
+  let s = 2166136261 >>> 0;
+  for (const ch of seedStr) { s ^= ch.charCodeAt(0); s = Math.imul(s, 16777619) >>> 0; }
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0xffffffff; };
+}
 function agencyShare(agency: Agency, agencies: Agency[]) {
   const peers = agencies.filter(a => a.country === agency.country).length || 1;
   return 1 / peers;
 }
-function scaleNum(n: number, f: number) { return Math.round(n * f); }
-function fmt(n: number) { return n.toLocaleString("fr-FR"); }
 
+/* ---------- Scope state ---------- */
 export function useScopeState() {
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [scope, setScope] = useState<Scope>("all");
@@ -85,72 +85,32 @@ function ScopeBtn({ active, onClick, icon, label }: { active: boolean; onClick: 
   );
 }
 
-/* ---------- Shaped data hook ---------- */
+/* ---------- Data hook ---------- */
 export function useScopedReportData(scope: Scope, countryCode: string, agencyId: string) {
   return useMemo(() => {
     const agencies = typeof window !== "undefined" ? getAgencies() : [];
     const agency = agencies.find(a => a.id === agencyId);
     const codeFilter = scope === "country" ? countryCode : scope === "agency" ? agency?.country ?? "" : "";
-    const factor = scope === "agency" && agency ? agencyShare(agency, agencies) : 1;
-    const keep = (code: string) => !codeFilter || code === codeFilter;
-
-    const objPays = salesObjectivesByCountry().filter(r => keep(r.code))
-      .map(r => ({ ...r, objectif: scaleNum(r.objectif, factor), realise: scaleNum(r.realise, factor) }));
-
-    const denomMonths = codeFilter ? COUNTRIES.length || 1 : 1;
-    const objAnf = salesObjectivesANF().map(r => ({
-      ...r,
-      objectif: scaleNum(r.objectif, factor / denomMonths),
-      realise: scaleNum(r.realise, factor / denomMonths),
-    }));
-
-    const vUn = salesByUnit().filter(r => keep(r.code)).map(r => ({ ...r, unites: scaleNum(r.unites, factor) }));
-    const vCa = salesByRevenue().filter(r => keep(r.code)).map(r => ({ ...r, ca: scaleNum(r.ca, factor) }));
-
-    const shape = (rows: ReturnType<typeof evolutionByRevenue>) => rows.map(row => {
-      const out: Record<string, number | string> = { mois: row.mois };
-      let total = 0;
-      for (const c of COUNTRIES) {
-        if (!keep(c.code)) continue;
-        const v = scaleNum(Number(row[c.code] ?? 0), factor);
-        out[c.code] = v; total += v;
-      }
-      out.total = total;
-      return out;
-    });
-
-    const evCa = shape(evolutionByRevenue());
-    const evUn = shape(evolutionByUnits());
-
-    const stocks = stockSituation().filter(r => keep(r.code)).map(r => ({
-      ...r,
-      stock: scaleNum(r.stock, factor), enCours: scaleNum(r.enCours, factor),
-      total: scaleNum(r.total, factor), seuil: scaleNum(r.seuil, factor),
-    }));
-
-    const products = getPanoramicProducts().map(p => ({
-      ...p,
-      ventes: scaleNum(p.ventes, factor), budgetMois: scaleNum(p.budgetMois, factor),
-      ventesAn1: scaleNum(p.ventesAn1, factor), ca: scaleNum(p.ca, factor),
-      budgetMoisCa: scaleNum(p.budgetMoisCa, factor),
-      cumulBudget: scaleNum(p.cumulBudget, factor), cumulRealise: scaleNum(p.cumulRealise, factor),
-    }));
-
-    const visibleCountries = COUNTRIES.filter(c => keep(c.code));
-    return { objPays, objAnf, vUn, vCa, evCa, evUn, stocks, products, visibleCountries, agency };
+    const agencyFactor = scope === "agency" && agency ? agencyShare(agency, agencies) : 1;
+    const visibleCountries = COUNTRIES.filter(c => !codeFilter || c.code === codeFilter);
+    const products = getPanoramicProducts();
+    const selectedCountry = codeFilter || null;
+    return { agencies, agency, agencyFactor, codeFilter, visibleCountries, products, selectedCountry };
   }, [scope, countryCode, agencyId]);
 }
 
-/* ---------- Report card wrapper ---------- */
+type Data = ReturnType<typeof useScopedReportData>;
+
+/* ---------- Card wrapper (Stock fournisseur design) ---------- */
 export function ReportCard({ title, subtitle, rows, filename, children }: {
   title: string; subtitle: string; rows: Record<string, unknown>[]; filename: string; children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div>
-          <h3 className="font-display text-xl">{title}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+          <h3 className="font-display text-lg leading-tight">{title}</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { exportCSV(filename, rows); toast.success("CSV téléchargé"); }}>
@@ -161,260 +121,424 @@ export function ReportCard({ title, subtitle, rows, filename, children }: {
           </Button>
         </div>
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="overflow-x-auto">{children}</div>
     </section>
   );
 }
 
-function DataTable({ headers, rows }: { headers: string[]; rows: (string | number)[][] }) {
+function Table({ children, minWidth = 900 }: { children: React.ReactNode; minWidth?: number }) {
+  return <table className="w-full text-[12px]" style={{ minWidth }}>{children}</table>;
+}
+const TH = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
+  <th className={`px-3 py-2 font-medium text-[10px] uppercase tracking-wider text-muted-foreground ${right ? "text-right" : "text-left"}`}>{children}</th>
+);
+const TD = ({ children, right, mute }: { children: React.ReactNode; right?: boolean; mute?: boolean }) => (
+  <td className={`px-3 py-2.5 tabular-nums ${right ? "text-right" : ""} ${mute ? "text-muted-foreground" : ""}`}>{children}</td>
+);
+
+/* ===================================================================== */
+/* RAPPORT 1 — Suivi objectifs ventes mensuelles par pays                */
+/* ===================================================================== */
+function buildR1(d: Data) {
+  const r = prodRand("r1" + d.codeFilter + d.agencyFactor);
+  const rows = d.visibleCountries.map(c => {
+    const products = d.products;
+    const factor = d.agencyFactor / Math.max(d.visibleCountries.length || 1, 1);
+    const ventes = Math.round(products.reduce((s, p) => s + p.ventes, 0) * factor * (0.85 + r() * 0.3));
+    const budgetMois = Math.round(products.reduce((s, p) => s + p.budgetMois, 0) * factor * (0.9 + r() * 0.2));
+    const ventesAn1 = Math.round(ventes * (0.7 + r() * 0.45));
+    const pght = +(products.reduce((s, p) => s + p.pghtPays, 0) / Math.max(products.length, 1)).toFixed(2);
+    const ca = +(ventes * pght).toFixed(2);
+    const budgetMoisCa = +(budgetMois * pght).toFixed(2);
+    const cumulBudget = budgetMois * 9;
+    const cumulRealise = Math.round(cumulBudget * (0.6 + r() * 0.4));
+    return {
+      pays: c.name, code: c.code, pght, ventes, budgetMois,
+      tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
+      ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
+      ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
+      cumulBudget, cumulRealise, txRealDate: +((cumulRealise / Math.max(cumulBudget, 1)) * 100).toFixed(1),
+      poids: 0,
+    };
+  });
+  const totalCa = rows.reduce((s, r) => s + r.ca, 0) || 1;
+  rows.forEach(r => { r.poids = +((r.ca / totalCa) * 100).toFixed(2); });
+  return rows;
+}
+
+export function ReportObjectifsPays({ data, suffix }: { data: Data; suffix: string }) {
+  const rows = useMemo(() => buildR1(data), [data]);
+  const exportRows = rows.map(r => ({
+    PAYS: r.pays, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
+    "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
+    "Chiffres d'affaire (CA)": r.ca, "Budget Mois CA": r.budgetMoisCa, "Tx Real Budget CA (%)": r.txRealBudgetCa,
+    "Cumul Budget": r.cumulBudget, "Cumul Réalisé": r.cumulRealise,
+    "Tx de réalisation à date (%)": r.txRealDate, "Poids (%)": r.poids,
+  }));
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface/40">
-      <table className="w-full text-xs">
-        <thead className="bg-surface">
-          <tr>{headers.map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground uppercase tracking-wider text-[10px]">{h}</th>)}</tr>
-        </thead>
+    <ReportCard title="Rapport 1 · Objectifs ventes par pays" subtitle="Suivi mensuel par pays — performance, CA, cumul, poids"
+      rows={exportRows} filename={`r1-objectifs-pays-${suffix}`}>
+      <Table minWidth={1400}>
+        <thead className="bg-surface"><tr>
+          <TH>Pays</TH><TH right>PGHT pays</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
+          <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
+          <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
+          <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. à date %</TH><TH right>Poids %</TH>
+        </tr></thead>
         <tbody>
-          {rows.length === 0 ? (
-            <tr><td className="px-3 py-4 text-center text-muted-foreground" colSpan={headers.length}>Aucune donnée</td></tr>
-          ) : rows.map((r, i) => (
-            <tr key={i} className="border-t border-border/60">
-              {r.map((c, j) => <td key={j} className={`px-3 py-2 tabular-nums ${j === 0 ? "font-medium" : "text-muted-foreground"}`}>{c}</td>)}
+          {rows.map(r => (
+            <tr key={r.code} className="border-t border-border/60">
+              <TD>{r.pays}</TD>
+              <TD right mute>{r.pght}</TD><TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
+              <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
+              <TD right mute>{fmt(r.ventesAn1)}</TD>
+              <TD right><span className={r.tauxEvol >= 0 ? "text-primary" : "text-destructive"}>{pct(r.tauxEvol)}</span></TD>
+              <TD right>{eur(r.ca)}</TD><TD right mute>{eur(r.budgetMoisCa)}</TD>
+              <TD right>{pct(r.txRealBudgetCa)}</TD>
+              <TD right mute>{fmt(r.cumulBudget)}</TD><TD right>{fmt(r.cumulRealise)}</TD>
+              <TD right>{pct(r.txRealDate)}</TD><TD right>{r.poids}%</TD>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
-  );
-}
-
-type Data = ReturnType<typeof useScopedReportData>;
-
-export function ReportObjectifsPays({ data, suffix }: { data: Data["objPays"]; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 1 · Suivi objectifs ventes mensuelles par pays" subtitle="Objectif vs réalisé"
-      rows={data} filename={`r1-objectifs-pays-${suffix}`}>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-72">
-          <ResponsiveContainer>
-            <BarChart data={data} margin={{ left: -10, right: 8, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="code" fontSize={11} stroke="var(--color-muted-foreground)" />
-              <YAxis fontSize={11} stroke="var(--color-muted-foreground)" />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="objectif" name="Objectif" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="realise" name="Réalisé" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <DataTable headers={["Pays", "Objectif", "Réalisé", "Taux %"]} rows={data.map(d => [d.pays, fmt(d.objectif), fmt(d.realise), `${d.taux}%`])} />
-      </div>
+      </Table>
     </ReportCard>
   );
 }
 
-export function ReportObjectifsANF({ data, suffix }: { data: Data["objAnf"]; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 2 · Suivi objectifs ventes mensuelles ANF" subtitle="Performance globale · 12 mois"
-      rows={data} filename={`r2-objectifs-anf-${suffix}`}>
-      <div className="h-72">
-        <ResponsiveContainer>
-          <AreaChart data={data} margin={{ left: -10, right: 8, top: 8 }}>
-            <defs><linearGradient id="anf-g" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} /><stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-            </linearGradient></defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis dataKey="mois" fontSize={11} stroke="var(--color-muted-foreground)" />
-            <YAxis fontSize={11} stroke="var(--color-muted-foreground)" />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="objectif" name="Objectif" stroke="#94a3b8" strokeDasharray="4 4" fill="transparent" />
-            <Area type="monotone" dataKey="realise" name="Réalisé" stroke="#10b981" fill="url(#anf-g)" strokeWidth={2.5} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </ReportCard>
-  );
+/* ===================================================================== */
+/* RAPPORT 2 — Objectifs ventes mensuelles ANF (par produit)             */
+/* ===================================================================== */
+function buildR2(d: Data) {
+  const factor = d.agencyFactor * (d.codeFilter ? 1 / Math.max(COUNTRIES.length, 1) : 1);
+  return d.products.slice(0, 60).map(p => {
+    const ventes = Math.round(p.ventes * factor);
+    const budgetMois = Math.round(p.budgetMois * factor);
+    const ventesAn1 = Math.round(p.ventesAn1 * factor);
+    const ca = +(p.ca * factor).toFixed(2);
+    const budgetMoisCa = +(p.budgetMoisCa * factor).toFixed(2);
+    const cumulBudget = Math.round(p.cumulBudget * factor);
+    const cumulRealise = Math.round(p.cumulRealise * factor);
+    return {
+      id: p.id, produit: p.name, pght: p.pghtPays, ventes, budgetMois,
+      tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
+      ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
+      ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
+      cumulBudget, cumulRealise, txRealPrev: +((cumulRealise / Math.max(cumulBudget, 1)) * 100).toFixed(1),
+      poids: p.poids,
+    };
+  });
 }
 
-export function ReportVentesUnits({ data, suffix }: { data: Data["vUn"]; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 3 · Suivi ventes tous pays par unités" subtitle="Volume d'unités vendues"
-      rows={data} filename={`r3-ventes-unites-${suffix}`}>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-72">
-          <ResponsiveContainer>
-            <BarChart data={data} layout="vertical" margin={{ left: 60, right: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-              <XAxis type="number" fontSize={11} stroke="var(--color-muted-foreground)" />
-              <YAxis dataKey="pays" type="category" fontSize={11} stroke="var(--color-muted-foreground)" width={100} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="unites" name="Unités" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <DataTable headers={["Pays", "Unités"]} rows={data.map(d => [d.pays, fmt(d.unites)])} />
-      </div>
-    </ReportCard>
-  );
-}
-
-export function ReportVentesCA({ data, suffix }: { data: Data["vCa"]; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 3 bis · Suivi ventes tous pays par CA" subtitle="CA généré"
-      rows={data} filename={`r3bis-ventes-ca-${suffix}`}>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="h-72">
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie data={data} dataKey="ca" nameKey="pays" outerRadius={100} label={(e: { code: string }) => e.code}>
-                {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <DataTable headers={["Pays", "CA"]} rows={data.map(d => [d.pays, `€${fmt(d.ca)}`])} />
-      </div>
-    </ReportCard>
-  );
-}
-
-export function ReportEvolutionCA({ data, countries, suffix }: { data: Data["evCa"]; countries: typeof COUNTRIES; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 4 · Évolution ventes mois par mois — CA" subtitle="CA cumulé sur 12 mois"
-      rows={data as Record<string, unknown>[]} filename={`r4-evolution-ca-${suffix}`}>
-      <div className="h-80">
-        <ResponsiveContainer>
-          <LineChart data={data} margin={{ left: -10, right: 8, top: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis dataKey="mois" fontSize={11} stroke="var(--color-muted-foreground)" />
-            <YAxis fontSize={11} stroke="var(--color-muted-foreground)" />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            {countries.map((c, i) => (
-              <Line key={c.code} type="monotone" dataKey={c.code} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </ReportCard>
-  );
-}
-
-export function ReportEvolutionUN({ data, countries, suffix }: { data: Data["evUn"]; countries: typeof COUNTRIES; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 4 bis · Évolution ventes mois par mois — Unités" subtitle="Volumes sur 12 mois"
-      rows={data as Record<string, unknown>[]} filename={`r4bis-evolution-unites-${suffix}`}>
-      <div className="h-80">
-        <ResponsiveContainer>
-          <AreaChart data={data} margin={{ left: -10, right: 8, top: 8 }} stackOffset="expand">
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis dataKey="mois" fontSize={11} stroke="var(--color-muted-foreground)" />
-            <YAxis fontSize={11} stroke="var(--color-muted-foreground)" tickFormatter={v => `${Math.round(v * 100)}%`} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            {countries.map((c, i) => (
-              <Area key={c.code} type="monotone" dataKey={c.code} stackId="1" stroke={PALETTE[i % PALETTE.length]} fill={PALETTE[i % PALETTE.length]} />
-            ))}
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </ReportCard>
-  );
-}
-
-export function ReportStocks({ data, suffix }: { data: Data["stocks"]; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 5 · Situation stocks locaux pays" subtitle="Stocks disponibles vs seuil"
-      rows={data} filename={`r5-stocks-${suffix}`}>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-72">
-          <ResponsiveContainer>
-            <BarChart data={data} margin={{ left: -10, right: 8, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="code" fontSize={11} stroke="var(--color-muted-foreground)" />
-              <YAxis fontSize={11} stroke="var(--color-muted-foreground)" />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="stock" name="Stock" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="seuil" name="Seuil" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <DataTable headers={["Pays", "Stock", "Seuil", "Couv."]} rows={data.map(d => [d.pays, fmt(d.stock), fmt(d.seuil), `${d.couverture}j`])} />
-      </div>
-    </ReportCard>
-  );
-}
-
-export function ReportStocksEnCours({ data, suffix }: { data: Data["stocks"]; suffix: string }) {
-  return (
-    <ReportCard title="Rapport 5 bis · Stocks locaux pays + commandes en cours" subtitle="Stocks disponibles + produits en commande"
-      rows={data} filename={`r5bis-stocks-en-cours-${suffix}`}>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-72">
-          <ResponsiveContainer>
-            <BarChart data={data} margin={{ left: -10, right: 8, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="code" fontSize={11} stroke="var(--color-muted-foreground)" />
-              <YAxis fontSize={11} stroke="var(--color-muted-foreground)" />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="stock" stackId="a" name="Stock disponible" fill="#10b981" />
-              <Bar dataKey="enCours" stackId="a" name="En cours" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <DataTable headers={["Pays", "Stock", "En cours", "Total"]} rows={data.map(d => [d.pays, fmt(d.stock), fmt(d.enCours), fmt(d.total)])} />
-      </div>
-    </ReportCard>
-  );
-}
-
-export function ReportVuePanoramique({ data, suffix }: { data: Data["products"]; suffix: string }) {
-  const rows = data.slice(0, 50).map(p => ({
-    Produit: p.name, Laboratoire: p.laboratory, Type: p.type,
-    "PGHT Pays": p.pghtPays, Ventes: p.ventes, "Budget mois (UN)": p.budgetMois, "Taux réal. %": p.tauxReal,
-    "Ventes N-1": p.ventesAn1, "Évol. %": p.tauxEvol, "CA": p.ca, "Budget CA": p.budgetMoisCa,
-    "Tx réal. budget CA": p.txRealBudgetCa, "Cumul budget": p.cumulBudget, "Cumul réalisé": p.cumulRealise,
-    "Tx réal. prév.": p.txRealPrev, "Poids %": p.poids,
+export function ReportObjectifsANF({ data, suffix }: { data: Data; suffix: string }) {
+  const rows = useMemo(() => buildR2(data), [data]);
+  const exportRows = rows.map(r => ({
+    Produit: r.produit, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
+    "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
+    "Chiffres d'affaire (CA)": r.ca, "Budget Mois CA": r.budgetMoisCa, "Tx Real Budget CA (%)": r.txRealBudgetCa,
+    "Cumul Budget": r.cumulBudget, "Cumul Réalisé": r.cumulRealise,
+    "Tx de réalisation prév. (%)": r.txRealPrev, "Poids (%)": r.poids,
   }));
   return (
-    <ReportCard title="Rapport 6 · Vue panoramique produit" subtitle="Indicateurs complets par produit (top 50)"
-      rows={rows} filename={`r6-vue-panoramique-${suffix}`}>
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface/40">
-        <table className="w-full min-w-[1200px] text-xs">
-          <thead className="bg-surface">
-            <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {["Produit", "Labo", "Type", "PGHT", "Ventes", "Budget UN", "Tx réal.", "Ventes N-1", "Évol.", "CA", "Budget CA", "Cumul bud.", "Cumul réal.", "Poids"].map(h => (
-                <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
-              ))}
+    <ReportCard title="Rapport 2 · Objectifs ventes ANF (tous pays)" subtitle="Suivi par produit — tous pays confondus"
+      rows={exportRows} filename={`r2-objectifs-anf-${suffix}`}>
+      <Table minWidth={1500}>
+        <thead className="bg-surface"><tr>
+          <TH>Produit</TH><TH right>PGHT pays</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
+          <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
+          <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
+          <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. prév. %</TH><TH right>Poids %</TH>
+        </tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id} className="border-t border-border/60">
+              <TD>{r.produit}</TD>
+              <TD right mute>{r.pght}</TD><TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
+              <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
+              <TD right mute>{fmt(r.ventesAn1)}</TD>
+              <TD right><span className={r.tauxEvol >= 0 ? "text-primary" : "text-destructive"}>{pct(r.tauxEvol)}</span></TD>
+              <TD right>{eur(r.ca)}</TD><TD right mute>{eur(r.budgetMoisCa)}</TD>
+              <TD right>{pct(r.txRealBudgetCa)}</TD>
+              <TD right mute>{fmt(r.cumulBudget)}</TD><TD right>{fmt(r.cumulRealise)}</TD>
+              <TD right>{pct(r.txRealPrev)}</TD><TD right>{r.poids}%</TD>
             </tr>
-          </thead>
-          <tbody>
-            {data.slice(0, 50).map(p => (
-              <tr key={p.id} className="border-t border-border/60">
-                <td className="px-3 py-2 font-medium">{p.name}</td>
-                <td className="px-3 py-2 text-muted-foreground">{p.laboratory}</td>
-                <td className="px-3 py-2 text-muted-foreground">{p.type}</td>
-                <td className="px-3 py-2 tabular-nums">{p.pghtPays}</td>
-                <td className="px-3 py-2 tabular-nums">{fmt(p.ventes)}</td>
-                <td className="px-3 py-2 tabular-nums">{fmt(p.budgetMois)}</td>
-                <td className="px-3 py-2 tabular-nums">{p.tauxReal}%</td>
-                <td className="px-3 py-2 tabular-nums">{fmt(p.ventesAn1)}</td>
-                <td className={`px-3 py-2 tabular-nums ${p.tauxEvol >= 0 ? "text-primary" : "text-destructive"}`}>{p.tauxEvol}%</td>
-                <td className="px-3 py-2 tabular-nums">€{fmt(Math.round(p.ca))}</td>
-                <td className="px-3 py-2 tabular-nums">€{fmt(Math.round(p.budgetMoisCa))}</td>
-                <td className="px-3 py-2 tabular-nums">{fmt(p.cumulBudget)}</td>
-                <td className="px-3 py-2 tabular-nums">{fmt(p.cumulRealise)}</td>
-                <td className="px-3 py-2 tabular-nums">{p.poids}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </tbody>
+      </Table>
+    </ReportCard>
+  );
+}
+
+/* ===================================================================== */
+/* RAPPORT 3 / 3bis — Ventes par produit × pays                          */
+/* ===================================================================== */
+function buildR3(d: Data, kind: "un" | "ca") {
+  return d.products.slice(0, 60).map(p => {
+    const row: Record<string, string | number> = { produit: p.name };
+    let total = 0;
+    for (const c of d.visibleCountries) {
+      const r = prodRand(p.id + c.code + kind);
+      const baseUn = (p.ventes / Math.max(COUNTRIES.length, 1)) * d.agencyFactor * (0.6 + r() * 0.9);
+      const v = kind === "un" ? Math.round(baseUn) : +(baseUn * p.pghtPays).toFixed(2);
+      row[c.code] = v;
+      total += v;
+    }
+    row.total = kind === "un" ? Math.round(total) : +total.toFixed(2);
+    return row;
+  });
+}
+
+function ReportPaysGrid({ data, suffix, kind, title, subtitle, file }: {
+  data: Data; suffix: string; kind: "un" | "ca"; title: string; subtitle: string; file: string;
+}) {
+  const rows = useMemo(() => buildR3(data, kind), [data, kind]);
+  const exportRows = rows.map(r => {
+    const o: Record<string, unknown> = { Produit: r.produit };
+    for (const c of data.visibleCountries) o[`${c.name.toUpperCase()} (${kind === "un" ? "UN" : "CA euro"})`] = r[c.code];
+    o["TOTAL ANF"] = r.total;
+    return o;
+  });
+  return (
+    <ReportCard title={title} subtitle={subtitle} rows={exportRows} filename={`${file}-${suffix}`}>
+      <Table minWidth={200 + data.visibleCountries.length * 110}>
+        <thead className="bg-surface"><tr>
+          <TH>Produit</TH>
+          {data.visibleCountries.map(c => <TH key={c.code} right>{c.name} {kind === "un" ? "(UN)" : "(CA €)"}</TH>)}
+          <TH right>TOTAL ANF</TH>
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border/60">
+              <TD>{r.produit}</TD>
+              {data.visibleCountries.map(c => <TD key={c.code} right mute>{kind === "un" ? fmt(Number(r[c.code])) : eur(Number(r[c.code]))}</TD>)}
+              <TD right>{kind === "un" ? fmt(Number(r.total)) : eur(Number(r.total))}</TD>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </ReportCard>
+  );
+}
+
+export function ReportVentesUnits({ data, suffix }: { data: Data; suffix: string }) {
+  return <ReportPaysGrid data={data} suffix={suffix} kind="un"
+    title="Rapport 3 · Ventes par unités (produit × pays)" subtitle="Nombre d'unités vendues par pays sur le mois"
+    file="r3-ventes-un" />;
+}
+export function ReportVentesCA({ data, suffix }: { data: Data; suffix: string }) {
+  return <ReportPaysGrid data={data} suffix={suffix} kind="ca"
+    title="Rapport 3 bis · Ventes par CA (produit × pays)" subtitle="CA en euros par pays sur le mois"
+    file="r3bis-ventes-ca" />;
+}
+
+/* ===================================================================== */
+/* RAPPORT 4 / 4bis — Évolution produit × mois (pour un pays / TOTAL)    */
+/* ===================================================================== */
+function buildR4(d: Data, kind: "un" | "ca") {
+  const targets = d.selectedCountry ? [d.selectedCountry] : COUNTRIES.map(c => c.code);
+  return d.products.slice(0, 60).map(p => {
+    const row: Record<string, string | number> = { produit: p.name };
+    let total = 0;
+    for (let m = 0; m < 12; m++) {
+      let v = 0;
+      for (const cc of targets) {
+        const r = prodRand(p.id + cc + MONTHS[m] + kind);
+        const baseUn = (p.ventes / 12 / Math.max(COUNTRIES.length, 1)) * d.agencyFactor * (0.6 + r() * 0.9);
+        v += kind === "un" ? Math.round(baseUn) : baseUn * p.pghtPays;
+      }
+      row[MONTHS[m]] = kind === "un" ? Math.round(v) : +v.toFixed(2);
+      total += kind === "un" ? Math.round(v) : v;
+    }
+    row.total = kind === "un" ? Math.round(total) : +total.toFixed(2);
+    if (kind === "un") {
+      const rs = prodRand(p.id + "fr");
+      row.stockFrance = Math.round(p.ventes * 0.25 * (0.7 + rs() * 0.6));
+      row.resteFrance = Math.round(p.ventes * 0.12 * (0.7 + rs() * 0.6));
+    }
+    return row;
+  });
+}
+
+export function ReportEvolutionUN({ data, suffix }: { data: Data; suffix: string; countries?: unknown }) {
+  const rows = useMemo(() => buildR4(data, "un"), [data]);
+  const paysLabel = data.selectedCountry || "TOTAL ANF";
+  const exportRows = rows.map(r => {
+    const o: Record<string, unknown> = { [`Produit (${paysLabel})`]: r.produit };
+    for (const m of MONTHS) o[`${m.toLowerCase()} (UN)`] = r[m];
+    o.Total = r.total; o["STOCK France"] = r.stockFrance; o["RESTE À RECEVOIR France"] = r.resteFrance;
+    return o;
+  });
+  return (
+    <ReportCard title="Rapport 4 · Évolution ventes mois par mois — Unités"
+      subtitle={`Produit × mois — ${paysLabel} · inclut stock France & reste à recevoir`}
+      rows={exportRows} filename={`r4-evolution-un-${suffix}`}>
+      <Table minWidth={1600}>
+        <thead className="bg-surface"><tr>
+          <TH>Produit ({paysLabel})</TH>
+          {MONTHS.map(m => <TH key={m} right>{m}</TH>)}
+          <TH right>Total</TH><TH right>Stock FR</TH><TH right>Reste FR</TH>
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border/60">
+              <TD>{r.produit}</TD>
+              {MONTHS.map(m => <TD key={m} right mute>{fmt(Number(r[m]))}</TD>)}
+              <TD right>{fmt(Number(r.total))}</TD>
+              <TD right mute>{fmt(Number(r.stockFrance))}</TD>
+              <TD right mute>{fmt(Number(r.resteFrance))}</TD>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </ReportCard>
+  );
+}
+
+export function ReportEvolutionCA({ data, suffix }: { data: Data; suffix: string; countries?: unknown }) {
+  const rows = useMemo(() => buildR4(data, "ca"), [data]);
+  const paysLabel = data.selectedCountry || "TOTAL ANF";
+  const exportRows = rows.map(r => {
+    const o: Record<string, unknown> = { [`Produit (${paysLabel})`]: r.produit };
+    for (const m of MONTHS) o[`${m.toLowerCase()} (CA euro)`] = r[m];
+    o.Total = r.total;
+    return o;
+  });
+  return (
+    <ReportCard title="Rapport 4 bis · Évolution ventes mois par mois — CA"
+      subtitle={`Produit × mois — ${paysLabel} · CA en euros`}
+      rows={exportRows} filename={`r4bis-evolution-ca-${suffix}`}>
+      <Table minWidth={1500}>
+        <thead className="bg-surface"><tr>
+          <TH>Produit ({paysLabel})</TH>
+          {MONTHS.map(m => <TH key={m} right>{m}</TH>)}
+          <TH right>Total</TH>
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border/60">
+              <TD>{r.produit}</TD>
+              {MONTHS.map(m => <TD key={m} right mute>{eur(Number(r[m]))}</TD>)}
+              <TD right>{eur(Number(r.total))}</TD>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </ReportCard>
+  );
+}
+
+/* ===================================================================== */
+/* RAPPORT 5 / 5bis — Stocks (mois × pays)                                */
+/* ===================================================================== */
+function buildR5(d: Data, kind: "stock" | "encours") {
+  return MONTHS.map(m => {
+    const row: Record<string, string | number> = { mois: m };
+    for (const c of d.visibleCountries) {
+      const r = prodRand(m + c.code + kind);
+      const base = kind === "stock" ? 3000 + r() * 14000 : 200 + r() * 2200;
+      row[c.code] = Math.round(base * d.agencyFactor);
+    }
+    return row;
+  });
+}
+
+function StocksGrid({ data, suffix, kind, title, subtitle, file }: {
+  data: Data; suffix: string; kind: "stock" | "encours"; title: string; subtitle: string; file: string;
+}) {
+  const rows = useMemo(() => buildR5(data, kind), [data, kind]);
+  const exportRows = rows.map(r => {
+    const o: Record<string, unknown> = { Mois: r.mois };
+    for (const c of data.visibleCountries) o[c.name.toUpperCase()] = r[c.code];
+    return o;
+  });
+  return (
+    <ReportCard title={title} subtitle={subtitle} rows={exportRows} filename={`${file}-${suffix}`}>
+      <Table minWidth={200 + data.visibleCountries.length * 110}>
+        <thead className="bg-surface"><tr>
+          <TH>Mois</TH>
+          {data.visibleCountries.map(c => <TH key={c.code} right>{c.name}</TH>)}
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border/60">
+              <TD>{r.mois}</TD>
+              {data.visibleCountries.map(c => <TD key={c.code} right mute>{fmt(Number(r[c.code]))}</TD>)}
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </ReportCard>
+  );
+}
+
+export function ReportStocks({ data, suffix }: { data: Data; suffix: string }) {
+  return <StocksGrid data={data} suffix={suffix} kind="stock"
+    title="Rapport 5 · Situation stocks locaux par pays"
+    subtitle="Stocks disponibles par mois et par pays" file="r5-stocks" />;
+}
+export function ReportStocksEnCours({ data, suffix }: { data: Data; suffix: string }) {
+  return <StocksGrid data={data} suffix={suffix} kind="encours"
+    title="Rapport 5 bis · Stocks en cours de livraison"
+    subtitle="Quantités en cours par mois et par pays" file="r5bis-stocks-encours" />;
+}
+
+/* ===================================================================== */
+/* RAPPORT 6 — Vue panoramique : produit sélectionnable × pays × mois     */
+/* ===================================================================== */
+export function ReportVuePanoramique({ data, suffix }: { data: Data; suffix: string }) {
+  const [productId, setProductId] = useState<string>("");
+  const products = data.products;
+  const selected = products.find(p => p.id === productId) || products[0];
+
+  const rows = useMemo(() => {
+    if (!selected) return [] as Array<Record<string, string | number>>;
+    return data.visibleCountries.map(c => {
+      const row: Record<string, string | number> = { pays: c.name, code: c.code };
+      let total = 0;
+      for (const m of MONTHS) {
+        const r = prodRand(selected.id + c.code + m + "r6");
+        const v = Math.round((selected.ventes / 12 / Math.max(COUNTRIES.length, 1)) * data.agencyFactor * (0.5 + r() * 1.1));
+        row[m] = v; total += v;
+      }
+      row.total = total;
+      return row;
+    });
+  }, [selected, data]);
+
+  const exportRows = rows.map(r => {
+    const o: Record<string, unknown> = { Pays: r.pays };
+    for (const m of MONTHS) o[`${m.toLowerCase()} (UN)`] = r[m];
+    o.Total = r.total;
+    return o;
+  });
+
+  return (
+    <ReportCard
+      title="Rapport 6 · Vue panoramique produit"
+      subtitle={selected ? `Nombre d'unités vendues par mois et par pays — ${selected.name}` : "Aucun produit"}
+      rows={exportRows} filename={`r6-vue-panoramique-${selected?.id ?? "none"}-${suffix}`}>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <label className="text-xs font-medium text-muted-foreground">Produit :</label>
+        <select value={selected?.id ?? ""} onChange={e => setProductId(e.target.value)}
+          className="h-9 min-w-[280px] rounded-lg border border-border bg-surface px-3 text-sm">
+          {products.map((p: ProductPanoramic) => <option key={p.id} value={p.id}>{p.name} — {p.laboratory}</option>)}
+        </select>
       </div>
+      <Table minWidth={1300}>
+        <thead className="bg-surface"><tr>
+          <TH>Pays</TH>
+          {MONTHS.map(m => <TH key={m} right>{m} (UN)</TH>)}
+          <TH right>Total</TH>
+        </tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={String(r.code)} className="border-t border-border/60">
+              <TD>{r.pays}</TD>
+              {MONTHS.map(m => <TD key={m} right mute>{fmt(Number(r[m]))}</TD>)}
+              <TD right>{fmt(Number(r.total))}</TD>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
     </ReportCard>
   );
 }

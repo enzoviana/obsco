@@ -13,6 +13,8 @@ import { Route as StocksRouteImport } from './routes/stocks'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SortiesLocalesRouteImport } from './routes/sorties-locales'
 import { Route as RapportsRouteImport } from './routes/rapports'
+import { Route as ProduitsTarifsRouteImport } from './routes/produits-tarifs'
+import { Route as ProduitsObjectifsRouteImport } from './routes/produits-objectifs'
 import { Route as ProduitsRouteImport } from './routes/produits'
 import { Route as PaysRouteImport } from './routes/pays'
 import { Route as ParametresRouteImport } from './routes/parametres'
@@ -52,6 +54,16 @@ const SortiesLocalesRoute = SortiesLocalesRouteImport.update({
 const RapportsRoute = RapportsRouteImport.update({
   id: '/rapports',
   path: '/rapports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProduitsTarifsRoute = ProduitsTarifsRouteImport.update({
+  id: '/produits-tarifs',
+  path: '/produits-tarifs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProduitsObjectifsRoute = ProduitsObjectifsRouteImport.update({
+  id: '/produits-objectifs',
+  path: '/produits-objectifs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProduitsRoute = ProduitsRouteImport.update({
@@ -173,6 +185,8 @@ export interface FileRoutesByFullPath {
   '/parametres': typeof ParametresRoute
   '/pays': typeof PaysRoute
   '/produits': typeof ProduitsRoute
+  '/produits-objectifs': typeof ProduitsObjectifsRoute
+  '/produits-tarifs': typeof ProduitsTarifsRoute
   '/rapports': typeof RapportsRoute
   '/sorties-locales': typeof SortiesLocalesRouteWithChildren
   '/stats': typeof StatsRoute
@@ -199,6 +213,8 @@ export interface FileRoutesByTo {
   '/parametres': typeof ParametresRoute
   '/pays': typeof PaysRoute
   '/produits': typeof ProduitsRoute
+  '/produits-objectifs': typeof ProduitsObjectifsRoute
+  '/produits-tarifs': typeof ProduitsTarifsRoute
   '/rapports': typeof RapportsRoute
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
@@ -225,6 +241,8 @@ export interface FileRoutesById {
   '/parametres': typeof ParametresRoute
   '/pays': typeof PaysRoute
   '/produits': typeof ProduitsRoute
+  '/produits-objectifs': typeof ProduitsObjectifsRoute
+  '/produits-tarifs': typeof ProduitsTarifsRoute
   '/rapports': typeof RapportsRoute
   '/sorties-locales': typeof SortiesLocalesRouteWithChildren
   '/stats': typeof StatsRoute
@@ -253,6 +271,8 @@ export interface FileRouteTypes {
     | '/parametres'
     | '/pays'
     | '/produits'
+    | '/produits-objectifs'
+    | '/produits-tarifs'
     | '/rapports'
     | '/sorties-locales'
     | '/stats'
@@ -279,6 +299,8 @@ export interface FileRouteTypes {
     | '/parametres'
     | '/pays'
     | '/produits'
+    | '/produits-objectifs'
+    | '/produits-tarifs'
     | '/rapports'
     | '/stats'
     | '/stocks'
@@ -304,6 +326,8 @@ export interface FileRouteTypes {
     | '/parametres'
     | '/pays'
     | '/produits'
+    | '/produits-objectifs'
+    | '/produits-tarifs'
     | '/rapports'
     | '/sorties-locales'
     | '/stats'
@@ -331,6 +355,8 @@ export interface RootRouteChildren {
   ParametresRoute: typeof ParametresRoute
   PaysRoute: typeof PaysRoute
   ProduitsRoute: typeof ProduitsRoute
+  ProduitsObjectifsRoute: typeof ProduitsObjectifsRoute
+  ProduitsTarifsRoute: typeof ProduitsTarifsRoute
   RapportsRoute: typeof RapportsRoute
   SortiesLocalesRoute: typeof SortiesLocalesRouteWithChildren
   StatsRoute: typeof StatsRoute
@@ -365,6 +391,20 @@ declare module '@tanstack/react-router' {
       path: '/rapports'
       fullPath: '/rapports'
       preLoaderRoute: typeof RapportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produits-tarifs': {
+      id: '/produits-tarifs'
+      path: '/produits-tarifs'
+      fullPath: '/produits-tarifs'
+      preLoaderRoute: typeof ProduitsTarifsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produits-objectifs': {
+      id: '/produits-objectifs'
+      path: '/produits-objectifs'
+      fullPath: '/produits-objectifs'
+      preLoaderRoute: typeof ProduitsObjectifsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/produits': {
@@ -551,6 +591,8 @@ const rootRouteChildren: RootRouteChildren = {
   ParametresRoute: ParametresRoute,
   PaysRoute: PaysRoute,
   ProduitsRoute: ProduitsRoute,
+  ProduitsObjectifsRoute: ProduitsObjectifsRoute,
+  ProduitsTarifsRoute: ProduitsTarifsRoute,
   RapportsRoute: RapportsRoute,
   SortiesLocalesRoute: SortiesLocalesRouteWithChildren,
   StatsRoute: StatsRoute,
@@ -559,3 +601,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

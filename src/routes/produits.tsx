@@ -129,7 +129,7 @@ function ProduitsPage() {
                 <th className="px-4 py-3 text-left font-medium">Désignation</th>
                 <th className="px-4 py-3 text-left font-medium">Laboratoire</th>
                 <th className="px-4 py-3 text-left font-medium">Type</th>
-                <th className="px-4 py-3 text-right font-medium">Prix réf.</th>
+                
                 <th className="px-4 py-3 text-right font-medium">Objectif mois</th>
                 <th className="px-4 py-3 text-left font-medium">Statut</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -151,7 +151,7 @@ function ProduitsPage() {
                   </td>
                   <td className="px-4 py-3.5 text-muted-foreground">{p.laboratory}</td>
                   <td className="px-4 py-3.5"><span className="inline-flex rounded-md bg-secondary px-2 py-1 text-xs">{p.type}</span></td>
-                  <td className="px-4 py-3.5 text-right tabular-nums font-medium">€{p.pghtPays.toFixed(2)}</td>
+                  
                   <td className="px-4 py-3.5 text-right tabular-nums text-muted-foreground">{p.budgetMois.toLocaleString("fr-FR")}</td>
                   <td className="px-4 py-3.5"><StatusBadge status={p.productStatus} /></td>
                   <td className="px-4 py-3.5">
@@ -168,7 +168,7 @@ function ProduitsPage() {
                 </tr>
               ))}
               {list.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground text-sm">Aucun produit trouvé.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground text-sm">Aucun produit trouvé.</td></tr>
               )}
             </tbody>
           </table>
