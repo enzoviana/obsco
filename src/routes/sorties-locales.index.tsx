@@ -269,6 +269,9 @@ function SortiesIndex() {
                       {sv.name}
                     </th>
                   ))}
+                  <th colSpan={3} className="px-2 py-2 text-center font-semibold text-foreground bg-surface border-l-2 border-border">
+                    Total
+                  </th>
                 </tr>
                 <tr className="bg-surface text-[10px] uppercase tracking-wider text-muted-foreground">
                   {supplierView.map((sv) => (
@@ -278,47 +281,84 @@ function SortiesIndex() {
                       <th className="px-1.5 py-1.5 text-right font-medium border-r border-border">Cmd</th>
                     </Fragment>
                   ))}
+                  <th className="px-1.5 py-1.5 text-right font-medium border-l-2 border-border">Ventes</th>
+                  <th className="px-1.5 py-1.5 text-right font-medium">Stocks</th>
+                  <th className="px-1.5 py-1.5 text-right font-medium">Cmd</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.slice(0, 100).map((p) => (
-                  <tr key={p.id} className="border-t border-border/60 hover:bg-surface/40">
-                    <td className="px-3 py-2.5 border-r border-border/60">
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{p.cip}</div>
-                    </td>
-                    {supplierView.map((sv) => {
-                      const f = p.fournisseurs[sv.name];
-                      if (!f)
+                {filtered.slice(0, 100).map((p) => {
+                  let rv = 0, rs = 0, rc = 0;
+                  return (
+                    <tr key={p.id} className="border-t border-border/60 hover:bg-surface/40">
+                      <td className="px-3 py-2.5 border-r border-border/60">
+                        <div className="font-medium">{p.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono">{p.cip}</div>
+                      </td>
+                      {supplierView.map((sv) => {
+                        const f = p.fournisseurs[sv.name];
+                        if (!f)
+                          return (
+                            <Fragment key={sv.name}>
+                              <td className="px-1.5 py-2.5 text-right text-muted-foreground">—</td>
+                              <td className="px-1.5 py-2.5 text-right text-muted-foreground">—</td>
+                              <td className="px-1.5 py-2.5 text-right text-muted-foreground border-r border-border/60">
+                                —
+                              </td>
+                            </Fragment>
+                          );
+                        const ventes = scale(f.ventes, sv.factor);
+                        const stocks = scale(f.stocks, sv.factor);
+                        const commandes = scale(f.commandes, sv.factor);
+                        rv += ventes; rs += stocks; rc += commandes;
                         return (
                           <Fragment key={sv.name}>
-                            <td className="px-1.5 py-2.5 text-right text-muted-foreground">—</td>
-                            <td className="px-1.5 py-2.5 text-right text-muted-foreground">—</td>
-                            <td className="px-1.5 py-2.5 text-right text-muted-foreground border-r border-border/60">
-                              —
+                            <td className="px-1.5 py-2.5 text-right tabular-nums">{ventes}</td>
+                            <td
+                              className={`px-1.5 py-2.5 text-right tabular-nums ${stocks < 50 ? "text-warning font-medium" : ""}`}
+                            >
+                              {stocks}
+                            </td>
+                            <td className="px-1.5 py-2.5 text-right tabular-nums text-muted-foreground border-r border-border/60">
+                              {commandes}
                             </td>
                           </Fragment>
                         );
-                      const ventes = scale(f.ventes, sv.factor);
-                      const stocks = scale(f.stocks, sv.factor);
-                      const commandes = scale(f.commandes, sv.factor);
-                      return (
-                        <Fragment key={sv.name}>
-                          <td className="px-1.5 py-2.5 text-right tabular-nums">{ventes}</td>
-                          <td
-                            className={`px-1.5 py-2.5 text-right tabular-nums ${stocks < 50 ? "text-warning font-medium" : ""}`}
-                          >
-                            {stocks}
-                          </td>
-                          <td className="px-1.5 py-2.5 text-right tabular-nums text-muted-foreground border-r border-border/60">
-                            {commandes}
-                          </td>
-                        </Fragment>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      })}
+                      <td className="px-1.5 py-2.5 text-right tabular-nums font-semibold border-l-2 border-border bg-surface/40">{rv.toLocaleString("fr-FR")}</td>
+                      <td className="px-1.5 py-2.5 text-right tabular-nums font-semibold bg-surface/40">{rs.toLocaleString("fr-FR")}</td>
+                      <td className="px-1.5 py-2.5 text-right tabular-nums font-semibold bg-surface/40">{rc.toLocaleString("fr-FR")}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-surface text-[11px] font-semibold">
+                  <td className="px-3 py-2.5 border-r border-border uppercase tracking-wider text-muted-foreground">Total</td>
+                  {supplierView.map((sv) => {
+                    const t = totals[sv.name];
+                    return (
+                      <Fragment key={sv.name}>
+                        <td className="px-1.5 py-2.5 text-right tabular-nums">{t.ventes.toLocaleString("fr-FR")}</td>
+                        <td className="px-1.5 py-2.5 text-right tabular-nums">{t.stocks.toLocaleString("fr-FR")}</td>
+                        <td className="px-1.5 py-2.5 text-right tabular-nums border-r border-border">{t.commandes.toLocaleString("fr-FR")}</td>
+                      </Fragment>
+                    );
+                  })}
+                  {(() => {
+                    const tv = supplierView.reduce((s, sv) => s + totals[sv.name].ventes, 0);
+                    const ts = supplierView.reduce((s, sv) => s + totals[sv.name].stocks, 0);
+                    const tc = supplierView.reduce((s, sv) => s + totals[sv.name].commandes, 0);
+                    return (
+                      <>
+                        <td className="px-1.5 py-2.5 text-right tabular-nums border-l-2 border-border bg-primary/10">{tv.toLocaleString("fr-FR")}</td>
+                        <td className="px-1.5 py-2.5 text-right tabular-nums bg-primary/10">{ts.toLocaleString("fr-FR")}</td>
+                        <td className="px-1.5 py-2.5 text-right tabular-nums bg-primary/10">{tc.toLocaleString("fr-FR")}</td>
+                      </>
+                    );
+                  })()}
+                </tr>
+              </tfoot>
             </table>
           </div>
           {filtered.length > 100 && (

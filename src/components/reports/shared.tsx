@@ -137,23 +137,20 @@ const TD = ({ children, right, mute }: { children: React.ReactNode; right?: bool
 );
 
 /* ===================================================================== */
-/* RAPPORT 1 — Suivi objectifs ventes mensuelles par pays                */
+/* RAPPORT 1 — Suivi objectifs ventes mensuelles par produit             */
 /* ===================================================================== */
 function buildR1(d: Data) {
-  const r = prodRand("r1" + d.codeFilter + d.agencyFactor);
-  const rows = d.visibleCountries.map(c => {
-    const products = d.products;
-    const factor = d.agencyFactor / Math.max(d.visibleCountries.length || 1, 1);
-    const ventes = Math.round(products.reduce((s, p) => s + p.ventes, 0) * factor * (0.85 + r() * 0.3));
-    const budgetMois = Math.round(products.reduce((s, p) => s + p.budgetMois, 0) * factor * (0.9 + r() * 0.2));
-    const ventesAn1 = Math.round(ventes * (0.7 + r() * 0.45));
-    const pght = +(products.reduce((s, p) => s + p.pghtPays, 0) / Math.max(products.length, 1)).toFixed(2);
-    const ca = +(ventes * pght).toFixed(2);
-    const budgetMoisCa = +(budgetMois * pght).toFixed(2);
-    const cumulBudget = budgetMois * 9;
-    const cumulRealise = Math.round(cumulBudget * (0.6 + r() * 0.4));
+  const factor = d.agencyFactor * (d.codeFilter ? 1 / Math.max(COUNTRIES.length, 1) : 1);
+  const rows = d.products.slice(0, 60).map(p => {
+    const ventes = Math.round(p.ventes * factor);
+    const budgetMois = Math.round(p.budgetMois * factor);
+    const ventesAn1 = Math.round(p.ventesAn1 * factor);
+    const ca = +(p.ca * factor).toFixed(2);
+    const budgetMoisCa = +(p.budgetMoisCa * factor).toFixed(2);
+    const cumulBudget = Math.round(p.cumulBudget * factor);
+    const cumulRealise = Math.round(p.cumulRealise * factor);
     return {
-      pays: c.name, code: c.code, pght, ventes, budgetMois,
+      id: p.id, produit: p.name, pght: p.pghtPays, ventes, budgetMois,
       tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
       ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
       ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
@@ -168,27 +165,36 @@ function buildR1(d: Data) {
 
 export function ReportObjectifsPays({ data, suffix }: { data: Data; suffix: string }) {
   const rows = useMemo(() => buildR1(data), [data]);
+  const tot = useMemo(() => ({
+    ventes: rows.reduce((s, r) => s + r.ventes, 0),
+    budgetMois: rows.reduce((s, r) => s + r.budgetMois, 0),
+    ventesAn1: rows.reduce((s, r) => s + r.ventesAn1, 0),
+    ca: rows.reduce((s, r) => s + r.ca, 0),
+    budgetMoisCa: rows.reduce((s, r) => s + r.budgetMoisCa, 0),
+    cumulBudget: rows.reduce((s, r) => s + r.cumulBudget, 0),
+    cumulRealise: rows.reduce((s, r) => s + r.cumulRealise, 0),
+  }), [rows]);
   const exportRows = rows.map(r => ({
-    PAYS: r.pays, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
+    Produit: r.produit, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
     "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
     "Chiffres d'affaire (CA)": r.ca, "Budget Mois CA": r.budgetMoisCa, "Tx Real Budget CA (%)": r.txRealBudgetCa,
     "Cumul Budget": r.cumulBudget, "Cumul Réalisé": r.cumulRealise,
     "Tx de réalisation à date (%)": r.txRealDate, "Poids (%)": r.poids,
   }));
   return (
-    <ReportCard title="Rapport 1 · Objectifs ventes par pays" subtitle="Suivi mensuel par pays — performance, CA, cumul, poids"
+    <ReportCard title="Rapport 1 · Objectifs ventes par produit" subtitle="Suivi mensuel par produit — performance, CA, cumul, poids"
       rows={exportRows} filename={`r1-objectifs-pays-${suffix}`}>
       <Table minWidth={1400}>
         <thead className="bg-surface"><tr>
-          <TH>Pays</TH><TH right>PGHT pays</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
+          <TH>Produit</TH><TH right>PGHT pays</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
           <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
           <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
           <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. à date %</TH><TH right>Poids %</TH>
         </tr></thead>
         <tbody>
           {rows.map(r => (
-            <tr key={r.code} className="border-t border-border/60">
-              <TD>{r.pays}</TD>
+            <tr key={r.id} className="border-t border-border/60">
+              <TD>{r.produit}</TD>
               <TD right mute>{r.pght}</TD><TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
               <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
               <TD right mute>{fmt(r.ventesAn1)}</TD>
@@ -200,6 +206,20 @@ export function ReportObjectifsPays({ data, suffix }: { data: Data; suffix: stri
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-border bg-surface text-[11px] font-semibold uppercase tracking-wider">
+            <TD>Total</TD>
+            <TD right mute>—</TD><TD right>{fmt(tot.ventes)}</TD><TD right>{fmt(tot.budgetMois)}</TD>
+            <TD right>{pct((tot.ventes / Math.max(tot.budgetMois, 1)) * 100)}</TD>
+            <TD right>{fmt(tot.ventesAn1)}</TD>
+            <TD right>{pct(((tot.ventes - tot.ventesAn1) / Math.max(tot.ventesAn1, 1)) * 100)}</TD>
+            <TD right>{eur(tot.ca)}</TD><TD right>{eur(tot.budgetMoisCa)}</TD>
+            <TD right>{pct((tot.ca / Math.max(tot.budgetMoisCa, 1)) * 100)}</TD>
+            <TD right>{fmt(tot.cumulBudget)}</TD><TD right>{fmt(tot.cumulRealise)}</TD>
+            <TD right>{pct((tot.cumulRealise / Math.max(tot.cumulBudget, 1)) * 100)}</TD>
+            <TD right>100%</TD>
+          </tr>
+        </tfoot>
       </Table>
     </ReportCard>
   );
