@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // On indique explicitement à Nitro de compiler pour Vercel
+  nitro: {
+    preset: "vercel"
+  }
 });
