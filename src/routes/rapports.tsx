@@ -166,14 +166,14 @@ function RapportsPage() {
       </section>
 
       <div className="grid grid-cols-1 gap-6">
-        <ReportObjectifsPays data={data.objPays} suffix={fileSuffix} />
-        <ReportObjectifsANF data={data.objAnf} suffix={fileSuffix} />
-        <ReportVentesUnits data={data.vUn} suffix={fileSuffix} />
-        <ReportVentesCA data={data.vCa} suffix={fileSuffix} />
-        <ReportEvolutionCA data={data.evCa} countries={data.visibleCountries} suffix={fileSuffix} />
-        <ReportEvolutionUN data={data.evUn} countries={data.visibleCountries} suffix={fileSuffix} />
-        <ReportStocks data={data.stocks} suffix={fileSuffix} />
-        <ReportStocksEnCours data={data.stocks} suffix={fileSuffix} />
+        <div id="r1" className="scroll-mt-24"><ReportObjectifsPays data={data.objPays} suffix={fileSuffix} /></div>
+        <div id="r2" className="scroll-mt-24"><ReportObjectifsANF data={data.objAnf} suffix={fileSuffix} /></div>
+        <div id="r3" className="scroll-mt-24"><ReportVentesUnits data={data.vUn} suffix={fileSuffix} /></div>
+        <div id="r4" className="scroll-mt-24"><ReportVentesCA data={data.vCa} suffix={fileSuffix} /></div>
+        <div id="r5" className="scroll-mt-24"><ReportEvolutionCA data={data.evCa} countries={data.visibleCountries} suffix={fileSuffix} /></div>
+        <div id="r6" className="scroll-mt-24"><ReportEvolutionUN data={data.evUn} countries={data.visibleCountries} suffix={fileSuffix} /></div>
+        <div id="r7" className="scroll-mt-24"><ReportStocks data={data.stocks} suffix={fileSuffix} /></div>
+        <div id="r8" className="scroll-mt-24"><ReportStocksEnCours data={data.stocks} suffix={fileSuffix} /></div>
       </div>
     </AppShell>
   );

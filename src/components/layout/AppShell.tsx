@@ -1,8 +1,8 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
-  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, Search, LogOut, Pill, ChevronDown,
-  FileBarChart2, Truck, Boxes, Upload, FlaskConical, Store,
+  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, Search, LogOut, Pill, ChevronDown, ChevronRight,
+  FileBarChart2, Truck, Boxes, Upload, FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen,
 } from "lucide-react";
 import { logout, setRole, useUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -10,28 +10,67 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
-type NavItem = {
+type LeafItem = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
-  adminOnly?: boolean;
-  agencyOnly?: boolean;
 };
 
-const NAV: NavItem[] = [
+type GroupItem = {
+  group: string;
+  icon: typeof LayoutDashboard;
+  adminOnly?: boolean;
+  children: LeafItem[];
+};
+
+type NavEntry = (LeafItem & { adminOnly?: boolean; agencyOnly?: boolean }) | GroupItem;
+
+const NAV: NavEntry[] = [
   { to: "/", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
-  { to: "/produits", label: "Produits", icon: Boxes },
-  { to: "/stocks", label: "Stocks", icon: Package },
-  { to: "/fournisseurs", label: "Stocks fournisseurs", icon: Truck },
-  { to: "/grossistes", label: "Fournisseurs", icon: Store, adminOnly: true },
-  { to: "/laboratoires", label: "Laboratoires", icon: FlaskConical, adminOnly: true },
+  {
+    group: "Gestion", icon: FolderOpen, adminOnly: true,
+    children: [
+      { to: "/laboratoires", label: "Laboratoires", icon: FlaskConical },
+      { to: "/produits", label: "Produits", icon: Boxes },
+      { to: "/pays", label: "Pays", icon: Globe2 },
+      { to: "/agences", label: "Agences", icon: Building2 },
+      { to: "/grossistes", label: "Grossistes", icon: Store },
+    ],
+  },
+  {
+    group: "Sorties Locales", icon: PackageOpen, adminOnly: true,
+    children: [
+      { to: "/sorties-locales", label: "Vue d'ensemble", icon: PackageOpen },
+      { to: "/fournisseurs", label: "Stocks fournisseurs", icon: Truck },
+      { to: "/sorties-locales/objectifs-pays", label: "R1 · Obj. par pays", icon: FileBarChart2 },
+      { to: "/sorties-locales/objectifs-anf", label: "R2 · Obj. ANF", icon: FileBarChart2 },
+      { to: "/sorties-locales/ventes-un", label: "R3 · Ventes UN", icon: FileBarChart2 },
+      { to: "/sorties-locales/ventes-ca", label: "R3 bis · Ventes CA", icon: FileBarChart2 },
+      { to: "/sorties-locales/evolution-ca", label: "R4 · Évolution CA", icon: FileBarChart2 },
+      { to: "/sorties-locales/evolution-un", label: "R4 bis · Évolution UN", icon: FileBarChart2 },
+      { to: "/sorties-locales/stocks-pays", label: "R5 · Stocks pays", icon: FileBarChart2 },
+      { to: "/sorties-locales/stocks-en-cours", label: "R5 bis · Stocks + en cours", icon: FileBarChart2 },
+      { to: "/sorties-locales/vue-panoramique", label: "R6 · Vue panoramique", icon: FileBarChart2 },
+    ],
+  },
   { to: "/rapports", label: "Rapports", icon: FileBarChart2, adminOnly: true },
   { to: "/stats", label: "Statistiques", icon: BarChart3 },
-  { to: "/agences", label: "Agences", icon: Building2, adminOnly: true },
+  { to: "/stocks", label: "Stocks", icon: Package, agencyOnly: true },
   { to: "/import", label: "Import / Export", icon: Upload, agencyOnly: true },
-  { to: "/parametres", label: "Paramètres", icon: Settings },
+  {
+    group: "Paramètres", icon: Settings,
+    children: [
+      { to: "/parametres", label: "Général", icon: Settings },
+      { to: "/parametres#utilisateurs", label: "Utilisateurs", icon: Users },
+      { to: "/parametres#admin", label: "Admin", icon: ShieldCheck },
+    ],
+  },
 ];
+
+function isGroup(n: NavEntry): n is GroupItem {
+  return (n as GroupItem).group !== undefined;
+}
 
 export function AppShell({ children, title, subtitle, actions }: {
   children: ReactNode;
@@ -43,11 +82,16 @@ export function AppShell({ children, title, subtitle, actions }: {
   const loc = useLocation();
   const navigate = useNavigate();
 
+  const filtered = NAV.filter(n => {
+    if (isGroup(n)) return !(n.adminOnly && user?.role !== "admin");
+    if (n.adminOnly && user?.role !== "admin") return false;
+    if (n.agencyOnly && user?.role !== "pharmacy") return false;
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
-
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-surface lg:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
             <Pill className="h-4 w-4" />
@@ -58,13 +102,12 @@ export function AppShell({ children, title, subtitle, actions }: {
           </div>
         </div>
 
-        <nav className="mt-2 flex-1 space-y-0.5 px-3">
-          {NAV.filter(n => {
-            if (n.adminOnly && user?.role !== "admin") return false;
-            if (n.agencyOnly && user?.role !== "pharmacy") return false;
-            return true;
-          }).map((n) => {
-            const active = n.exact ? loc.pathname === n.to : loc.pathname.startsWith(n.to);
+        <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+          {filtered.map((n, idx) => {
+            if (isGroup(n)) {
+              return <NavGroup key={`g-${idx}-${n.group}`} entry={n} pathname={loc.pathname} />;
+            }
+            const active = n.exact ? loc.pathname === n.to : loc.pathname === n.to;
             const Icon = n.icon;
             return (
               <Link
@@ -94,8 +137,7 @@ export function AppShell({ children, title, subtitle, actions }: {
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="lg:pl-60">
+      <div className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-xl">
           <div className="flex items-center gap-4 px-6 py-4">
             <div className="hidden md:flex flex-1 max-w-md items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
@@ -105,7 +147,6 @@ export function AppShell({ children, title, subtitle, actions }: {
             </div>
 
             <div className="ml-auto flex items-center gap-3">
-              {/* Role switch */}
               <div className="hidden sm:flex items-center rounded-xl border border-border bg-surface p-1 text-xs font-medium">
                 <button
                   onClick={() => setRole("pharmacy")}
@@ -170,6 +211,52 @@ export function AppShell({ children, title, subtitle, actions }: {
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
+  const isChildActive = entry.children.some(c => pathname === c.to.split("#")[0]);
+  const [open, setOpen] = useState(isChildActive);
+  const Icon = entry.icon;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          isChildActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+        <span>{entry.group}</span>
+        <ChevronRight className={`ml-auto h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-0.5 ml-3 border-l border-border pl-2 space-y-0.5">
+          {entry.children.map(c => {
+            const [base, hash] = c.to.split("#");
+            const active = pathname === base;
+            const CIcon = c.icon;
+            return (
+              <Link
+                key={c.to}
+                to={base as never}
+                hash={hash}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition-colors ${
+                  active
+                    ? "bg-card text-foreground shadow-sm font-medium"
+                    : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                }`}
+              >
+                <CIcon className="h-3.5 w-3.5" />
+                {c.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

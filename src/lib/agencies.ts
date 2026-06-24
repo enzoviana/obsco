@@ -24,6 +24,40 @@ export const COUNTRIES: Country[] = [
   { code: "BJ", name: "Bénin", currency: "XOF", region: "Afrique" },
 ];
 
+const COUNTRY_KEY = "datafuse_countries_v1";
+let _countriesLoaded = false;
+function persistCountries() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(COUNTRY_KEY, JSON.stringify(COUNTRIES));
+  window.dispatchEvent(new Event("datafuse:countries"));
+}
+export function ensureCountriesLoaded() {
+  if (_countriesLoaded || typeof window === "undefined") return;
+  _countriesLoaded = true;
+  try {
+    const raw = localStorage.getItem(COUNTRY_KEY);
+    if (raw) {
+      const saved: Country[] = JSON.parse(raw);
+      COUNTRIES.splice(0, COUNTRIES.length, ...saved);
+    }
+  } catch { /* ignore */ }
+}
+export function addCountry(c: Country) {
+  ensureCountriesLoaded();
+  if (COUNTRIES.some(x => x.code === c.code)) throw new Error("Code ISO déjà utilisé");
+  COUNTRIES.push(c); persistCountries();
+}
+export function updateCountry(code: string, patch: Partial<Country>) {
+  ensureCountriesLoaded();
+  const i = COUNTRIES.findIndex(c => c.code === code);
+  if (i >= 0) { COUNTRIES[i] = { ...COUNTRIES[i], ...patch, code }; persistCountries(); }
+}
+export function deleteCountry(code: string) {
+  ensureCountriesLoaded();
+  const i = COUNTRIES.findIndex(c => c.code === code);
+  if (i >= 0) { COUNTRIES.splice(i, 1); persistCountries(); }
+}
+
 export const SUPPLIERS = ["CAMED", "LABOREX MALI", "COPHARMED", "UBIPHARM", "DPM"];
 
 export const PRODUCT_TYPES = [

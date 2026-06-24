@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { getUser, useUser } from "@/lib/auth";
-import { User, Bell, Lock, Building, Palette, Globe, Code2, Download, Github } from "lucide-react";
+import { User, Bell, Lock, Building, Palette, Globe, Code2, Download, Github, Users, ShieldCheck, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/parametres")({
@@ -17,12 +17,14 @@ export const Route = createFileRoute("/parametres")({
 
 const TABS = [
   { id: "profile", label: "Profil", icon: User },
+  { id: "utilisateurs", label: "Utilisateurs (Agences)", icon: Users },
+  { id: "admin", label: "Comptes Admin", icon: ShieldCheck },
   { id: "pharmacy", label: "Officine", icon: Building },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Sécurité", icon: Lock },
   { id: "appearance", label: "Apparence", icon: Palette },
   { id: "locale", label: "Langue & Région", icon: Globe },
-
+  { id: "developer", label: "Code source", icon: Code2 },
 ] as const;
 
 function SettingsPage() {
@@ -30,16 +32,26 @@ function SettingsPage() {
   const user = useUser();
   const [tab, setTab] = useState<typeof TABS[number]["id"]>("profile");
 
-  useEffect(() => { if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" }); }, [navigate]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!getUser()) { navigate({ to: "/login" }); return; }
+    const sync = () => {
+      const h = window.location.hash.replace("#", "");
+      if (h && TABS.some(t => t.id === h)) setTab(h as typeof TABS[number]["id"]);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [navigate]);
 
   return (
     <AppShell title="Paramètres" subtitle="Préférences du compte">
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+      <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <nav className="space-y-1">
           {TABS.map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => { setTab(t.id); if (typeof window !== "undefined") history.replaceState(null, "", `#${t.id}`); }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                 tab === t.id ? "bg-card border border-border shadow-sm font-medium" : "text-muted-foreground hover:text-foreground hover:bg-card/60"
               }`}
@@ -51,12 +63,14 @@ function SettingsPage() {
 
         <div className="rounded-2xl border border-border bg-card p-6">
           {tab === "profile" && <ProfileSection email={user?.email ?? ""} name={user?.name ?? ""} />}
+          {tab === "utilisateurs" && <UsersSection />}
+          {tab === "admin" && <AdminAccountsSection />}
           {tab === "pharmacy" && <PharmacySection />}
           {tab === "notifications" && <NotificationsSection />}
           {tab === "security" && <SecuritySection />}
           {tab === "appearance" && <AppearanceSection />}
           {tab === "locale" && <LocaleSection />}
-         
+          {tab === "developer" && <DeveloperSection />}
         </div>
       </div>
     </AppShell>
@@ -185,7 +199,38 @@ function LocaleSection() {
   );
 }
 
-
+function DeveloperSection() {
+  return (
+    <Section title="Code source" desc="Téléchargez l'intégralité du code source de DataFuse.">
+      <div className="rounded-2xl border border-border bg-surface p-6">
+        <div className="flex items-start gap-4">
+          <div className="rounded-xl bg-primary/10 p-3 text-primary"><Code2 className="h-6 w-6" /></div>
+          <div className="min-w-0 flex-1">
+            <div className="font-medium">Archive complète (.zip)</div>
+            <p className="mt-1 text-sm text-muted-foreground">Contient toutes les sources, composants et configurations du projet.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild>
+                <a href="/datafuse-source.zip" download>
+                  <Download className="mr-2 h-4 w-4" /> Télécharger le ZIP
+                </a>
+              </Button>
+              <Button variant="ghost" asChild>
+                <a href="https://github.com" target="_blank" rel="noreferrer">
+                  <Github className="mr-2 h-4 w-4" /> Voir sur GitHub
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <InfoCard label="Framework" value="TanStack Start" />
+        <InfoCard label="Style" value="Tailwind v4" />
+        <InfoCard label="Licence" value="Propriétaire" />
+      </div>
+    </Section>
+  );
+}
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
@@ -195,3 +240,108 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function UsersSection() {
+  const [accounts, setAccounts] = useState([
+    { id: "U-001", agence: "ANF Abidjan", email: "abidjan@anf.com", login: "anf.abidjan", role: "Agence", status: "active" },
+    { id: "U-002", agence: "ANF Dakar", email: "dakar@anf.com", login: "anf.dakar", role: "Agence", status: "active" },
+    { id: "U-003", agence: "ANF Bamako", email: "bamako@anf.com", login: "anf.bamako", role: "Agence", status: "active" },
+    { id: "U-004", agence: "ANF Douala", email: "douala@anf.com", login: "anf.douala", role: "Agence", status: "inactive" },
+  ]);
+  const [form, setForm] = useState({ agence: "", email: "", login: "", password: "" });
+
+  const create = () => {
+    if (!form.agence || !form.email || !form.login) return toast.error("Champs requis manquants");
+    setAccounts(a => [...a, { id: `U-${String(a.length + 1).padStart(3, "0")}`, agence: form.agence, email: form.email, login: form.login, role: "Agence", status: "active" }]);
+    setForm({ agence: "", email: "", login: "", password: "" });
+    toast.success("Compte agence créé");
+  };
+
+  return (
+    <Section title="Utilisateurs (Agences)" desc="Gérez les identifiants et créez de nouveaux comptes agences.">
+      <div className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
+        <div><Label className="text-xs">Agence</Label><Input value={form.agence} onChange={e => setForm({ ...form, agence: e.target.value })} placeholder="ANF Lomé" /></div>
+        <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="lome@anf.com" /></div>
+        <div><Label className="text-xs">Identifiant</Label><Input value={form.login} onChange={e => setForm({ ...form, login: e.target.value })} placeholder="anf.lome" /></div>
+        <div><Label className="text-xs">Mot de passe initial</Label><Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" /></div>
+        <div className="sm:col-span-2 flex justify-end">
+          <Button size="sm" onClick={create}><Plus className="mr-2 h-4 w-4" />Créer un compte agence</Button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-surface text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr><th className="px-3 py-2 text-left">Agence</th><th className="px-3 py-2 text-left">Identifiant</th><th className="px-3 py-2 text-left">Email</th><th className="px-3 py-2 text-left">Statut</th><th className="px-3 py-2"></th></tr>
+          </thead>
+          <tbody>
+            {accounts.map(a => (
+              <tr key={a.id} className="border-t border-border/60">
+                <td className="px-3 py-2.5 font-medium">{a.agence}</td>
+                <td className="px-3 py-2.5 font-mono text-xs">{a.login}</td>
+                <td className="px-3 py-2.5 text-muted-foreground">{a.email}</td>
+                <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${a.status === "active" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{a.status}</span></td>
+                <td className="px-3 py-2.5 text-right">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAccounts(list => list.filter(x => x.id !== a.id)); toast.success("Compte supprimé"); }}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
+function AdminAccountsSection() {
+  const [admins, setAdmins] = useState([
+    { id: "A-001", name: "Admin Principal", email: "admin@anf.com", role: "Super-Admin" },
+    { id: "A-002", name: "Pierre Lemoine", email: "p.lemoine@anf.com", role: "Admin" },
+  ]);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+
+  const create = () => {
+    if (!form.name || !form.email) return toast.error("Champs requis manquants");
+    setAdmins(a => [...a, { id: `A-${String(a.length + 1).padStart(3, "0")}`, name: form.name, email: form.email, role: "Admin" }]);
+    setForm({ name: "", email: "", password: "" });
+    toast.success("Compte admin créé");
+  };
+
+  return (
+    <Section title="Comptes Admin" desc="Gérez les administrateurs existants ou créez-en de nouveaux.">
+      <div className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
+        <div><Label className="text-xs">Nom complet</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+        <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+        <div className="sm:col-span-2"><Label className="text-xs">Mot de passe initial</Label><Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+        <div className="sm:col-span-2 flex justify-end">
+          <Button size="sm" onClick={create}><Plus className="mr-2 h-4 w-4" />Créer un compte admin</Button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-surface text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr><th className="px-3 py-2 text-left">Nom</th><th className="px-3 py-2 text-left">Email</th><th className="px-3 py-2 text-left">Rôle</th><th className="px-3 py-2"></th></tr>
+          </thead>
+          <tbody>
+            {admins.map(a => (
+              <tr key={a.id} className="border-t border-border/60">
+                <td className="px-3 py-2.5 font-medium">{a.name}</td>
+                <td className="px-3 py-2.5 text-muted-foreground">{a.email}</td>
+                <td className="px-3 py-2.5"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">{a.role}</span></td>
+                <td className="px-3 py-2.5 text-right">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={a.role === "Super-Admin"} onClick={() => { setAdmins(list => list.filter(x => x.id !== a.id)); toast.success("Admin supprimé"); }}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+

@@ -204,10 +204,9 @@ function AdminDash() {
       </>}
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-        <Kpi className="md:col-span-3" label="Agences actives" value={String(totals.pharmacies)} sub={`${totals.pharmacies} pays couverts`} icon={<Globe2 className="h-4 w-4" />} />
-        <Kpi className="md:col-span-3 bg-primary text-primary-foreground border-primary" highlight label="Valeur inventaire" value={`€${(totals.inventoryValue / 1_000_000).toFixed(2)}M`} sub="+4,8% vs mois dernier" icon={<Wallet className="h-4 w-4" />} />
-        <Kpi className="md:col-span-3" label="Alertes totales" value={String(totals.alerts)} sub="Toutes agences confondues" icon={<ShieldAlert className="h-4 w-4" />} />
-        <Kpi className="md:col-span-3" label="Imports (24h)" value={String(totals.imports)} sub="12 481 articles traités" icon={<Activity className="h-4 w-4" />} />
+        <Kpi className="md:col-span-4 bg-primary text-primary-foreground border-primary" highlight label="Ventes Totales Mensuelles" value={`€${(totals.inventoryValue / 1_000_000).toFixed(2)}M`} sub="+8,4% vs mois précédent" icon={<Wallet className="h-4 w-4" />} />
+        <Kpi className="md:col-span-4" label="Commandes Totales Mensuelles" value={(totals.pharmacies * 184).toLocaleString("fr-FR")} sub={`${totals.pharmacies} agences · réseau ANF`} icon={<Activity className="h-4 w-4" />} />
+        <Kpi className="md:col-span-4" label="Stocks Totaux Mensuel" value={(totals.pharmacies * 12480).toLocaleString("fr-FR")} sub="unités disponibles réseau" icon={<Boxes className="h-4 w-4" />} />
 
         <div className="bento-card md:col-span-8">
           <div className="flex items-center justify-between">

@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StocksRouteImport } from './routes/stocks'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as SortiesLocalesRouteImport } from './routes/sorties-locales'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as ProduitsRouteImport } from './routes/produits'
+import { Route as PaysRouteImport } from './routes/pays'
 import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LaboratoiresRouteImport } from './routes/laboratoires'
@@ -21,6 +23,16 @@ import { Route as GrossistesRouteImport } from './routes/grossistes'
 import { Route as FournisseursRouteImport } from './routes/fournisseurs'
 import { Route as AgencesRouteImport } from './routes/agences'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SortiesLocalesIndexRouteImport } from './routes/sorties-locales.index'
+import { Route as SortiesLocalesVuePanoramiqueRouteImport } from './routes/sorties-locales.vue-panoramique'
+import { Route as SortiesLocalesVentesUnRouteImport } from './routes/sorties-locales.ventes-un'
+import { Route as SortiesLocalesVentesCaRouteImport } from './routes/sorties-locales.ventes-ca'
+import { Route as SortiesLocalesStocksPaysRouteImport } from './routes/sorties-locales.stocks-pays'
+import { Route as SortiesLocalesStocksEnCoursRouteImport } from './routes/sorties-locales.stocks-en-cours'
+import { Route as SortiesLocalesObjectifsPaysRouteImport } from './routes/sorties-locales.objectifs-pays'
+import { Route as SortiesLocalesObjectifsAnfRouteImport } from './routes/sorties-locales.objectifs-anf'
+import { Route as SortiesLocalesEvolutionUnRouteImport } from './routes/sorties-locales.evolution-un'
+import { Route as SortiesLocalesEvolutionCaRouteImport } from './routes/sorties-locales.evolution-ca'
 
 const StocksRoute = StocksRouteImport.update({
   id: '/stocks',
@@ -32,6 +44,11 @@ const StatsRoute = StatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SortiesLocalesRoute = SortiesLocalesRouteImport.update({
+  id: '/sorties-locales',
+  path: '/sorties-locales',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RapportsRoute = RapportsRouteImport.update({
   id: '/rapports',
   path: '/rapports',
@@ -40,6 +57,11 @@ const RapportsRoute = RapportsRouteImport.update({
 const ProduitsRoute = ProduitsRouteImport.update({
   id: '/produits',
   path: '/produits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaysRoute = PaysRouteImport.update({
+  id: '/pays',
+  path: '/pays',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParametresRoute = ParametresRouteImport.update({
@@ -82,6 +104,63 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SortiesLocalesIndexRoute = SortiesLocalesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SortiesLocalesRoute,
+} as any)
+const SortiesLocalesVuePanoramiqueRoute =
+  SortiesLocalesVuePanoramiqueRouteImport.update({
+    id: '/vue-panoramique',
+    path: '/vue-panoramique',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
+const SortiesLocalesVentesUnRoute = SortiesLocalesVentesUnRouteImport.update({
+  id: '/ventes-un',
+  path: '/ventes-un',
+  getParentRoute: () => SortiesLocalesRoute,
+} as any)
+const SortiesLocalesVentesCaRoute = SortiesLocalesVentesCaRouteImport.update({
+  id: '/ventes-ca',
+  path: '/ventes-ca',
+  getParentRoute: () => SortiesLocalesRoute,
+} as any)
+const SortiesLocalesStocksPaysRoute =
+  SortiesLocalesStocksPaysRouteImport.update({
+    id: '/stocks-pays',
+    path: '/stocks-pays',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
+const SortiesLocalesStocksEnCoursRoute =
+  SortiesLocalesStocksEnCoursRouteImport.update({
+    id: '/stocks-en-cours',
+    path: '/stocks-en-cours',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
+const SortiesLocalesObjectifsPaysRoute =
+  SortiesLocalesObjectifsPaysRouteImport.update({
+    id: '/objectifs-pays',
+    path: '/objectifs-pays',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
+const SortiesLocalesObjectifsAnfRoute =
+  SortiesLocalesObjectifsAnfRouteImport.update({
+    id: '/objectifs-anf',
+    path: '/objectifs-anf',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
+const SortiesLocalesEvolutionUnRoute =
+  SortiesLocalesEvolutionUnRouteImport.update({
+    id: '/evolution-un',
+    path: '/evolution-un',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
+const SortiesLocalesEvolutionCaRoute =
+  SortiesLocalesEvolutionCaRouteImport.update({
+    id: '/evolution-ca',
+    path: '/evolution-ca',
+    getParentRoute: () => SortiesLocalesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -92,10 +171,22 @@ export interface FileRoutesByFullPath {
   '/laboratoires': typeof LaboratoiresRoute
   '/login': typeof LoginRoute
   '/parametres': typeof ParametresRoute
+  '/pays': typeof PaysRoute
   '/produits': typeof ProduitsRoute
   '/rapports': typeof RapportsRoute
+  '/sorties-locales': typeof SortiesLocalesRouteWithChildren
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
+  '/sorties-locales/evolution-ca': typeof SortiesLocalesEvolutionCaRoute
+  '/sorties-locales/evolution-un': typeof SortiesLocalesEvolutionUnRoute
+  '/sorties-locales/objectifs-anf': typeof SortiesLocalesObjectifsAnfRoute
+  '/sorties-locales/objectifs-pays': typeof SortiesLocalesObjectifsPaysRoute
+  '/sorties-locales/stocks-en-cours': typeof SortiesLocalesStocksEnCoursRoute
+  '/sorties-locales/stocks-pays': typeof SortiesLocalesStocksPaysRoute
+  '/sorties-locales/ventes-ca': typeof SortiesLocalesVentesCaRoute
+  '/sorties-locales/ventes-un': typeof SortiesLocalesVentesUnRoute
+  '/sorties-locales/vue-panoramique': typeof SortiesLocalesVuePanoramiqueRoute
+  '/sorties-locales/': typeof SortiesLocalesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -106,10 +197,21 @@ export interface FileRoutesByTo {
   '/laboratoires': typeof LaboratoiresRoute
   '/login': typeof LoginRoute
   '/parametres': typeof ParametresRoute
+  '/pays': typeof PaysRoute
   '/produits': typeof ProduitsRoute
   '/rapports': typeof RapportsRoute
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
+  '/sorties-locales/evolution-ca': typeof SortiesLocalesEvolutionCaRoute
+  '/sorties-locales/evolution-un': typeof SortiesLocalesEvolutionUnRoute
+  '/sorties-locales/objectifs-anf': typeof SortiesLocalesObjectifsAnfRoute
+  '/sorties-locales/objectifs-pays': typeof SortiesLocalesObjectifsPaysRoute
+  '/sorties-locales/stocks-en-cours': typeof SortiesLocalesStocksEnCoursRoute
+  '/sorties-locales/stocks-pays': typeof SortiesLocalesStocksPaysRoute
+  '/sorties-locales/ventes-ca': typeof SortiesLocalesVentesCaRoute
+  '/sorties-locales/ventes-un': typeof SortiesLocalesVentesUnRoute
+  '/sorties-locales/vue-panoramique': typeof SortiesLocalesVuePanoramiqueRoute
+  '/sorties-locales': typeof SortiesLocalesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -121,10 +223,22 @@ export interface FileRoutesById {
   '/laboratoires': typeof LaboratoiresRoute
   '/login': typeof LoginRoute
   '/parametres': typeof ParametresRoute
+  '/pays': typeof PaysRoute
   '/produits': typeof ProduitsRoute
   '/rapports': typeof RapportsRoute
+  '/sorties-locales': typeof SortiesLocalesRouteWithChildren
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
+  '/sorties-locales/evolution-ca': typeof SortiesLocalesEvolutionCaRoute
+  '/sorties-locales/evolution-un': typeof SortiesLocalesEvolutionUnRoute
+  '/sorties-locales/objectifs-anf': typeof SortiesLocalesObjectifsAnfRoute
+  '/sorties-locales/objectifs-pays': typeof SortiesLocalesObjectifsPaysRoute
+  '/sorties-locales/stocks-en-cours': typeof SortiesLocalesStocksEnCoursRoute
+  '/sorties-locales/stocks-pays': typeof SortiesLocalesStocksPaysRoute
+  '/sorties-locales/ventes-ca': typeof SortiesLocalesVentesCaRoute
+  '/sorties-locales/ventes-un': typeof SortiesLocalesVentesUnRoute
+  '/sorties-locales/vue-panoramique': typeof SortiesLocalesVuePanoramiqueRoute
+  '/sorties-locales/': typeof SortiesLocalesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,10 +251,22 @@ export interface FileRouteTypes {
     | '/laboratoires'
     | '/login'
     | '/parametres'
+    | '/pays'
     | '/produits'
     | '/rapports'
+    | '/sorties-locales'
     | '/stats'
     | '/stocks'
+    | '/sorties-locales/evolution-ca'
+    | '/sorties-locales/evolution-un'
+    | '/sorties-locales/objectifs-anf'
+    | '/sorties-locales/objectifs-pays'
+    | '/sorties-locales/stocks-en-cours'
+    | '/sorties-locales/stocks-pays'
+    | '/sorties-locales/ventes-ca'
+    | '/sorties-locales/ventes-un'
+    | '/sorties-locales/vue-panoramique'
+    | '/sorties-locales/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -151,10 +277,21 @@ export interface FileRouteTypes {
     | '/laboratoires'
     | '/login'
     | '/parametres'
+    | '/pays'
     | '/produits'
     | '/rapports'
     | '/stats'
     | '/stocks'
+    | '/sorties-locales/evolution-ca'
+    | '/sorties-locales/evolution-un'
+    | '/sorties-locales/objectifs-anf'
+    | '/sorties-locales/objectifs-pays'
+    | '/sorties-locales/stocks-en-cours'
+    | '/sorties-locales/stocks-pays'
+    | '/sorties-locales/ventes-ca'
+    | '/sorties-locales/ventes-un'
+    | '/sorties-locales/vue-panoramique'
+    | '/sorties-locales'
   id:
     | '__root__'
     | '/'
@@ -165,10 +302,22 @@ export interface FileRouteTypes {
     | '/laboratoires'
     | '/login'
     | '/parametres'
+    | '/pays'
     | '/produits'
     | '/rapports'
+    | '/sorties-locales'
     | '/stats'
     | '/stocks'
+    | '/sorties-locales/evolution-ca'
+    | '/sorties-locales/evolution-un'
+    | '/sorties-locales/objectifs-anf'
+    | '/sorties-locales/objectifs-pays'
+    | '/sorties-locales/stocks-en-cours'
+    | '/sorties-locales/stocks-pays'
+    | '/sorties-locales/ventes-ca'
+    | '/sorties-locales/ventes-un'
+    | '/sorties-locales/vue-panoramique'
+    | '/sorties-locales/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -180,8 +329,10 @@ export interface RootRouteChildren {
   LaboratoiresRoute: typeof LaboratoiresRoute
   LoginRoute: typeof LoginRoute
   ParametresRoute: typeof ParametresRoute
+  PaysRoute: typeof PaysRoute
   ProduitsRoute: typeof ProduitsRoute
   RapportsRoute: typeof RapportsRoute
+  SortiesLocalesRoute: typeof SortiesLocalesRouteWithChildren
   StatsRoute: typeof StatsRoute
   StocksRoute: typeof StocksRoute
 }
@@ -202,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sorties-locales': {
+      id: '/sorties-locales'
+      path: '/sorties-locales'
+      fullPath: '/sorties-locales'
+      preLoaderRoute: typeof SortiesLocalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rapports': {
       id: '/rapports'
       path: '/rapports'
@@ -214,6 +372,13 @@ declare module '@tanstack/react-router' {
       path: '/produits'
       fullPath: '/produits'
       preLoaderRoute: typeof ProduitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pays': {
+      id: '/pays'
+      path: '/pays'
+      fullPath: '/pays'
+      preLoaderRoute: typeof PaysRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parametres': {
@@ -272,8 +437,108 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sorties-locales/': {
+      id: '/sorties-locales/'
+      path: '/'
+      fullPath: '/sorties-locales/'
+      preLoaderRoute: typeof SortiesLocalesIndexRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/vue-panoramique': {
+      id: '/sorties-locales/vue-panoramique'
+      path: '/vue-panoramique'
+      fullPath: '/sorties-locales/vue-panoramique'
+      preLoaderRoute: typeof SortiesLocalesVuePanoramiqueRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/ventes-un': {
+      id: '/sorties-locales/ventes-un'
+      path: '/ventes-un'
+      fullPath: '/sorties-locales/ventes-un'
+      preLoaderRoute: typeof SortiesLocalesVentesUnRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/ventes-ca': {
+      id: '/sorties-locales/ventes-ca'
+      path: '/ventes-ca'
+      fullPath: '/sorties-locales/ventes-ca'
+      preLoaderRoute: typeof SortiesLocalesVentesCaRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/stocks-pays': {
+      id: '/sorties-locales/stocks-pays'
+      path: '/stocks-pays'
+      fullPath: '/sorties-locales/stocks-pays'
+      preLoaderRoute: typeof SortiesLocalesStocksPaysRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/stocks-en-cours': {
+      id: '/sorties-locales/stocks-en-cours'
+      path: '/stocks-en-cours'
+      fullPath: '/sorties-locales/stocks-en-cours'
+      preLoaderRoute: typeof SortiesLocalesStocksEnCoursRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/objectifs-pays': {
+      id: '/sorties-locales/objectifs-pays'
+      path: '/objectifs-pays'
+      fullPath: '/sorties-locales/objectifs-pays'
+      preLoaderRoute: typeof SortiesLocalesObjectifsPaysRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/objectifs-anf': {
+      id: '/sorties-locales/objectifs-anf'
+      path: '/objectifs-anf'
+      fullPath: '/sorties-locales/objectifs-anf'
+      preLoaderRoute: typeof SortiesLocalesObjectifsAnfRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/evolution-un': {
+      id: '/sorties-locales/evolution-un'
+      path: '/evolution-un'
+      fullPath: '/sorties-locales/evolution-un'
+      preLoaderRoute: typeof SortiesLocalesEvolutionUnRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
+    '/sorties-locales/evolution-ca': {
+      id: '/sorties-locales/evolution-ca'
+      path: '/evolution-ca'
+      fullPath: '/sorties-locales/evolution-ca'
+      preLoaderRoute: typeof SortiesLocalesEvolutionCaRouteImport
+      parentRoute: typeof SortiesLocalesRoute
+    }
   }
 }
+
+interface SortiesLocalesRouteChildren {
+  SortiesLocalesEvolutionCaRoute: typeof SortiesLocalesEvolutionCaRoute
+  SortiesLocalesEvolutionUnRoute: typeof SortiesLocalesEvolutionUnRoute
+  SortiesLocalesObjectifsAnfRoute: typeof SortiesLocalesObjectifsAnfRoute
+  SortiesLocalesObjectifsPaysRoute: typeof SortiesLocalesObjectifsPaysRoute
+  SortiesLocalesStocksEnCoursRoute: typeof SortiesLocalesStocksEnCoursRoute
+  SortiesLocalesStocksPaysRoute: typeof SortiesLocalesStocksPaysRoute
+  SortiesLocalesVentesCaRoute: typeof SortiesLocalesVentesCaRoute
+  SortiesLocalesVentesUnRoute: typeof SortiesLocalesVentesUnRoute
+  SortiesLocalesVuePanoramiqueRoute: typeof SortiesLocalesVuePanoramiqueRoute
+  SortiesLocalesIndexRoute: typeof SortiesLocalesIndexRoute
+}
+
+const SortiesLocalesRouteChildren: SortiesLocalesRouteChildren = {
+  SortiesLocalesEvolutionCaRoute: SortiesLocalesEvolutionCaRoute,
+  SortiesLocalesEvolutionUnRoute: SortiesLocalesEvolutionUnRoute,
+  SortiesLocalesObjectifsAnfRoute: SortiesLocalesObjectifsAnfRoute,
+  SortiesLocalesObjectifsPaysRoute: SortiesLocalesObjectifsPaysRoute,
+  SortiesLocalesStocksEnCoursRoute: SortiesLocalesStocksEnCoursRoute,
+  SortiesLocalesStocksPaysRoute: SortiesLocalesStocksPaysRoute,
+  SortiesLocalesVentesCaRoute: SortiesLocalesVentesCaRoute,
+  SortiesLocalesVentesUnRoute: SortiesLocalesVentesUnRoute,
+  SortiesLocalesVuePanoramiqueRoute: SortiesLocalesVuePanoramiqueRoute,
+  SortiesLocalesIndexRoute: SortiesLocalesIndexRoute,
+}
+
+const SortiesLocalesRouteWithChildren = SortiesLocalesRoute._addFileChildren(
+  SortiesLocalesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -284,21 +549,13 @@ const rootRouteChildren: RootRouteChildren = {
   LaboratoiresRoute: LaboratoiresRoute,
   LoginRoute: LoginRoute,
   ParametresRoute: ParametresRoute,
+  PaysRoute: PaysRoute,
   ProduitsRoute: ProduitsRoute,
   RapportsRoute: RapportsRoute,
+  SortiesLocalesRoute: SortiesLocalesRouteWithChildren,
   StatsRoute: StatsRoute,
   StocksRoute: StocksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -217,7 +217,6 @@ function FournisseursPage() {
               <thead>
                 <tr className="bg-surface text-[10px] uppercase tracking-wider text-muted-foreground">
                   <th rowSpan={2} className="px-3 py-2 text-left font-medium border-r border-border">Produit</th>
-                  <th rowSpan={2} className="px-2 py-2 text-right font-medium border-r border-border">Prix u.</th>
                   {supplierView.map(sv => (
                     <th key={sv.name} colSpan={3} className="px-2 py-2 text-center font-semibold text-primary border-r border-border bg-primary/5">{sv.name}</th>
                   ))}
@@ -239,7 +238,7 @@ function FournisseursPage() {
                       <div className="font-medium">{p.name}</div>
                       <div className="text-[10px] text-muted-foreground font-mono">{p.cip}</div>
                     </td>
-                    <td className="px-2 py-2.5 text-right tabular-nums border-r border-border/60">€{p.pghtPays.toFixed(2)}</td>
+                    
                     {supplierView.map(sv => {
                       const f = p.fournisseurs[sv.name];
                       if (!f) return (
