@@ -22,7 +22,7 @@ const TABS = [
   { id: "security", label: "Sécurité", icon: Lock },
   { id: "appearance", label: "Apparence", icon: Palette },
   { id: "locale", label: "Langue & Région", icon: Globe },
-  { id: "developer", label: "Code source", icon: Code2 },
+
 ] as const;
 
 function SettingsPage() {
@@ -56,7 +56,7 @@ function SettingsPage() {
           {tab === "security" && <SecuritySection />}
           {tab === "appearance" && <AppearanceSection />}
           {tab === "locale" && <LocaleSection />}
-          {tab === "developer" && <DeveloperSection />}
+         
         </div>
       </div>
     </AppShell>
@@ -185,38 +185,7 @@ function LocaleSection() {
   );
 }
 
-function DeveloperSection() {
-  return (
-    <Section title="Code source" desc="Téléchargez l'intégralité du code source de DataFuse.">
-      <div className="rounded-2xl border border-border bg-surface p-6">
-        <div className="flex items-start gap-4">
-          <div className="rounded-xl bg-primary/10 p-3 text-primary"><Code2 className="h-6 w-6" /></div>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium">Archive complète (.zip)</div>
-            <p className="mt-1 text-sm text-muted-foreground">Contient toutes les sources, composants et configurations du projet.</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button asChild>
-                <a href="/datafuse-source.zip" download>
-                  <Download className="mr-2 h-4 w-4" /> Télécharger le ZIP
-                </a>
-              </Button>
-              <Button variant="ghost" asChild>
-                <a href="https://github.com" target="_blank" rel="noreferrer">
-                  <Github className="mr-2 h-4 w-4" /> Voir sur GitHub
-                </a>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <InfoCard label="Framework" value="TanStack Start" />
-        <InfoCard label="Style" value="Tailwind v4" />
-        <InfoCard label="Licence" value="Propriétaire" />
-      </div>
-    </Section>
-  );
-}
+
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
