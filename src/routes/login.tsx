@@ -112,7 +112,13 @@ function LoginPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="pw">Mot de passe</Label>
-                <button type="button" className="text-xs text-primary hover:underline">Oublié ?</button>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => navigate({ to: "/forgot-password" })}
+                >
+                  Oublié ?
+                </button>
               </div>
               <Input id="pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
