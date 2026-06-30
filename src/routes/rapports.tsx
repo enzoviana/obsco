@@ -7,7 +7,7 @@ import {
 import { Download, FileSpreadsheet, Globe2, MapPin, Building2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { getUser } from "@/lib/auth";
+import { getUser, API_ENABLED } from "@/lib/auth";
 import {
   COUNTRIES, evolutionByRevenue, evolutionByUnits, getAgencies, salesByRevenue, salesByUnit,
   salesObjectivesANF, salesObjectivesByCountry, stockSituation, type Agency,
@@ -130,6 +130,27 @@ function RapportsPage() {
       subtitle={`Vision globale · ${scopeLabel}`}
       actions={<Button size="sm" onClick={exportAll}><FileSpreadsheet className="mr-2 h-4 w-4" />Exporter tout (XLSX)</Button>}
     >
+      {/* Message d'information en mode Live */}
+      {API_ENABLED && (
+        <div className="mb-6 rounded-2xl border-2 border-primary/20 bg-primary/5 p-6">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-primary mb-1">📊 Aucune donnée disponible</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Les rapports affichent actuellement des données vides car les agences n'ont pas encore importé leurs fichiers Excel.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Pour voir les données réelles : les agences doivent se connecter et utiliser le module{" "}
+                <span className="font-semibold text-foreground">Import données</span> pour uploader leurs fichiers Excel mensuels.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Scope selector */}
       <section className="mb-6 rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-3">

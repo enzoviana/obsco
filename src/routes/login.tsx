@@ -4,7 +4,7 @@ import { Pill, ArrowRight, ShieldCheck, Zap, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login, getUser } from "@/lib/auth";
+import { login, getUser, API_ENABLED } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Connexion — DATAFUSE" }] }),
@@ -16,18 +16,35 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("agence@datafuse.io");
-  const [password, setPassword] = useState("••••••••");
+  const [email, setEmail] = useState(API_ENABLED ? "admin@datafuse.app" : "agence@datafuse.io");
+  const [password, setPassword] = useState(API_ENABLED ? "ChangeMe123!" : "demo");
   const [role, setRoleState] = useState<"pharmacy" | "admin">("pharmacy");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      login(email, role);
-      navigate({ to: "/" });
-    }, 400);
+    setError(null);
+    try {
+      let user;
+      if (API_ENABLED) {
+        user = await login(email, password);
+      } else {
+        user = await login(email, role);
+      }
+
+      // Vérifier si l'utilisateur doit changer son mot de passe
+      if (user.mustChangePassword) {
+        navigate({ to: "/change-password" });
+      } else {
+        navigate({ to: "/" });
+      }
+    } catch (err: any) {
+      setError(err?.message || "Échec de connexion");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -100,28 +117,35 @@ function LoginPage() {
               <Input id="pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Type de compte (démo)</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { v: "pharmacy", l: "Agence" },
-                  { v: "admin", l: "Super-Admin" },
-                ].map(o => (
-                  <button
-                    key={o.v}
-                    type="button"
-                    onClick={() => setRoleState(o.v as "pharmacy" | "admin")}
-                    className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                      role === o.v
-                        ? "border-primary bg-accent text-foreground"
-                        : "border-border bg-surface text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {o.l}
-                  </button>
-                ))}
+            {!API_ENABLED && (
+              <div className="space-y-1.5">
+                <Label>Type de compte (démo)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { v: "pharmacy", l: "Agence" },
+                    { v: "admin", l: "Super-Admin" },
+                  ].map(o => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setRoleState(o.v as "pharmacy" | "admin")}
+                      className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                        role === o.v
+                          ? "border-primary bg-accent text-foreground"
+                          : "border-border bg-surface text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Mode démo. Pour activer le backend Node.js, définissez <code>VITE_API_URL</code>.
+                </p>
               </div>
-            </div>
+            )}
+
+            {error && <div className="text-sm text-destructive">{error}</div>}
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Connexion…" : <>Se connecter <ArrowRight className="ml-2 h-4 w-4" /></>}

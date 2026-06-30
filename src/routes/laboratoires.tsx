@@ -27,17 +27,33 @@ function LaboratoiresPage() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("all");
-  const [list, setList] = useState<Laboratoire[]>(() => (typeof window !== "undefined" ? getLaboratoires() : []));
+  const [list, setList] = useState<Laboratoire[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Laboratoire | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const u = getUser();
-    if (!u) navigate({ to: "/login" });
-    
-    setList(getLaboratoires());
-    const sync = () => setList(getLaboratoires());
+    if (!u) {
+      navigate({ to: "/login" });
+      return;
+    }
+
+    try {
+      setList(getLaboratoires());
+    } catch (err) {
+      console.error("Erreur lors du chargement des laboratoires:", err);
+      toast.error("Erreur lors du chargement des laboratoires");
+      setList([]);
+    }
+
+    const sync = () => {
+      try {
+        setList(getLaboratoires());
+      } catch (err) {
+        console.error("Erreur lors de la synchronisation des laboratoires:", err);
+      }
+    };
     window.addEventListener("datafuse:labs", sync);
     return () => window.removeEventListener("datafuse:labs", sync);
   }, [navigate]);
@@ -164,9 +180,14 @@ function LaboratoiresPage() {
 }
 
 function LabDialog({ onClose, lab }: { onClose: () => void; lab: Laboratoire | null }) {
-  const [f, setF] = useState({
-    name: lab?.name ?? "", country: lab?.country ?? COUNTRIES[0].code,
-    contact: lab?.contact ?? "", email: lab?.email ?? "", phone: lab?.phone ?? "", address: lab?.address ?? "",
+const [f, setF] = useState({
+    name: lab?.name ?? "", 
+    // Safely check if COUNTRIES[0] exists before grabbing its code
+    country: lab?.country ?? COUNTRIES[0]?.code ?? "", 
+    contact: lab?.contact ?? "", 
+    email: lab?.email ?? "", 
+    phone: lab?.phone ?? "", 
+    address: lab?.address ?? "",
   });
   const submit = () => {
     if (!f.name || !f.country || !f.email) { toast.error("Champs requis manquants"); return; }

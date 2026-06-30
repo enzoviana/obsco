@@ -1,4 +1,6 @@
 // Deterministic mock catalogue — 5000+ products
+import { API_ENABLED } from "./api";
+
 export type Product = {
   id: string;
   cip: string;
@@ -46,6 +48,14 @@ function rand(seed: number) {
 let cache: Product[] | null = null;
 export function getAllProducts(): Product[] {
   if (cache) return cache;
+
+  // En mode Live, retourner un tableau vide (pas de catalogue mocké)
+  if (API_ENABLED) {
+    cache = [];
+    return cache;
+  }
+
+  // Mode Demo : générer le catalogue mocké
   const r = rand(42);
   const list: Product[] = [];
   for (let i = 0; i < 5240; i++) {

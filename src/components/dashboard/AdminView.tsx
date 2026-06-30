@@ -1,10 +1,12 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Building2, Eye, MoreHorizontal, Pencil, ShieldAlert, Wallet, Activity, Globe2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { allPharmacies, totals, globalTrend } from "@/lib/mock-data";
+import { useDashboardData } from "@/lib/useDashboardData";
 import { StatusBadge } from "./PharmacyView";
 
 export function AdminView() {
+  const { allPharmacies, totals, globalTrend } = useDashboardData();
+
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8">
       {/* Header */}

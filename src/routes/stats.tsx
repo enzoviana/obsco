@@ -7,7 +7,7 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { getUser } from "@/lib/auth";
 import { getAllProducts, productStats } from "@/lib/products";
-import { globalTrend, stockTrend } from "@/lib/mock-data";
+import { useDashboardData } from "@/lib/useDashboardData";
 
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Statistiques — DATAFUSE" }] }),
@@ -22,6 +22,7 @@ function StatsPage() {
 
   const products = getAllProducts();
   const stats = productStats();
+  const { globalTrend, stockTrend } = useDashboardData();
 
   const byCategory = useMemo(() => {
     const m = new Map<string, { count: number; value: number }>();

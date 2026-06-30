@@ -19,7 +19,15 @@ function Page() {
   return (
     <AppShell title="Rapport 2 — Objectifs ventes ANF" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
-      <ReportObjectifsANF data={data} suffix={state.fileSuffix} />
+      <ReportObjectifsANF
+        data={data}
+        suffix={state.fileSuffix}
+        year={state.selectedYear}
+        month={state.selectedMonth}
+        scope={state.scope}
+        countryCode={state.countryCode}
+        agencyId={state.agencyId}
+      />
     </AppShell>
   );
 }

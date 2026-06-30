@@ -116,6 +116,17 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    // Hydrate stores from the backend if VITE_API_URL is configured.
+    // Runs once after login (token present). Failures are silent in demo mode.
+    import("../lib/auth").then(({ refreshFromApi }) => refreshFromApi()).then(() => {
+      import("../lib/hydrate").then(({ hydrateFromApi }) => hydrateFromApi());
+    });
+    const onAuth = () => import("../lib/hydrate").then(({ hydrateFromApi }) => hydrateFromApi());
+    window.addEventListener("datafuse:user", onAuth);
+    return () => window.removeEventListener("datafuse:user", onAuth);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />

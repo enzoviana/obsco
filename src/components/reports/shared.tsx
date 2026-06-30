@@ -29,6 +29,12 @@ export function useScopeState() {
   const [countryCode, setCountryCode] = useState<string>("");
   const [agencyId, setAgencyId] = useState<string>("");
 
+  // Sélection de la période
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const list = getAgencies();
@@ -47,13 +53,62 @@ export function useScopeState() {
       : `Agence : ${agency?.name ?? agencyId}`;
   const fileSuffix = scope === "all" ? "global" : scope === "country" ? `pays-${countryCode}` : `agence-${agencyId}`;
 
-  return { scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies, agency, scopeLabel, fileSuffix };
+  return {
+    scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies, agency, scopeLabel, fileSuffix,
+    selectedYear, setSelectedYear, selectedMonth, setSelectedMonth,
+  };
 }
 
 export function ScopeSelector(props: ReturnType<typeof useScopeState>) {
-  const { scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies } = props;
+  const { scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth } = props;
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
+  const monthOptions = [
+    { value: 1, label: "Janvier" },
+    { value: 2, label: "Février" },
+    { value: 3, label: "Mars" },
+    { value: 4, label: "Avril" },
+    { value: 5, label: "Mai" },
+    { value: 6, label: "Juin" },
+    { value: 7, label: "Juillet" },
+    { value: 8, label: "Août" },
+    { value: 9, label: "Septembre" },
+    { value: 10, label: "Octobre" },
+    { value: 11, label: "Novembre" },
+    { value: 12, label: "Décembre" },
+  ];
+
   return (
     <section className="mb-6 rounded-2xl border border-border bg-card p-4">
+      {/* Sélecteur de période */}
+      <div className="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-border">
+        <span className="text-xs font-medium text-muted-foreground">Période :</span>
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+        >
+          {monthOptions.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+        >
+          {yearOptions.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Sélecteur de scope */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-lg border border-border bg-surface p-1">
           <ScopeBtn active={scope === "all"} onClick={() => setScope("all")} icon={<Globe2 className="h-3.5 w-3.5" />} label="Tous confondus" />
@@ -101,6 +156,229 @@ export function useScopedReportData(scope: Scope, countryCode: string, agencyId:
 
 type Data = ReturnType<typeof useScopedReportData>;
 
+/* ---------- API Data hooks ---------- */
+export function useMonthlyData(year: number, month: number, scope: Scope, countryCode: string, agencyId: string) {
+  const [data, setData] = useState<Record<string, { sales: number; stock: number; orders: number }>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          year: year.toString(),
+          month: month.toString(),
+          scope,
+        });
+
+        if (scope === "country") params.append("countryCode", countryCode);
+        if (scope === "agency") params.append("agencyId", agencyId);
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/monthly-summary?${params}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          setData(result);
+        } else {
+          console.error("Erreur chargement monthly-summary");
+          setData({});
+        }
+      } catch (error) {
+        console.error("Erreur chargement monthly-summary:", error);
+        setData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (agencyId || scope !== "agency") {
+      loadData();
+    }
+  }, [year, month, scope, countryCode, agencyId]);
+
+  return { data, loading };
+}
+
+// Hook pour données par pays
+export function useCountryData(year: number, month: number) {
+  const [data, setData] = useState<Record<string, Record<string, { sales: number; stock: number; orders: number }>>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/by-country?year=${year}&month=${month}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          setData(await response.json());
+        } else {
+          setData({});
+        }
+      } catch (error) {
+        console.error("Erreur chargement by-country:", error);
+        setData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [year, month]);
+
+  return { data, loading };
+}
+
+// Hook pour évolution annuelle
+export function useEvolutionData(year: number, scope: Scope, countryCode: string, agencyId: string) {
+  const [data, setData] = useState<Record<string, Record<number, { sales: number; stock: number; orders: number }>>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          year: year.toString(),
+          scope,
+        });
+
+        if (scope === "country") params.append("countryCode", countryCode);
+        if (scope === "agency") params.append("agencyId", agencyId);
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/evolution?${params}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          setData(await response.json());
+        } else {
+          setData({});
+        }
+      } catch (error) {
+        console.error("Erreur chargement evolution:", error);
+        setData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (agencyId || scope !== "agency") {
+      loadData();
+    }
+  }, [year, scope, countryCode, agencyId]);
+
+  return { data, loading };
+}
+
+// Hook pour vue panoramique
+export function usePanoramicData(year: number, productCip: string) {
+  const [data, setData] = useState<Record<string, Record<number, { sales: number; stock: number; orders: number }>>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!productCip) {
+      setData({});
+      return;
+    }
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/panoramic?year=${year}&productCip=${productCip}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          setData(await response.json());
+        } else {
+          setData({});
+        }
+      } catch (error) {
+        console.error("Erreur chargement panoramic:", error);
+        setData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [year, productCip]);
+
+  return { data, loading };
+}
+
+// Hook pour charger les données de 12 mois (pour rapports stocks)
+export function useYearStocksData(year: number) {
+  const [data, setData] = useState<Record<number, Record<string, Record<string, { sales: number; stock: number; orders: number }>>>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Charger les données de tous les mois en parallèle
+        const promises = [];
+        for (let month = 1; month <= 12; month++) {
+          promises.push(
+            fetch(
+              `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/by-country?year=${year}&month=${month}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+                },
+              }
+            ).then(res => res.ok ? res.json() : {})
+          );
+        }
+
+        const results = await Promise.all(promises);
+
+        // Construire l'objet { month: { cip: { countryCode: { sales, stock, orders } } } }
+        const yearData: Record<number, Record<string, Record<string, { sales: number; stock: number; orders: number }>>> = {};
+        results.forEach((monthResult, idx) => {
+          yearData[idx + 1] = monthResult;
+        });
+
+        setData(yearData);
+      } catch (error) {
+        console.error("Erreur chargement year-stocks:", error);
+        setData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [year]);
+
+  return { data, loading };
+}
+
 /* ---------- Card wrapper (Stock fournisseur design) ---------- */
 export function ReportCard({ title, subtitle, rows, filename, children }: {
   title: string; subtitle: string; rows: Record<string, unknown>[]; filename: string; children: React.ReactNode;
@@ -139,16 +417,17 @@ const TD = ({ children, right, mute }: { children: React.ReactNode; right?: bool
 /* ===================================================================== */
 /* RAPPORT 1 — Suivi objectifs ventes mensuelles par produit             */
 /* ===================================================================== */
-function buildR1(d: Data) {
-  const factor = d.agencyFactor * (d.codeFilter ? 1 / Math.max(COUNTRIES.length, 1) : 1);
+function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number }>) {
   const rows = d.products.slice(0, 60).map(p => {
-    const ventes = Math.round(p.ventes * factor);
-    const budgetMois = Math.round(p.budgetMois * factor);
-    const ventesAn1 = Math.round(p.ventesAn1 * factor);
-    const ca = +(p.ca * factor).toFixed(2);
-    const budgetMoisCa = +(p.budgetMoisCa * factor).toFixed(2);
-    const cumulBudget = Math.round(p.cumulBudget * factor);
-    const cumulRealise = Math.round(p.cumulRealise * factor);
+    // Utiliser les données API
+    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0 };
+    const ventes = productData.sales;
+    const budgetMois = Math.round(p.budgetMois * d.agencyFactor);
+    const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
+    const ca = +(ventes * p.pghtPays).toFixed(2);
+    const budgetMoisCa = +(budgetMois * p.pghtPays).toFixed(2);
+    const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
+    const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
       id: p.id, produit: p.name, pght: p.pghtPays, ventes, budgetMois,
       tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
@@ -163,8 +442,11 @@ function buildR1(d: Data) {
   return rows;
 }
 
-export function ReportObjectifsPays({ data, suffix }: { data: Data; suffix: string }) {
-  const rows = useMemo(() => buildR1(data), [data]);
+export function ReportObjectifsPays({ data, suffix, year, month, scope, countryCode, agencyId }: {
+  data: Data; suffix: string; year: number; month: number; scope: Scope; countryCode: string; agencyId: string;
+}) {
+  const { data: apiData, loading } = useMonthlyData(year, month, scope, countryCode, agencyId);
+  const rows = useMemo(() => buildR1(data, apiData), [data, apiData]);
   const tot = useMemo(() => ({
     ventes: rows.reduce((s, r) => s + r.ventes, 0),
     budgetMois: rows.reduce((s, r) => s + r.budgetMois, 0),
@@ -174,6 +456,14 @@ export function ReportObjectifsPays({ data, suffix }: { data: Data; suffix: stri
     cumulBudget: rows.reduce((s, r) => s + r.cumulBudget, 0),
     cumulRealise: rows.reduce((s, r) => s + r.cumulRealise, 0),
   }), [rows]);
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
   const exportRows = rows.map(r => ({
     Produit: r.produit, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
     "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
@@ -228,16 +518,17 @@ export function ReportObjectifsPays({ data, suffix }: { data: Data; suffix: stri
 /* ===================================================================== */
 /* RAPPORT 2 — Objectifs ventes mensuelles ANF (par produit)             */
 /* ===================================================================== */
-function buildR2(d: Data) {
-  const factor = d.agencyFactor * (d.codeFilter ? 1 / Math.max(COUNTRIES.length, 1) : 1);
+function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number }>) {
   return d.products.slice(0, 60).map(p => {
-    const ventes = Math.round(p.ventes * factor);
-    const budgetMois = Math.round(p.budgetMois * factor);
-    const ventesAn1 = Math.round(p.ventesAn1 * factor);
-    const ca = +(p.ca * factor).toFixed(2);
-    const budgetMoisCa = +(p.budgetMoisCa * factor).toFixed(2);
-    const cumulBudget = Math.round(p.cumulBudget * factor);
-    const cumulRealise = Math.round(p.cumulRealise * factor);
+    // Utiliser les données API
+    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0 };
+    const ventes = productData.sales;
+    const budgetMois = Math.round(p.budgetMois * d.agencyFactor);
+    const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
+    const ca = +(ventes * p.pghtPays).toFixed(2);
+    const budgetMoisCa = +(budgetMois * p.pghtPays).toFixed(2);
+    const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
+    const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
       id: p.id, produit: p.name, pght: p.pghtPays, ventes, budgetMois,
       tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
@@ -249,8 +540,19 @@ function buildR2(d: Data) {
   });
 }
 
-export function ReportObjectifsANF({ data, suffix }: { data: Data; suffix: string }) {
-  const rows = useMemo(() => buildR2(data), [data]);
+export function ReportObjectifsANF({ data, suffix, year, month, scope, countryCode, agencyId }: {
+  data: Data; suffix: string; year: number; month: number; scope: Scope; countryCode: string; agencyId: string;
+}) {
+  const { data: apiData, loading } = useMonthlyData(year, month, scope, countryCode, agencyId);
+  const rows = useMemo(() => buildR2(data, apiData), [data, apiData]);
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
   const exportRows = rows.map(r => ({
     Produit: r.produit, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
     "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
@@ -291,14 +593,15 @@ export function ReportObjectifsANF({ data, suffix }: { data: Data; suffix: strin
 /* ===================================================================== */
 /* RAPPORT 3 / 3bis — Ventes par produit × pays                          */
 /* ===================================================================== */
-function buildR3(d: Data, kind: "un" | "ca") {
+function buildR3(d: Data, kind: "un" | "ca", apiData: Record<string, Record<string, { sales: number; stock: number; orders: number }>>) {
   return d.products.slice(0, 60).map(p => {
     const row: Record<string, string | number> = { produit: p.name };
     let total = 0;
     for (const c of d.visibleCountries) {
-      const r = prodRand(p.id + c.code + kind);
-      const baseUn = (p.ventes / Math.max(COUNTRIES.length, 1)) * d.agencyFactor * (0.6 + r() * 0.9);
-      const v = kind === "un" ? Math.round(baseUn) : +(baseUn * p.pghtPays).toFixed(2);
+      // Utiliser les données API au lieu de prodRand
+      const countryData = apiData[p.cip]?.[c.code];
+      const salesValue = countryData?.sales || 0;
+      const v = kind === "un" ? salesValue : +(salesValue * p.pghtPays).toFixed(2);
       row[c.code] = v;
       total += v;
     }
@@ -307,16 +610,26 @@ function buildR3(d: Data, kind: "un" | "ca") {
   });
 }
 
-function ReportPaysGrid({ data, suffix, kind, title, subtitle, file }: {
-  data: Data; suffix: string; kind: "un" | "ca"; title: string; subtitle: string; file: string;
+function ReportPaysGrid({ data, suffix, kind, title, subtitle, file, year, month }: {
+  data: Data; suffix: string; kind: "un" | "ca"; title: string; subtitle: string; file: string; year: number; month: number;
 }) {
-  const rows = useMemo(() => buildR3(data, kind), [data, kind]);
+  const { data: apiData, loading } = useCountryData(year, month);
+  const rows = useMemo(() => buildR3(data, kind, apiData), [data, kind, apiData]);
   const exportRows = rows.map(r => {
     const o: Record<string, unknown> = { Produit: r.produit };
     for (const c of data.visibleCountries) o[`${c.name.toUpperCase()} (${kind === "un" ? "UN" : "CA euro"})`] = r[c.code];
     o["TOTAL ANF"] = r.total;
     return o;
   });
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
+
   return (
     <ReportCard title={title} subtitle={subtitle} rows={exportRows} filename={`${file}-${suffix}`}>
       <Table minWidth={200 + data.visibleCountries.length * 110}>
@@ -339,13 +652,13 @@ function ReportPaysGrid({ data, suffix, kind, title, subtitle, file }: {
   );
 }
 
-export function ReportVentesUnits({ data, suffix }: { data: Data; suffix: string }) {
-  return <ReportPaysGrid data={data} suffix={suffix} kind="un"
+export function ReportVentesUnits({ data, suffix, year, month }: { data: Data; suffix: string; year: number; month: number }) {
+  return <ReportPaysGrid data={data} suffix={suffix} kind="un" year={year} month={month}
     title="Rapport 3 · Ventes par unités (produit × pays)" subtitle="Nombre d'unités vendues par pays sur le mois"
     file="r3-ventes-un" />;
 }
-export function ReportVentesCA({ data, suffix }: { data: Data; suffix: string }) {
-  return <ReportPaysGrid data={data} suffix={suffix} kind="ca"
+export function ReportVentesCA({ data, suffix, year, month }: { data: Data; suffix: string; year: number; month: number }) {
+  return <ReportPaysGrid data={data} suffix={suffix} kind="ca" year={year} month={month}
     title="Rapport 3 bis · Ventes par CA (produit × pays)" subtitle="CA en euros par pays sur le mois"
     file="r3bis-ventes-ca" />;
 }
@@ -353,33 +666,37 @@ export function ReportVentesCA({ data, suffix }: { data: Data; suffix: string })
 /* ===================================================================== */
 /* RAPPORT 4 / 4bis — Évolution produit × mois (pour un pays / TOTAL)    */
 /* ===================================================================== */
-function buildR4(d: Data, kind: "un" | "ca") {
-  const targets = d.selectedCountry ? [d.selectedCountry] : COUNTRIES.map(c => c.code);
+function buildR4(d: Data, kind: "un" | "ca", apiData: Record<string, Record<number, { sales: number; stock: number; orders: number }>>) {
   return d.products.slice(0, 60).map(p => {
     const row: Record<string, string | number> = { produit: p.name };
     let total = 0;
-    for (let m = 0; m < 12; m++) {
-      let v = 0;
-      for (const cc of targets) {
-        const r = prodRand(p.id + cc + MONTHS[m] + kind);
-        const baseUn = (p.ventes / 12 / Math.max(COUNTRIES.length, 1)) * d.agencyFactor * (0.6 + r() * 0.9);
-        v += kind === "un" ? Math.round(baseUn) : baseUn * p.pghtPays;
-      }
-      row[MONTHS[m]] = kind === "un" ? Math.round(v) : +v.toFixed(2);
-      total += kind === "un" ? Math.round(v) : v;
+    const productMonthlyData = apiData[p.cip] || {};
+
+    for (let m = 1; m <= 12; m++) {
+      const monthData = productMonthlyData[m] || { sales: 0, stock: 0, orders: 0 };
+      const v = kind === "un" ? monthData.sales : +(monthData.sales * p.pghtPays).toFixed(2);
+      row[MONTHS[m - 1]] = v;
+      total += v;
     }
+
     row.total = kind === "un" ? Math.round(total) : +total.toFixed(2);
+
     if (kind === "un") {
-      const rs = prodRand(p.id + "fr");
-      row.stockFrance = Math.round(p.ventes * 0.25 * (0.7 + rs() * 0.6));
-      row.resteFrance = Math.round(p.ventes * 0.12 * (0.7 + rs() * 0.6));
+      // Stock France et reste à recevoir (si données disponibles)
+      const lastMonthData = productMonthlyData[12] || productMonthlyData[11] || productMonthlyData[10] || { sales: 0, stock: 0, orders: 0 };
+      row.stockFrance = lastMonthData.stock;
+      row.resteFrance = lastMonthData.orders;
     }
+
     return row;
   });
 }
 
-export function ReportEvolutionUN({ data, suffix }: { data: Data; suffix: string; countries?: unknown }) {
-  const rows = useMemo(() => buildR4(data, "un"), [data]);
+export function ReportEvolutionUN({ data, suffix, year, scope, countryCode, agencyId }: {
+  data: Data; suffix: string; year: number; scope: Scope; countryCode: string; agencyId: string;
+}) {
+  const { data: apiData, loading } = useEvolutionData(year, scope, countryCode, agencyId);
+  const rows = useMemo(() => buildR4(data, "un", apiData), [data, apiData]);
   const paysLabel = data.selectedCountry || "TOTAL ANF";
   const exportRows = rows.map(r => {
     const o: Record<string, unknown> = { [`Produit (${paysLabel})`]: r.produit };
@@ -387,6 +704,15 @@ export function ReportEvolutionUN({ data, suffix }: { data: Data; suffix: string
     o.Total = r.total; o["STOCK France"] = r.stockFrance; o["RESTE À RECEVOIR France"] = r.resteFrance;
     return o;
   });
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
+
   return (
     <ReportCard title="Rapport 4 · Évolution ventes mois par mois — Unités"
       subtitle={`Produit × mois — ${paysLabel} · inclut stock France & reste à recevoir`}
@@ -413,8 +739,11 @@ export function ReportEvolutionUN({ data, suffix }: { data: Data; suffix: string
   );
 }
 
-export function ReportEvolutionCA({ data, suffix }: { data: Data; suffix: string; countries?: unknown }) {
-  const rows = useMemo(() => buildR4(data, "ca"), [data]);
+export function ReportEvolutionCA({ data, suffix, year, scope, countryCode, agencyId }: {
+  data: Data; suffix: string; year: number; scope: Scope; countryCode: string; agencyId: string;
+}) {
+  const { data: apiData, loading } = useEvolutionData(year, scope, countryCode, agencyId);
+  const rows = useMemo(() => buildR4(data, "ca", apiData), [data, apiData]);
   const paysLabel = data.selectedCountry || "TOTAL ANF";
   const exportRows = rows.map(r => {
     const o: Record<string, unknown> = { [`Produit (${paysLabel})`]: r.produit };
@@ -422,6 +751,15 @@ export function ReportEvolutionCA({ data, suffix }: { data: Data; suffix: string
     o.Total = r.total;
     return o;
   });
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
+
   return (
     <ReportCard title="Rapport 4 bis · Évolution ventes mois par mois — CA"
       subtitle={`Produit × mois — ${paysLabel} · CA en euros`}
@@ -449,27 +787,47 @@ export function ReportEvolutionCA({ data, suffix }: { data: Data; suffix: string
 /* ===================================================================== */
 /* RAPPORT 5 / 5bis — Stocks (mois × pays)                                */
 /* ===================================================================== */
-function buildR5(d: Data, kind: "stock" | "encours") {
-  return MONTHS.map(m => {
+function buildR5(d: Data, kind: "stock" | "encours", apiDataByMonth: Record<number, Record<string, Record<string, { sales: number; stock: number; orders: number }>>>) {
+  return MONTHS.map((m, idx) => {
+    const month = idx + 1;
     const row: Record<string, string | number> = { mois: m };
+    const monthData = apiDataByMonth[month] || {};
+
     for (const c of d.visibleCountries) {
-      const r = prodRand(m + c.code + kind);
-      const base = kind === "stock" ? 3000 + r() * 14000 : 200 + r() * 2200;
-      row[c.code] = Math.round(base * d.agencyFactor);
+      // Agréger tous les produits pour ce pays
+      let total = 0;
+      for (const cip in monthData) {
+        const countryData = monthData[cip]?.[c.code];
+        if (countryData) {
+          total += kind === "stock" ? countryData.stock : countryData.orders;
+        }
+      }
+      row[c.code] = Math.round(total);
     }
+
     return row;
   });
 }
 
-function StocksGrid({ data, suffix, kind, title, subtitle, file }: {
-  data: Data; suffix: string; kind: "stock" | "encours"; title: string; subtitle: string; file: string;
+function StocksGrid({ data, suffix, kind, title, subtitle, file, year }: {
+  data: Data; suffix: string; kind: "stock" | "encours"; title: string; subtitle: string; file: string; year: number;
 }) {
-  const rows = useMemo(() => buildR5(data, kind), [data, kind]);
+  const { data: apiData, loading } = useYearStocksData(year);
+  const rows = useMemo(() => buildR5(data, kind, apiData), [data, kind, apiData]);
   const exportRows = rows.map(r => {
     const o: Record<string, unknown> = { Mois: r.mois };
     for (const c of data.visibleCountries) o[c.name.toUpperCase()] = r[c.code];
     return o;
   });
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
+
   return (
     <ReportCard title={title} subtitle={subtitle} rows={exportRows} filename={`${file}-${suffix}`}>
       <Table minWidth={200 + data.visibleCountries.length * 110}>
@@ -490,13 +848,13 @@ function StocksGrid({ data, suffix, kind, title, subtitle, file }: {
   );
 }
 
-export function ReportStocks({ data, suffix }: { data: Data; suffix: string }) {
-  return <StocksGrid data={data} suffix={suffix} kind="stock"
+export function ReportStocks({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
+  return <StocksGrid data={data} suffix={suffix} kind="stock" year={year}
     title="Rapport 5 · Situation stocks locaux par pays"
     subtitle="Stocks disponibles par mois et par pays" file="r5-stocks" />;
 }
-export function ReportStocksEnCours({ data, suffix }: { data: Data; suffix: string }) {
-  return <StocksGrid data={data} suffix={suffix} kind="encours"
+export function ReportStocksEnCours({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
+  return <StocksGrid data={data} suffix={suffix} kind="encours" year={year}
     title="Rapport 5 bis · Stocks en cours de livraison"
     subtitle="Quantités en cours par mois et par pays" file="r5bis-stocks-encours" />;
 }
@@ -504,25 +862,31 @@ export function ReportStocksEnCours({ data, suffix }: { data: Data; suffix: stri
 /* ===================================================================== */
 /* RAPPORT 6 — Vue panoramique : produit sélectionnable × pays × mois     */
 /* ===================================================================== */
-export function ReportVuePanoramique({ data, suffix }: { data: Data; suffix: string }) {
+export function ReportVuePanoramique({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
   const [productId, setProductId] = useState<string>("");
   const products = data.products;
   const selected = products.find(p => p.id === productId) || products[0];
+
+  const { data: apiData, loading } = usePanoramicData(year, selected?.cip || "");
 
   const rows = useMemo(() => {
     if (!selected) return [] as Array<Record<string, string | number>>;
     return data.visibleCountries.map(c => {
       const row: Record<string, string | number> = { pays: c.name, code: c.code };
       let total = 0;
-      for (const m of MONTHS) {
-        const r = prodRand(selected.id + c.code + m + "r6");
-        const v = Math.round((selected.ventes / 12 / Math.max(COUNTRIES.length, 1)) * data.agencyFactor * (0.5 + r() * 1.1));
-        row[m] = v; total += v;
+      const countryData = apiData[c.code] || {};
+
+      for (let m = 1; m <= 12; m++) {
+        const monthData = countryData[m] || { sales: 0, stock: 0, orders: 0 };
+        const v = monthData.sales;
+        row[MONTHS[m - 1]] = v;
+        total += v;
       }
-      row.total = total;
+
+      row.total = Math.round(total);
       return row;
     });
-  }, [selected, data]);
+  }, [selected, data, apiData]);
 
   const exportRows = rows.map(r => {
     const o: Record<string, unknown> = { Pays: r.pays };
@@ -530,6 +894,14 @@ export function ReportVuePanoramique({ data, suffix }: { data: Data; suffix: str
     o.Total = r.total;
     return o;
   });
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+        <p className="text-sm text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
 
   return (
     <ReportCard

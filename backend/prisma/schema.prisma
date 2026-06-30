@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  super_admin
+  agence
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  name               String
+  role               Role     @default(agence)
+  agencyId           String?
+  agency             Agency?  @relation(fields: [agencyId], references: [id])
+  mustChangePassword Boolean  @default(false)
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Country {
+  code      String    @id
+  name      String
+  currency  String
+  region    String
+  agencies  Agency[]
+  prices    ProductPrice[]
+  objectives ProductObjective[]
+  labs      Laboratory[]
+  wholesalers Wholesaler[]
+}
+
+model Agency {
+  id        String   @id @default(cuid())
+  name      String
+  city      String
+  email     String
+  manager   String
+  status    String   @default("active")
+  countryCode String
+  country   Country  @relation(fields: [countryCode], references: [code])
+  users     User[]
+  sales     Sale[]
+  wholesalers Wholesaler[]
+  createdAt DateTime @default(now())
+}
+
+model Laboratory {
+  id          String   @id @default(cuid())
+  name        String
+  countryCode String
+  country     Country  @relation(fields: [countryCode], references: [code])
+  contact     String   @default("")
+  email       String   @default("")
+  phone       String   @default("")
+  address     String   @default("")
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  cip         String   @unique
+  name        String
+  category    String
+  laboratory  String
+  basePrice   Float    @default(0)
+  prices      ProductPrice[]
+  objectives  ProductObjective[]
+  stocks      SupplierStock[]
+  sales       Sale[]
+  createdAt   DateTime @default(now())
+}
+
+model ProductPrice {
+  id          String   @id @default(cuid())
+  productId   String
+  countryCode String
+  price       Float
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  country     Country  @relation(fields: [countryCode], references: [code])
+  @@unique([productId, countryCode])
+}
+
+model ProductObjective {
+  id          String   @id @default(cuid())
+  productId   String
+  countryCode String
+  year        Int
+  month       Int
+  targetUnits Int      @default(0)
+  targetCA    Float    @default(0)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  country     Country  @relation(fields: [countryCode], references: [code])
+  @@unique([productId, countryCode, year, month])
+}
+
+model Wholesaler {
+  id          String   @id @default(cuid())
+  name        String
+  countryCode String
+  city        String?
+  email       String?
+  status      String   @default("active")
+  scope       String   @default("country") // "country" | "agency"
+  agencyId    String?
+  country     Country  @relation(fields: [countryCode], references: [code])
+  agency      Agency?  @relation(fields: [agencyId], references: [id])
+  stocks      SupplierStock[]
+  sales       Sale[]
+  createdAt   DateTime @default(now())
+}
+
+model SupplierStock {
+  id            String   @id @default(cuid())
+  wholesalerId  String
+  productId     String
+  quantity      Int      @default(0)
+  inTransit     Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  wholesaler    Wholesaler @relation(fields: [wholesalerId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([wholesalerId, productId])
+}
+
+model Sale {
+  id            String   @id @default(cuid())
+  agencyId      String
+  productId     String
+  wholesalerId  String?
+  quantity      Int
+  unitPrice     Float
+  totalCA       Float
+  date          DateTime @default(now())
+  agency        Agency   @relation(fields: [agencyId], references: [id])
+  product       Product  @relation(fields: [productId], references: [id])
+  wholesaler    Wholesaler? @relation(fields: [wholesalerId], references: [id])
+}
+
+model MonthlyData {
+  id            String   @id @default(cuid())
+  agencyId      String
+  productCip    String
+  wholesalerId  String
+  year          Int
+  month         Int
+  sales         Int      @default(0)  // Ventes
+  stock         Int      @default(0)  // Stocks
+  orders        Int      @default(0)  // Commandes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([agencyId, productCip, wholesalerId, year, month])
+  @@index([agencyId, year, month])
+  @@index([productCip])
+}

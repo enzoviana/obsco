@@ -1,0 +1,281 @@
+import { Router } from "express";
+import { requireAuth, requireRole } from "../auth.js";
+import { prisma } from "../db.js";
+import { z } from "zod";
+
+export const importRouter = Router();
+
+// Schema de validation pour les données d'import
+const ImportDataSchema = z.object({
+  year: z.number().int().min(2020).max(2100),
+  month: z.number().int().min(1).max(12),
+  data: z.array(
+    z.object({
+      productCip: z.string(),
+      productName: z.string(),
+      suppliers: z.array(
+        z.object({
+          wholesalerId: z.string(),
+          wholesalerName: z.string(),
+          sales: z.number().int().min(0),
+          stock: z.number().int().min(0),
+          orders: z.number().int().min(0),
+        })
+      ),
+    })
+  ),
+});
+
+/**
+ * POST /api/import/monthly
+ * Importer les données mensuelles d'une agence
+ */
+importRouter.post("/monthly", requireAuth, requireRole("agence"), async (req, res) => {
+  try {
+    const user = req.user!;
+
+    // Vérifier que l'utilisateur est bien associé à une agence
+    if (!user.agencyId) {
+      return res.status(403).json({ error: "Vous devez être associé à une agence" });
+    }
+
+    // Valider les données
+    const parsed = ImportDataSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Données invalides", details: parsed.error.errors });
+    }
+
+    const { year, month, data } = parsed.data;
+
+    // Créer ou mettre à jour les données dans la base de données
+    const operations = [];
+
+    for (const productData of data) {
+      for (const supplier of productData.suppliers) {
+        // Vérifier que le wholesaler existe
+        const wholesaler = await prisma.wholesaler.findFirst({
+          where: {
+            id: supplier.wholesalerId,
+          },
+        });
+
+        if (!wholesaler) {
+          console.warn(`Wholesaler ${supplier.wholesalerId} non trouvé, ignoré`);
+          continue;
+        }
+
+        // Upsert (créer ou mettre à jour) les données mensuelles
+        operations.push(
+          prisma.monthlyData.upsert({
+            where: {
+              agencyId_productCip_wholesalerId_year_month: {
+                agencyId: user.agencyId,
+                productCip: productData.productCip,
+                wholesalerId: supplier.wholesalerId,
+                year,
+                month,
+              },
+            },
+            create: {
+              agencyId: user.agencyId,
+              productCip: productData.productCip,
+              wholesalerId: supplier.wholesalerId,
+              year,
+              month,
+              sales: supplier.sales,
+              stock: supplier.stock,
+              orders: supplier.orders,
+            },
+            update: {
+              sales: supplier.sales,
+              stock: supplier.stock,
+              orders: supplier.orders,
+              updatedAt: new Date(),
+            },
+          })
+        );
+      }
+    }
+
+    // Exécuter toutes les opérations dans une transaction
+    const results = await prisma.$transaction(operations);
+
+    res.json({
+      success: true,
+      message: `${results.length} enregistrements importés avec succès`,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'import:", error);
+    res.status(500).json({ error: "Erreur lors de l'import des données" });
+  }
+});
+
+/**
+ * GET /api/import/monthly/:year/:month
+ * Récupérer les données mensuelles importées par une agence
+ */
+importRouter.get("/monthly/:year/:month", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+
+    // Vérifier que l'utilisateur est bien associé à une agence
+    if (!user.agencyId) {
+      return res.status(403).json({ error: "Vous devez être associé à une agence" });
+    }
+
+    const year = parseInt(req.params.year);
+    const month = parseInt(req.params.month);
+
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      return res.status(400).json({ error: "Année ou mois invalide" });
+    }
+
+    const monthlyData = await prisma.monthlyData.findMany({
+      where: {
+        agencyId: user.agencyId,
+        year,
+        month,
+      },
+      orderBy: [{ productCip: "asc" }, { wholesalerId: "asc" }],
+    });
+
+    res.json(monthlyData);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des données:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des données" });
+  }
+});
+
+/**
+ * DELETE /api/import/monthly/:year/:month
+ * Supprimer les données mensuelles d'une agence
+ */
+importRouter.delete("/monthly/:year/:month", requireAuth, requireRole("agence"), async (req, res) => {
+  try {
+    const user = req.user!;
+
+    if (!user.agencyId) {
+      return res.status(403).json({ error: "Vous devez être associé à une agence" });
+    }
+
+    const year = parseInt(req.params.year);
+    const month = parseInt(req.params.month);
+
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      return res.status(400).json({ error: "Année ou mois invalide" });
+    }
+
+    const result = await prisma.monthlyData.deleteMany({
+      where: {
+        agencyId: user.agencyId,
+        year,
+        month,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `${result.count} enregistrements supprimés`,
+      count: result.count,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la suppression:", error);
+    res.status(500).json({ error: "Erreur lors de la suppression des données" });
+  }
+});
+
+/**
+ * GET /api/import/sorties-locales
+ * Récupérer les données pour le module Sorties Locales
+ * Paramètres query:
+ * - year: année
+ * - month: mois
+ * - scope: "all" | "country" | "agency"
+ * - countryCode?: code pays (si scope=country)
+ * - agencyId?: ID agence (si scope=agency)
+ */
+importRouter.get("/sorties-locales", requireAuth, async (req, res) => {
+  try {
+    const { year, month, scope, countryCode, agencyId } = req.query;
+
+    if (!year || !month) {
+      return res.status(400).json({ error: "Année et mois requis" });
+    }
+
+    const y = parseInt(year as string);
+    const m = parseInt(month as string);
+
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) {
+      return res.status(400).json({ error: "Année ou mois invalide" });
+    }
+
+    let whereClause: any = { year: y, month: m };
+
+    // Filtrer selon le scope
+    if (scope === "agency" && agencyId) {
+      whereClause.agencyId = agencyId as string;
+    } else if (scope === "country" && countryCode) {
+      // Récupérer toutes les agences du pays
+      const agencies = await prisma.agency.findMany({
+        where: { countryCode: countryCode as string },
+        select: { id: true },
+      });
+      whereClause.agencyId = { in: agencies.map(a => a.id) };
+    }
+    // Si scope === "all", pas de filtre sur agencyId
+
+    // Récupérer toutes les données mensuelles
+    const monthlyData = await prisma.monthlyData.findMany({
+      where: whereClause,
+    });
+
+    // Agréger les données par produit et fournisseur
+    const aggregated = new Map<string, Map<string, { sales: number; stock: number; orders: number }>>();
+
+    for (const data of monthlyData) {
+      if (!aggregated.has(data.productCip)) {
+        aggregated.set(data.productCip, new Map());
+      }
+
+      const productMap = aggregated.get(data.productCip)!;
+
+      if (!productMap.has(data.wholesalerId)) {
+        productMap.set(data.wholesalerId, { sales: 0, stock: 0, orders: 0 });
+      }
+
+      const supplierData = productMap.get(data.wholesalerId)!;
+      supplierData.sales += data.sales;
+      supplierData.stock += data.stock;
+      supplierData.orders += data.orders;
+    }
+
+    // Convertir en format attendu par le frontend
+    const result: Record<string, Record<string, { ventes: number; stocks: number; commandes: number }>> = {};
+
+    for (const [productCip, suppliers] of aggregated.entries()) {
+      result[productCip] = {};
+
+      for (const [wholesalerId, data] of suppliers.entries()) {
+        // Récupérer le nom du wholesaler
+        const wholesaler = await prisma.wholesaler.findUnique({
+          where: { id: wholesalerId },
+          select: { name: true },
+        });
+
+        if (wholesaler) {
+          result[productCip][wholesaler.name] = {
+            ventes: data.sales,
+            stocks: data.stock,
+            commandes: data.orders,
+          };
+        }
+      }
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des données Sorties Locales:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des données" });
+  }
+});

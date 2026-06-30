@@ -17,9 +17,16 @@ function Page() {
     if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" });
   }, [navigate]);
   return (
-    <AppShell title="Rapport 4 — Évolution CA" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
+    <AppShell title="Rapport 4 bis — Évolution CA" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
-      <ReportEvolutionCA data={data} suffix={state.fileSuffix} />
+      <ReportEvolutionCA
+        data={data}
+        suffix={state.fileSuffix}
+        year={state.selectedYear}
+        scope={state.scope}
+        countryCode={state.countryCode}
+        agencyId={state.agencyId}
+      />
     </AppShell>
   );
 }

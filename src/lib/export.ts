@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 
 export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
   if (!rows.length) return;
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
   const csv = XLSX.utils.sheet_to_csv(ws, { FS: ";" });
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
   triggerDownload(blob, filename.endsWith(".csv") ? filename : filename + ".csv");
@@ -12,7 +12,7 @@ export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
 export function exportXLSX(filename: string, sheets: Record<string, Record<string, unknown>[]>) {
   const wb = XLSX.utils.book_new();
   for (const [name, rows] of Object.entries(sheets)) {
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
   }
   XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : filename + ".xlsx");

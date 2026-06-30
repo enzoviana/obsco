@@ -34,26 +34,112 @@ function SortiesIndex() {
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [grossistes, setGrossistes] = useState<Grossiste[]>([]);
 
+  // Sélection de la période
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+
+  // Données importées depuis la BDD
+  const [monthlyDataByProduct, setMonthlyDataByProduct] = useState<Record<string, Record<string, { ventes: number; stocks: number; commandes: number }>>>({});
+  const [loading, setLoading] = useState(false);
+
+  const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
+  const monthOptions = [
+    { value: 1, label: "Janvier" },
+    { value: 2, label: "Février" },
+    { value: 3, label: "Mars" },
+    { value: 4, label: "Avril" },
+    { value: 5, label: "Mai" },
+    { value: 6, label: "Juin" },
+    { value: 7, label: "Juillet" },
+    { value: 8, label: "Août" },
+    { value: 9, label: "Septembre" },
+    { value: 10, label: "Octobre" },
+    { value: 11, label: "Novembre" },
+    { value: 12, label: "Décembre" },
+  ];
+
+  // Charger les données depuis l'API
+  const loadMonthlyData = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        year: selectedYear.toString(),
+        month: selectedMonth.toString(),
+        scope,
+      });
+
+      if (scope === "country") {
+        params.append("countryCode", countryCode);
+      } else if (scope === "agency") {
+        params.append("agencyId", agencyId);
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/import/sorties-locales?${params}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setMonthlyDataByProduct(data);
+      } else {
+        console.error("Erreur chargement données:", response.statusText);
+        setMonthlyDataByProduct({});
+      }
+    } catch (error) {
+      console.error("Erreur chargement données:", error);
+      setMonthlyDataByProduct({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!getUser()) {
       navigate({ to: "/login" });
       return;
     }
+
+    // Charger les données initiales
     const ag = getAgencies();
     setAgencies(ag);
     setGrossistes(getGrossistes());
     if (!agencyId && ag[0]) setAgencyId(ag[0].id);
+
+    // Écouter les changements des agences et grossistes
+    const syncAgencies = () => setAgencies(getAgencies());
+    const syncGrossistes = () => setGrossistes(getGrossistes());
+
+    window.addEventListener("datafuse:agencies", syncAgencies);
+    window.addEventListener("datafuse:gros", syncGrossistes);
+
+    return () => {
+      window.removeEventListener("datafuse:agencies", syncAgencies);
+      window.removeEventListener("datafuse:gros", syncGrossistes);
+    };
   }, [navigate, agencyId]);
+
+  // Charger les données quand la période ou le scope change
+  useEffect(() => {
+    if (agencyId || scope !== "agency") {
+      loadMonthlyData();
+    }
+  }, [selectedYear, selectedMonth, scope, countryCode, agencyId]);
 
   const products = getPanoramicProducts();
 
   const supplierView = useMemo(() => {
     const map = new Map<string, number>();
-    const knownSuppliers = new Set(SUPPLIERS);
+    // Accepter tous les grossistes, pas seulement ceux dans SUPPLIERS
     for (const g of grossistes) {
       if (g.status === "blocked" || g.status === "inactive") continue;
-      if (!knownSuppliers.has(g.partenaire)) continue;
       if (supplierFilter !== "all" && g.partenaire !== supplierFilter) continue;
       let include = false;
       let factor = 1;
@@ -89,16 +175,22 @@ function SortiesIndex() {
   const totals = useMemo(() => {
     const t: Record<string, { ventes: number; stocks: number; commandes: number }> = {};
     for (const sv of supplierView) t[sv.name] = { ventes: 0, stocks: 0, commandes: 0 };
-    for (const p of products)
+
+    // Utiliser les données importées au lieu des données factices
+    for (const p of products) {
+      const productData = monthlyDataByProduct[p.cip];
+      if (!productData) continue;
+
       for (const sv of supplierView) {
-        const f = p.fournisseurs[sv.name];
+        const f = productData[sv.name];
         if (!f) continue;
         t[sv.name].ventes += scale(f.ventes, sv.factor);
         t[sv.name].stocks += scale(f.stocks, sv.factor);
         t[sv.name].commandes += scale(f.commandes, sv.factor);
       }
+    }
     return t;
-  }, [products, supplierView]);
+  }, [products, supplierView, monthlyDataByProduct]);
 
   const scopeLabel =
     scope === "all"
@@ -113,9 +205,16 @@ function SortiesIndex() {
     const rows: Record<string, unknown>[] = [];
     for (const p of filtered) {
       const row: Record<string, unknown> = { CIP: p.cip, Produit: p.name, Laboratoire: p.laboratory };
+      const productData = monthlyDataByProduct[p.cip];
+
       for (const sv of supplierView) {
-        const f = p.fournisseurs[sv.name];
-        if (!f) continue;
+        const f = productData?.[sv.name];
+        if (!f) {
+          row[`${sv.name} - Ventes`] = 0;
+          row[`${sv.name} - Stocks`] = 0;
+          row[`${sv.name} - Commandes`] = 0;
+          continue;
+        }
         row[`${sv.name} - Ventes`] = scale(f.ventes, sv.factor);
         row[`${sv.name} - Stocks`] = scale(f.stocks, sv.factor);
         row[`${sv.name} - Commandes`] = scale(f.commandes, sv.factor);
@@ -124,14 +223,25 @@ function SortiesIndex() {
     }
     exportXLSX(`stocks-fournisseurs-${fileSuffix}`, {
       Fournisseurs: rows,
-      _Filtre: [{ scope, pays: countryCode, agence: agencyId, fournisseur: supplierFilter, libelle: scopeLabel }],
+      _Filtre: [{
+        scope,
+        pays: countryCode,
+        agence: agencyId,
+        fournisseur: supplierFilter,
+        libelle: scopeLabel,
+        periode: `${monthOptions.find(m => m.value === selectedMonth)?.label} ${selectedYear}`
+      }],
     });
     toast.success("Export XLSX téléchargé");
   };
 
   const supplierOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const g of grossistes) if (SUPPLIERS.includes(g.partenaire)) set.add(g.partenaire);
+    // Récupérer TOUS les grossistes actifs, pas seulement ceux dans SUPPLIERS
+    for (const g of grossistes) {
+      if (g.status === "blocked" || g.status === "inactive") continue;
+      set.add(g.partenaire);
+    }
     return Array.from(set).sort();
   }, [grossistes]);
 
@@ -147,6 +257,32 @@ function SortiesIndex() {
       }
     >
       <section className="mb-6 rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <span className="text-xs font-medium text-muted-foreground">Période :</span>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+          >
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          {loading && <span className="text-xs text-muted-foreground">Chargement...</span>}
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-lg border border-border bg-surface p-1">
             <ScopeBtn
@@ -289,6 +425,8 @@ function SortiesIndex() {
               <tbody>
                 {filtered.slice(0, 100).map((p) => {
                   let rv = 0, rs = 0, rc = 0;
+                  const productData = monthlyDataByProduct[p.cip];
+
                   return (
                     <tr key={p.id} className="border-t border-border/60 hover:bg-surface/40">
                       <td className="px-3 py-2.5 border-r border-border/60">
@@ -296,7 +434,7 @@ function SortiesIndex() {
                         <div className="text-[10px] text-muted-foreground font-mono">{p.cip}</div>
                       </td>
                       {supplierView.map((sv) => {
-                        const f = p.fournisseurs[sv.name];
+                        const f = productData?.[sv.name];
                         if (!f)
                           return (
                             <Fragment key={sv.name}>

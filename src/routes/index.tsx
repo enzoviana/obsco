@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useUser, getUser } from "@/lib/auth";
 import { ImportModal } from "@/components/dashboard/ImportModal";
 import { getAllProducts, productStats } from "@/lib/products";
-import { allPharmacies, totals, globalTrend, stockTrend, recentImports } from "@/lib/mock-data";
+import { useDashboardData } from "@/lib/useDashboardData";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Tableau de bord — DATAFUSE" }] }),
@@ -22,8 +22,15 @@ function Dashboard() {
   const user = useUser();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" });
-  }, [navigate]);
+    if (typeof window !== "undefined") {
+      const currentUser = getUser();
+      if (!currentUser) {
+        navigate({ to: "/login" });
+      } else if (currentUser.mustChangePassword) {
+        navigate({ to: "/change-password" });
+      }
+    }
+  }, [navigate, user]);
 
   if (!user) return null;
   return user.role === "admin" ? <AdminDash /> : <PharmacyDash />;
@@ -32,6 +39,7 @@ function Dashboard() {
 function PharmacyDash() {
   const [open, setOpen] = useState(false);
   const stats = productStats();
+  const { stockTrend, recentImports } = useDashboardData();
 
   return (
     <AppShell
@@ -194,6 +202,8 @@ function TopLowStock() {
 }
 
 function AdminDash() {
+  const { allPharmacies, totals, globalTrend } = useDashboardData();
+
   return (
     <AppShell
       title="Centre de commandement"

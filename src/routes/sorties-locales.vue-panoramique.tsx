@@ -19,7 +19,7 @@ function Page() {
   return (
     <AppShell title="Rapport 6 — Vue panoramique produit" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
-      <ReportVuePanoramique data={data} suffix={state.fileSuffix} />
+      <ReportVuePanoramique data={data} suffix={state.fileSuffix} year={state.selectedYear} />
     </AppShell>
   );
 }

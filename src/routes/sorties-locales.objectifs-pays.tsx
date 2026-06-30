@@ -19,7 +19,15 @@ function Page() {
   return (
     <AppShell title="Rapport 1 — Objectifs ventes par pays" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
-      <ReportObjectifsPays data={data} suffix={state.fileSuffix} />
+      <ReportObjectifsPays
+        data={data}
+        suffix={state.fileSuffix}
+        year={state.selectedYear}
+        month={state.selectedMonth}
+        scope={state.scope}
+        countryCode={state.countryCode}
+        agencyId={state.agencyId}
+      />
     </AppShell>
   );
 }

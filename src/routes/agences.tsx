@@ -162,17 +162,42 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
   const [manager, setManager] = useState(agency?.manager ?? "");
   const [email, setEmail] = useState(agency?.email ?? "");
   const [city, setCity] = useState(agency?.city ?? "");
+  const [loading, setLoading] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     if (!name || !country || !email) { toast.error("Champs requis manquants"); return; }
-    if (agency) {
-      updateAgency(agency.id, { name, country, manager, email, city });
-      toast.success(`Agence ${name} mise à jour`);
-    } else {
-      addAgency({ name, country, manager, email, city });
-      toast.success(`Agence ${name} créée`);
+
+    setLoading(true);
+    try {
+      if (agency) {
+        updateAgency(agency.id, { name, country, manager, email, city });
+        toast.success(`Agence ${name} mise à jour`);
+      } else {
+        const result = await addAgency({ name, country, manager, email, city });
+
+        // Afficher le mot de passe temporaire si disponible
+        if (result.temporaryPassword) {
+          toast.success(
+            <div>
+              <div className="font-semibold mb-1">✅ Agence {name} créée</div>
+              <div className="text-xs opacity-90">📧 Email envoyé à {email}</div>
+              <div className="mt-2 p-2 bg-background/50 rounded border">
+                <div className="text-xs font-semibold">Mot de passe provisoire :</div>
+                <div className="font-mono text-sm mt-1 select-all">{result.temporaryPassword}</div>
+              </div>
+            </div>,
+            { duration: 10000 } // Afficher pendant 10 secondes
+          );
+        } else {
+          toast.success(`Agence ${name} créée`);
+        }
+      }
+      onClose();
+    } catch (error) {
+      toast.error("Erreur lors de la création de l'agence");
+    } finally {
+      setLoading(false);
     }
-    onClose();
   };
 
   return (
@@ -199,8 +224,10 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
         <div><Label>Email *</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Annuler</Button>
-        <Button onClick={submit}>{agency ? "Enregistrer" : "Créer l'agence"}</Button>
+        <Button variant="outline" onClick={onClose} disabled={loading}>Annuler</Button>
+        <Button onClick={submit} disabled={loading}>
+          {loading ? "Création en cours..." : (agency ? "Enregistrer" : "Créer l'agence")}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

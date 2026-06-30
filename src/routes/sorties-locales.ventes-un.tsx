@@ -19,7 +19,7 @@ function Page() {
   return (
     <AppShell title="Rapport 3 — Ventes par unités" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
-      <ReportVentesUnits data={data} suffix={state.fileSuffix} />
+      <ReportVentesUnits data={data} suffix={state.fileSuffix} year={state.selectedYear} month={state.selectedMonth} />
     </AppShell>
   );
 }

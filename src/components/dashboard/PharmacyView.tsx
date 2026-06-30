@@ -3,11 +3,12 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { AlertTriangle, ArrowUpRight, Boxes, Download, Package, TrendingUp, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { pharmacy, stockTrend, lowStockItems, recentImports } from "@/lib/mock-data";
+import { useDashboardData } from "@/lib/useDashboardData";
 import { ImportModal } from "./ImportModal";
 
 export function PharmacyView() {
   const [importOpen, setImportOpen] = useState(false);
+  const { pharmacy, stockTrend, lowStockItems, recentImports } = useDashboardData();
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8">

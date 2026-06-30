@@ -1,4 +1,9 @@
 // Mock dataset for agencies, countries, suppliers, products reports.
+// When VITE_API_URL is set, hydrate.ts overwrites these stores with backend data
+// and mutations are also forwarded to the API via src/lib/sync.ts.
+import { syncCreate, syncUpdate, syncDelete, syncPut } from "./sync";
+import { API_ENABLED } from "./api";
+
 export type Country = { code: string; name: string; currency: string; region: string };
 export type EntityStatus = "active" | "warning" | "inactive" | "blocked";
 
@@ -14,14 +19,7 @@ export type Agency = {
 };
 
 export const COUNTRIES: Country[] = [
-  { code: "CI", name: "Côte d'Ivoire", currency: "XOF", region: "Afrique" },
-  { code: "ML", name: "Mali", currency: "XOF", region: "Afrique" },
-  { code: "SN", name: "Sénégal", currency: "XOF", region: "Afrique" },
-  { code: "BF", name: "Burkina Faso", currency: "XOF", region: "Afrique" },
-  { code: "CM", name: "Cameroun", currency: "XAF", region: "Afrique" },
-  { code: "GA", name: "Gabon", currency: "XAF", region: "Afrique" },
-  { code: "TG", name: "Togo", currency: "XOF", region: "Afrique" },
-  { code: "BJ", name: "Bénin", currency: "XOF", region: "Afrique" },
+
 ];
 
 const COUNTRY_KEY = "datafuse_countries_v1";
@@ -46,16 +44,19 @@ export function addCountry(c: Country) {
   ensureCountriesLoaded();
   if (COUNTRIES.some(x => x.code === c.code)) throw new Error("Code ISO déjà utilisé");
   COUNTRIES.push(c); persistCountries();
+  syncCreate("/api/countries", c);
 }
 export function updateCountry(code: string, patch: Partial<Country>) {
   ensureCountriesLoaded();
   const i = COUNTRIES.findIndex(c => c.code === code);
   if (i >= 0) { COUNTRIES[i] = { ...COUNTRIES[i], ...patch, code }; persistCountries(); }
+  syncUpdate(`/api/countries/${code}`, patch);
 }
 export function deleteCountry(code: string) {
   ensureCountriesLoaded();
   const i = COUNTRIES.findIndex(c => c.code === code);
   if (i >= 0) { COUNTRIES.splice(i, 1); persistCountries(); }
+  syncDelete(`/api/countries/${code}`);
 }
 
 export const SUPPLIERS = ["CAMED", "LABOREX MALI", "COPHARMED", "UBIPHARM", "DPM"];
@@ -105,6 +106,12 @@ export function getLaboratoires(): Laboratoire[] {
   if (typeof window !== "undefined") {
     try { const raw = localStorage.getItem(LAB_KEY); if (raw) { _labs = JSON.parse(raw); return _labs!; } } catch {}
   }
+  // En mode Live, retourner un tableau vide si pas de données (ne pas créer de seed)
+  if (API_ENABLED) {
+    _labs = [];
+    return _labs;
+  }
+  // Mode Demo : créer des données de seed
   _labs = seedLabs();
   if (typeof window !== "undefined") localStorage.setItem(LAB_KEY, JSON.stringify(_labs));
   return _labs;
@@ -115,16 +122,23 @@ export function addLaboratoire(l: Omit<Laboratoire, "id" | "createdAt" | "status
   const next: Laboratoire = { ...l, id: `LAB-${Date.now().toString(36).toUpperCase()}`, createdAt: new Date().toISOString().slice(0, 10), status: "active" };
   _labs = [next, ...list];
   persistLabs();
+  syncCreate("/api/laboratories", { name: l.name, countryCode: l.country, contact: l.contact, email: l.email, phone: l.phone, address: l.address });
   return next;
 }
 
 export function updateLaboratoire(id: string, patch: Partial<Laboratoire>) {
   _labs = getLaboratoires().map(l => l.id === id ? { ...l, ...patch } : l);
   persistLabs();
+  const apiPatch: Record<string, unknown> = { ...patch };
+  if (patch.country) { apiPatch.countryCode = patch.country; delete apiPatch.country; }
+  syncUpdate(`/api/laboratories/${id}`, apiPatch);
 }
 
 export function setLaboratoireStatus(id: string, status: EntityStatus) { updateLaboratoire(id, { status }); }
-export function deleteLaboratoire(id: string) { _labs = getLaboratoires().filter(l => l.id !== id); persistLabs(); }
+export function deleteLaboratoire(id: string) {
+  _labs = getLaboratoires().filter(l => l.id !== id); persistLabs();
+  syncDelete(`/api/laboratories/${id}`);
+}
 
 // ---------------- Grossistes / Fournisseurs ----------------
 export type Grossiste = {
@@ -162,6 +176,12 @@ export function getGrossistes(): Grossiste[] {
   if (typeof window !== "undefined") {
     try { const raw = localStorage.getItem(GROS_KEY); if (raw) { _gros = JSON.parse(raw); return _gros!; } } catch {}
   }
+  // En mode Live, retourner un tableau vide si pas de données (ne pas créer de seed)
+  if (API_ENABLED) {
+    _gros = [];
+    return _gros;
+  }
+  // Mode Demo : créer des données de seed
   _gros = seedGros();
   if (typeof window !== "undefined") localStorage.setItem(GROS_KEY, JSON.stringify(_gros));
   return _gros;
@@ -171,16 +191,24 @@ export function addGrossiste(g: Omit<Grossiste, "id">): Grossiste {
   const next: Grossiste = { ...g, id: `GR-${Date.now().toString(36).toUpperCase()}` };
   _gros = [next, ...getGrossistes()];
   persistGros();
+  syncCreate("/api/wholesalers", { name: g.partenaire, countryCode: g.country, email: g.email, scope: g.scope, agencyId: g.agencyId || null });
   return next;
 }
 
 export function updateGrossiste(id: string, patch: Partial<Grossiste>) {
   _gros = getGrossistes().map(g => g.id === id ? { ...g, ...patch } : g);
   persistGros();
+  const apiPatch: Record<string, unknown> = { ...patch };
+  if (patch.partenaire) { apiPatch.name = patch.partenaire; delete apiPatch.partenaire; }
+  if (patch.country) { apiPatch.countryCode = patch.country; delete apiPatch.country; }
+  syncUpdate(`/api/wholesalers/${id}`, apiPatch);
 }
 
 export function setGrossisteStatus(id: string, status: EntityStatus) { updateGrossiste(id, { status }); }
-export function deleteGrossiste(id: string) { _gros = getGrossistes().filter(g => g.id !== id); persistGros(); }
+export function deleteGrossiste(id: string) {
+  _gros = getGrossistes().filter(g => g.id !== id); persistGros();
+  syncDelete(`/api/wholesalers/${id}`);
+}
 
 // ---------------- Pricing & objectives ----------------
 type PriceMap = Record<string, Record<string, number>>;
@@ -210,6 +238,9 @@ export function setProductPricing(productId: string, prices: Record<string, numb
   m[productId] = prices;
   saveMap(PRICE_KEY, m);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:pricing"));
+  for (const [countryCode, price] of Object.entries(prices)) {
+    syncPut("/api/prices", { productId, countryCode, price });
+  }
 }
 
 export function getProductObjectives(productId: string, baseQty: number) {
@@ -226,6 +257,12 @@ export function setProductObjectives(productId: string, qty: Record<string, numb
   m[productId] = qty;
   saveMap(OBJ_KEY, m);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:objectives"));
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  for (const [countryCode, targetUnits] of Object.entries(qty)) {
+    syncPut("/api/objectives", { productId, countryCode, year, month, targetUnits, targetCA: 0 });
+  }
 }
 
 // ---------------- Agencies ----------------
@@ -257,30 +294,68 @@ export function getAgencies(): Agency[] {
   if (typeof window !== "undefined") {
     try { const raw = localStorage.getItem(KEY); if (raw) { _agencies = JSON.parse(raw); return _agencies!; } } catch {}
   }
+  // En mode Live, retourner un tableau vide si pas de données (ne pas créer de seed)
+  if (API_ENABLED) {
+    _agencies = [];
+    return _agencies;
+  }
+  // Mode Demo : créer des données de seed
   _agencies = seed();
   if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(_agencies));
   return _agencies;
 }
 
-export function addAgency(a: Omit<Agency, "id" | "createdAt" | "status">): Agency {
-  const next: Agency = {
+export async function addAgency(a: Omit<Agency, "id" | "createdAt" | "status">): Promise<Agency & { temporaryPassword?: string }> {
+  const optimisticNext: Agency = {
     ...a,
     id: `AG-${Date.now().toString(36).toUpperCase()}`,
     createdAt: new Date().toISOString().slice(0, 10),
     status: "active",
   };
-  _agencies = [next, ...getAgencies()];
+  _agencies = [optimisticNext, ...getAgencies()];
   persistAgencies();
-  return next;
+
+  try {
+    // Envoyer à l'API et attendre la réponse
+    const response = await syncCreate("/api/agencies", {
+      name: a.name,
+      city: a.city,
+      email: a.email,
+      manager: a.manager,
+      countryCode: a.country,
+    }) as any;
+
+    // Si l'API retourne un ID différent et un mot de passe temporaire, mettre à jour
+    if (response?.id && response.id !== optimisticNext.id) {
+      _agencies = _agencies.map(ag => ag.id === optimisticNext.id ? { ...ag, id: response.id } : ag);
+      persistAgencies();
+    }
+
+    return {
+      ...optimisticNext,
+      id: response?.id || optimisticNext.id,
+      temporaryPassword: response?.temporaryPassword,
+    };
+  } catch (error) {
+    // En cas d'erreur, garder l'agence locale quand même
+    console.error("Erreur lors de la création de l'agence:", error);
+    return optimisticNext;
+  }
 }
 
 export function updateAgency(id: string, patch: Partial<Agency>) {
   _agencies = getAgencies().map(a => a.id === id ? { ...a, ...patch } : a);
   persistAgencies();
+  const apiPatch: Record<string, unknown> = { ...patch };
+  if (patch.country) { apiPatch.countryCode = patch.country; delete apiPatch.country; }
+  syncUpdate(`/api/agencies/${id}`, apiPatch);
 }
 
 export function setAgencyStatus(id: string, status: EntityStatus) { updateAgency(id, { status }); }
-export function deleteAgency(id: string) { _agencies = getAgencies().filter(a => a.id !== id); persistAgencies(); }
+export function deleteAgency(id: string) {
+  _agencies = getAgencies().filter(a => a.id !== id); persistAgencies();
+  syncDelete(`/api/agencies/${id}`);
+}
 
 // ---------- Reports data ----------
 function rand(seed: number) {
@@ -291,6 +366,19 @@ function rand(seed: number) {
 export const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
 export function salesObjectivesByCountry() {
+  // En mode Live, retourner des données vides (les agences n'ont pas encore importé de données)
+  if (API_ENABLED) {
+    return COUNTRIES.map(c => ({
+      pays: c.name,
+      code: c.code,
+      objectif: 0,
+      realise: 0,
+      taux: 0,
+      ecart: 0,
+    }));
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(11);
   return COUNTRIES.map(c => {
     const objectif = Math.round((50 + r() * 150) * 1000);
@@ -300,6 +388,18 @@ export function salesObjectivesByCountry() {
 }
 
 export function salesObjectivesANF() {
+  // En mode Live, retourner des données vides
+  if (API_ENABLED) {
+    return MONTHS.map((m, i) => ({
+      mois: m,
+      monthIndex: i,
+      objectif: 0,
+      realise: 0,
+      taux: 0,
+    }));
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(22);
   return MONTHS.map((m, i) => {
     const objectif = 800_000 + Math.round(r() * 400_000);
@@ -309,16 +409,41 @@ export function salesObjectivesANF() {
 }
 
 export function salesByUnit() {
+  // En mode Live, retourner des données vides
+  if (API_ENABLED) {
+    return COUNTRIES.map(c => ({ pays: c.name, code: c.code, unites: 0 }));
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(33);
   return COUNTRIES.map(c => ({ pays: c.name, code: c.code, unites: Math.round(2000 + r() * 18000) }));
 }
 
 export function salesByRevenue() {
+  // En mode Live, retourner des données vides
+  if (API_ENABLED) {
+    return COUNTRIES.map(c => ({ pays: c.name, code: c.code, ca: 0 }));
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(44);
   return COUNTRIES.map(c => ({ pays: c.name, code: c.code, ca: Math.round((100 + r() * 500) * 1000) }));
 }
 
 export function evolutionByRevenue() {
+  // En mode Live, retourner des données vides (Rapport 5)
+  if (API_ENABLED) {
+    return MONTHS.map((m) => {
+      const row: Record<string, number | string> = { mois: m };
+      for (const c of COUNTRIES) {
+        row[c.code] = 0;
+      }
+      row.total = 0;
+      return row;
+    });
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(55);
   return MONTHS.map((m, i) => {
     const base = 700_000 + i * 25_000;
@@ -335,6 +460,19 @@ export function evolutionByRevenue() {
 }
 
 export function evolutionByUnits() {
+  // En mode Live, retourner des données vides (Rapport 5bis/6)
+  if (API_ENABLED) {
+    return MONTHS.map((m) => {
+      const row: Record<string, number | string> = { mois: m };
+      for (const c of COUNTRIES) {
+        row[c.code] = 0;
+      }
+      row.total = 0;
+      return row;
+    });
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(66);
   return MONTHS.map((m, i) => {
     const row: Record<string, number | string> = { mois: m };
@@ -350,6 +488,21 @@ export function evolutionByUnits() {
 }
 
 export function stockSituation() {
+  // En mode Live, retourner des données vides (Rapports 7 et 8)
+  if (API_ENABLED) {
+    return COUNTRIES.map(c => ({
+      pays: c.name,
+      code: c.code,
+      stock: 0,
+      enCours: 0,
+      total: 0,
+      seuil: 0,
+      couverture: 0,
+      status: "ok" as const,
+    }));
+  }
+
+  // Mode Démo : générer des données aléatoires
   const r = rand(77);
   return COUNTRIES.map(c => {
     const stock = Math.round(3000 + r() * 14000);
@@ -455,7 +608,14 @@ function saveCustom(list: ProductPanoramic[]) {
 }
 
 export function getPanoramicProducts(): ProductPanoramic[] {
-  if (!_products) _products = seedPanoramic();
+  // En mode Live, ne pas créer de seed automatiquement
+  if (!_products) {
+    if (API_ENABLED) {
+      _products = []; // Tableau vide en mode Live
+    } else {
+      _products = seedPanoramic(); // Mode Demo : créer des données de seed
+    }
+  }
   const overrides = loadOverrides();
   const merged = _products.map(p => {
     const o = overrides[p.id];
@@ -490,6 +650,7 @@ export function addCustomProduct(input: {
   saveCustom([product, ...loadCustom()]);
   if (input.pricing) setProductPricing(id, input.pricing);
   if (input.objectives) setProductObjectives(id, input.objectives);
+  syncCreate("/api/products", { cip: product.cip, name: input.name, category: input.type, laboratory: input.laboratory, basePrice: input.pghtPays });
   return product;
 }
 
@@ -503,11 +664,18 @@ export function updateProduct(id: string, patch: ProductOverride) {
     saveOverrides(o);
     if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:products"));
   }
+  const apiPatch: Record<string, unknown> = {};
+  if (patch.name) apiPatch.name = patch.name;
+  if (patch.laboratory) apiPatch.laboratory = patch.laboratory;
+  if (patch.type) apiPatch.category = patch.type;
+  if (patch.pghtPays !== undefined) apiPatch.basePrice = patch.pghtPays;
+  if (Object.keys(apiPatch).length) syncUpdate(`/api/products/${id}`, apiPatch);
 }
 
 export function deleteProduct(id: string) {
   if (id.startsWith("PRC-")) {
     saveCustom(loadCustom().filter(p => p.id !== id));
+    syncDelete(`/api/products/${id}`);
   } else {
     // soft delete via override status
     updateProduct(id, { productStatus: "blocked" });
