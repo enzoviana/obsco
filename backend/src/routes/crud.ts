@@ -28,16 +28,21 @@ agenciesRouter.get("/", async (req, res) => {
   res.json(await prisma.agency.findMany({ where, include: { country: true }, orderBy: { name: "asc" } }));
 });
 agenciesRouter.post("/", requireRole("super_admin"), async (req, res) => {
-  const s = z.object({
-    name: z.string(), city: z.string(), email: z.string().email(),
-    manager: z.string(), countryCode: z.string(), status: z.string().optional(),
-  }).parse(req.body);
+  try {
+    const s = z.object({
+      name: z.string().min(1, "Le nom est requis"),
+      city: z.string().default(""),
+      email: z.string().email("Email invalide"),
+      manager: z.string().default(""),
+      countryCode: z.string().min(1, "Le pays est requis"),
+      status: z.string().optional(),
+    }).parse(req.body);
 
-  // Vérifier si un utilisateur avec cet email existe déjà
-  const existingUser = await prisma.user.findUnique({ where: { email: s.email } });
-  if (existingUser) {
-    return res.status(400).json({ error: "Un utilisateur avec cet email existe déjà" });
-  }
+    // Vérifier si un utilisateur avec cet email existe déjà
+    const existingUser = await prisma.user.findUnique({ where: { email: s.email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "Un utilisateur avec cet email existe déjà" });
+    }
 
   // Créer l'agence
   const agency = await prisma.agency.create({ data: s });
@@ -79,6 +84,13 @@ agenciesRouter.post("/", requireRole("super_admin"), async (req, res) => {
     user: { id: user.id, email: user.email, name: user.name },
     temporaryPassword: temporaryPassword, // Retourner aussi dans la réponse pour que l'admin puisse le communiquer manuellement si besoin
   });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0]?.message || "Données invalides" });
+    }
+    console.error("Erreur création agence:", error);
+    return res.status(500).json({ error: "Erreur lors de la création de l'agence" });
+  }
 });
 agenciesRouter.patch("/:id", requireRole("super_admin"), async (req, res) => {
   res.json(await prisma.agency.update({ where: { id: req.params.id }, data: req.body }));

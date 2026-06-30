@@ -193,8 +193,10 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
         }
       }
       onClose();
-    } catch (error) {
-      toast.error("Erreur lors de la création de l'agence");
+    } catch (error: any) {
+      console.error("Erreur création agence:", error);
+      const errorMessage = error?.message || error?.error || "Erreur lors de la création de l'agence";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
