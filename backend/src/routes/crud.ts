@@ -143,17 +143,51 @@ productsRouter.get("/", async (_req, res) => {
   res.json(await prisma.product.findMany({ orderBy: { name: "asc" }, take: 5000 }));
 });
 productsRouter.post("/", requireRole("super_admin"), async (req, res) => {
-  const s = z.object({
-    cip: z.string(), name: z.string(), category: z.string(),
-    laboratory: z.string(), basePrice: z.number().nonnegative().optional(),
-  }).parse(req.body);
-  res.status(201).json(await prisma.product.create({ data: s }));
+  try {
+    const s = z.object({
+      cip: z.string().default(""), name: z.string(), category: z.string(),
+      laboratory: z.string(), basePrice: z.number().nonnegative().optional(),
+    }).parse(req.body);
+
+    // Si le CIP est vide, générer un code unique avec préfixe NOCIP
+    const finalCip = s.cip && s.cip.trim()
+      ? s.cip.trim()
+      : `NOCIP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    const product = await prisma.product.create({
+      data: { ...s, cip: finalCip }
+    });
+    res.status(201).json(product);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0]?.message || "Données invalides" });
+    }
+    console.error("Erreur création produit:", error);
+    return res.status(500).json({ error: "Erreur lors de la création du produit" });
+  }
 });
 productsRouter.patch("/:id", requireRole("super_admin"), async (req, res) => {
   res.json(await prisma.product.update({ where: { id: req.params.id }, data: req.body }));
 });
 productsRouter.delete("/:id", requireRole("super_admin"), async (req, res) => {
-  await prisma.product.delete({ where: { id: req.params.id } }); res.status(204).end();
+  try {
+    const productId = req.params.id;
+
+    // Vérifier si le produit a des ventes
+    const salesCount = await prisma.sale.count({ where: { productId } });
+    if (salesCount > 0) {
+      return res.status(400).json({
+        error: `Impossible de supprimer ce produit : il est référencé dans ${salesCount} vente(s). Supprimez d'abord les ventes associées.`
+      });
+    }
+
+    // Supprimer le produit (les prix, objectifs et stocks fournisseur seront supprimés en cascade)
+    await prisma.product.delete({ where: { id: productId } });
+    res.status(204).end();
+  } catch (error) {
+    console.error("Erreur suppression produit:", error);
+    return res.status(500).json({ error: "Erreur lors de la suppression du produit" });
+  }
 });
 
 export const pricesRouter = Router();

@@ -143,7 +143,9 @@ function ProduitsPage() {
                       </div>
                       <div>
                         <div className="font-medium">{p.name}</div>
-                        <div className="text-[11px] text-muted-foreground font-mono">{p.cip}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          {p.cip && !p.cip.startsWith("NOCIP-") ? p.cip : "Sans code CIP"}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -246,12 +248,12 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
             <Input
               value={cip}
               onChange={e => setCip(e.target.value)}
-              placeholder="ex. 3400936000001 (optionnel, auto-généré si vide)"
+              placeholder="ex. 3400936000001 (optionnel)"
               disabled={!!product}
             />
             {!product && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Facultatif. Si laissé vide, un code sera généré automatiquement.
+                Facultatif. Laisser vide si le produit n'a pas de code CIP.
               </p>
             )}
           </div>

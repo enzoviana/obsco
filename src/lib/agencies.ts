@@ -655,12 +655,12 @@ export function addCustomProduct(input: {
   }
   const obj = input.objectives ?? {};
   const budgetMois = Object.values(obj).reduce((a, b) => a + b, 0) || 1000;
-  // Utiliser le CIP fourni ou en générer un automatiquement
-  const generatedCip = input.cip && input.cip.trim()
+  // Utiliser le CIP fourni ou générer un code NOCIP unique
+  const cipValue = input.cip && input.cip.trim()
     ? input.cip.trim()
-    : String(3400900000000 + Math.floor(Math.random() * 999_999_999));
+    : `NOCIP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const product: ProductPanoramic = {
-    id, cip: generatedCip,
+    id, cip: cipValue,
     name: input.name, laboratory: input.laboratory, type: input.type, productStatus: input.productStatus,
     pghtPays: input.pghtPays, ventes: 0, budgetMois, tauxReal: 0,
     ventesAn1: 0, tauxEvol: 0, ca: 0,
@@ -694,10 +694,15 @@ export function updateProduct(id: string, patch: ProductOverride) {
 
 export function deleteProduct(id: string) {
   if (id.startsWith("PRC-")) {
-    saveCustom(loadCustom().filter(p => p.id !== id));
+    const filtered = loadCustom().filter(p => p.id !== id);
+    saveCustom(filtered);
     syncDelete(`/api/products/${id}`);
   } else {
-    // soft delete via override status
-    updateProduct(id, { productStatus: "blocked" });
+    // Hard delete via API for non-custom products
+    const o = loadOverrides();
+    delete o[id];
+    saveOverrides(o);
+    syncDelete(`/api/products/${id}`);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:products"));
   }
 }
