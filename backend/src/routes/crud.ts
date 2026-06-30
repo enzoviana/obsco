@@ -96,7 +96,45 @@ agenciesRouter.patch("/:id", requireRole("super_admin"), async (req, res) => {
   res.json(await prisma.agency.update({ where: { id: req.params.id }, data: req.body }));
 });
 agenciesRouter.delete("/:id", requireRole("super_admin"), async (req, res) => {
-  await prisma.agency.delete({ where: { id: req.params.id } }); res.status(204).end();
+  try {
+    const agencyId = req.params.id;
+
+    // Suppression en cascade de toutes les données liées à cette agence
+    // L'ordre est important pour respecter les contraintes de clés étrangères
+
+    // 1. Supprimer les utilisateurs de cette agence
+    await prisma.user.deleteMany({ where: { agencyId } });
+
+    // 2. Supprimer les ventes de cette agence
+    await prisma.sale.deleteMany({ where: { agencyId } });
+
+    // 3. Supprimer les données mensuelles importées pour cette agence
+    await prisma.monthlyData.deleteMany({ where: { agencyId } });
+
+    // 4. Supprimer les stocks des grossistes spécifiques à cette agence
+    const agencyWholesalers = await prisma.wholesaler.findMany({
+      where: { agencyId },
+      select: { id: true },
+    });
+    const wholesalerIds = agencyWholesalers.map(w => w.id);
+    if (wholesalerIds.length > 0) {
+      await prisma.supplierStock.deleteMany({
+        where: { wholesalerId: { in: wholesalerIds } },
+      });
+    }
+
+    // 5. Supprimer les grossistes spécifiques à cette agence
+    await prisma.wholesaler.deleteMany({ where: { agencyId } });
+
+    // 6. Enfin supprimer l'agence elle-même
+    await prisma.agency.delete({ where: { id: agencyId } });
+
+    console.log(`✅ Agence ${agencyId} et toutes ses données associées supprimées`);
+    res.status(204).end();
+  } catch (error) {
+    console.error("Erreur suppression agence:", error);
+    return res.status(500).json({ error: "Erreur lors de la suppression de l'agence" });
+  }
 });
 
 export const productsRouter = Router();

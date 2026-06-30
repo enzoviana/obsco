@@ -64,10 +64,22 @@ function ChangePasswordPage() {
 
       toast.success("Mot de passe modifié avec succès");
 
-      // Rafraîchir l'utilisateur (pour mettre à jour mustChangePassword)
-      await api("/api/auth/me").then(() => {
-        navigate({ to: "/" });
-      });
+      // Si c'est la première connexion, déconnecter et rediriger vers login
+      if (isFirstLogin) {
+        // Déconnecter l'utilisateur pour qu'il se reconnecte avec son nouveau mot de passe
+        localStorage.removeItem("datafuse_token");
+        localStorage.removeItem("datafuse_user");
+
+        toast.info("Veuillez vous reconnecter avec votre nouveau mot de passe");
+
+        // Rediriger vers la page de login
+        navigate({ to: "/login" });
+      } else {
+        // Changement normal de mot de passe, rafraîchir l'utilisateur et rediriger
+        await api("/api/auth/me").then(() => {
+          navigate({ to: "/" });
+        });
+      }
     } catch (err: any) {
       if (err instanceof ApiError) {
         setError(err.message);
