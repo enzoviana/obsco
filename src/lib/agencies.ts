@@ -605,7 +605,24 @@ function seedPanoramic(): ProductPanoramic[] {
   return list;
 }
 
-type ProductOverride = { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus; pghtPays?: number };
+type ProductOverride = { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus; pghtPays?: number; deleted?: boolean };
+
+const DELETED_KEY = "datafuse_deleted_products";
+
+function loadDeleted(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const arr = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
+    return new Set(arr);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDeleted(deletedIds: Set<string>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DELETED_KEY, JSON.stringify([...deletedIds]));
+}
 
 function loadOverrides(): Record<string, ProductOverride> {
   if (typeof window === "undefined") return {};
@@ -633,10 +650,16 @@ export function getPanoramicProducts(): ProductPanoramic[] {
     }
   }
   const overrides = loadOverrides();
-  const merged = _products.map(p => {
-    const o = overrides[p.id];
-    return o ? { ...p, ...o } : p;
-  });
+  const deletedIds = loadDeleted();
+
+  // Filtrer les produits supprimés et appliquer les overrides
+  const merged = _products
+    .filter(p => !deletedIds.has(p.id))
+    .map(p => {
+      const o = overrides[p.id];
+      return o ? { ...p, ...o } : p;
+    });
+
   return [...loadCustom(), ...merged];
 }
 
@@ -694,14 +717,21 @@ export function updateProduct(id: string, patch: ProductOverride) {
 
 export function deleteProduct(id: string) {
   if (id.startsWith("PRC-")) {
+    // Produits custom : supprimer de la liste
     const filtered = loadCustom().filter(p => p.id !== id);
     saveCustom(filtered);
     syncDelete(`/api/products/${id}`);
   } else {
-    // Hard delete via API for non-custom products
+    // Produits non-custom : marquer comme supprimé
+    const deletedIds = loadDeleted();
+    deletedIds.add(id);
+    saveDeleted(deletedIds);
+
+    // Nettoyer aussi les overrides
     const o = loadOverrides();
     delete o[id];
     saveOverrides(o);
+
     syncDelete(`/api/products/${id}`);
     if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:products"));
   }
