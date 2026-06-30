@@ -35,7 +35,11 @@ function ProduitsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!getUser()) { navigate({ to: "/login" }); return; }
-    const reload = () => setAll(getPanoramicProducts());
+    const reload = () => {
+      const products = getPanoramicProducts();
+      console.log(`🔄 Rechargement produits : ${products.length} produits`);
+      setAll(products);
+    };
     reload();
     window.addEventListener("datafuse:products", reload);
     return () => window.removeEventListener("datafuse:products", reload);

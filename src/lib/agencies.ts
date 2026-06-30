@@ -636,8 +636,11 @@ function loadCustom(): ProductPanoramic[] {
   try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]"); } catch { return []; }
 }
 function saveCustom(list: ProductPanoramic[]) {
-  if (typeof window !== "undefined") localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:products"));
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+    console.log(`✅ ${list.length} produits sauvegardés, dispatch événement`);
+    window.dispatchEvent(new Event("datafuse:products"));
+  }
 }
 
 export function getPanoramicProducts(): ProductPanoramic[] {
@@ -660,7 +663,14 @@ export function getPanoramicProducts(): ProductPanoramic[] {
       return o ? { ...p, ...o } : p;
     });
 
-  return [...loadCustom(), ...merged];
+  // Filtrer aussi les produits custom (qui incluent les produits de l'API en mode Live)
+  const allCustom = loadCustom();
+  const customProducts = allCustom.filter(p => !deletedIds.has(p.id));
+
+  const total = [...customProducts, ...merged];
+  console.log(`📦 getPanoramicProducts: ${allCustom.length} custom, ${deletedIds.size} supprimés → ${total.length} total`);
+
+  return total;
 }
 
 export function getProductLaboratories(): string[] {
@@ -716,23 +726,25 @@ export function updateProduct(id: string, patch: ProductOverride) {
 }
 
 export function deleteProduct(id: string) {
-  if (id.startsWith("PRC-")) {
-    // Produits custom : supprimer de la liste
-    const filtered = loadCustom().filter(p => p.id !== id);
-    saveCustom(filtered);
-    syncDelete(`/api/products/${id}`);
-  } else {
-    // Produits non-custom : marquer comme supprimé
-    const deletedIds = loadDeleted();
-    deletedIds.add(id);
-    saveDeleted(deletedIds);
+  console.log(`🗑️ Suppression produit ${id}`);
 
-    // Nettoyer aussi les overrides
-    const o = loadOverrides();
-    delete o[id];
-    saveOverrides(o);
+  // Marquer comme supprimé (fonctionne pour tous les types de produits)
+  const deletedIds = loadDeleted();
+  deletedIds.add(id);
+  saveDeleted(deletedIds);
+  console.log(`   - Ajouté à deletedIds (${deletedIds.size} supprimés au total)`);
 
-    syncDelete(`/api/products/${id}`);
-    if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:products"));
-  }
+  // Retirer aussi de la liste custom (en mode API, tous les produits y sont)
+  const customBefore = loadCustom().length;
+  const filtered = loadCustom().filter(p => p.id !== id);
+  console.log(`   - Produits custom: ${customBefore} → ${filtered.length}`);
+  saveCustom(filtered);
+
+  // Nettoyer les overrides
+  const o = loadOverrides();
+  delete o[id];
+  saveOverrides(o);
+
+  // Appel API pour supprimer côté serveur
+  syncDelete(`/api/products/${id}`);
 }
