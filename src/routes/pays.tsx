@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { CountrySelect } from "@/components/ui/country-select";
 import { getUser } from "@/lib/auth";
 import {
   COUNTRIES, getAgencies, ensureCountriesLoaded, addCountry, updateCountry, deleteCountry, type Country,
 } from "@/lib/agencies";
 import { exportCSV } from "@/lib/export";
 import { toast } from "sonner";
+import { getCountryByCode, type CountryData } from "@/lib/countries-data";
 
 export const Route = createFileRoute("/pays")({
   head: () => ({ meta: [{ title: "Pays — DATAFUSE" }] }),
@@ -90,8 +92,10 @@ function PaysPage() {
               <tr key={r.code} className="border-t border-border/60 hover:bg-surface/40">
                 <td className="px-4 py-3 font-medium">
                   <div className="flex items-center gap-2.5">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-accent-foreground">
-                      <Globe2 className="h-4 w-4" />
+                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-surface">
+                      <span className="text-2xl leading-none">
+                        {getCountryByCode(r.code)?.flag || "🌍"}
+                      </span>
                     </div>
                     {r.name}
                   </div>
@@ -129,37 +133,130 @@ function PaysPage() {
 }
 
 function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | null }) {
+  const [selectedCountryCode, setSelectedCountryCode] = useState(pays?.code ?? "");
   const [f, setF] = useState<Country>({
     code: pays?.code ?? "",
     name: pays?.name ?? "",
     region: pays?.region ?? "Afrique",
-    currency: pays?.currency ?? "XOF",
+    currency: pays?.currency ?? "EUR",
   });
-  const submit = () => {
-    if (!f.code || !f.name || !f.region) { toast.error("Champs requis manquants"); return; }
-    try {
-      if (pays) { updateCountry(pays.code, f); toast.success(`Pays ${f.name} mis à jour`); }
-      else { addCountry({ ...f, code: f.code.toUpperCase() }); toast.success(`Pays ${f.name} ajouté`); }
-      onClose();
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+
+  // Handler pour la sélection d'un pays
+  const handleCountrySelect = (country: CountryData) => {
+    if (country.code) {
+      setSelectedCountryCode(country.code);
+      setF({
+        code: country.code,
+        name: country.name,
+        region: country.region,
+        currency: "EUR", // Toujours EUR par défaut comme demandé
+      });
+    }
   };
+
+  const submit = () => {
+    if (!f.code || !f.name || !f.region) {
+      toast.error("Veuillez sélectionner un pays");
+      return;
+    }
+    try {
+      if (pays) {
+        updateCountry(pays.code, f);
+        toast.success(`Pays ${f.name} mis à jour`);
+      }
+      else {
+        addCountry({ ...f, code: f.code.toUpperCase() });
+        toast.success(`Pays ${f.name} ajouté`);
+      }
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  };
+
   return (
-    <DialogContent className="sm:max-w-md">
+    <DialogContent className="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>{pays ? "Modifier le pays" : "Nouveau pays"}</DialogTitle>
-        <DialogDescription>Pays / Code ISO / Région (ex. Sénégal · SN · Afrique).</DialogDescription>
+        <DialogDescription>
+          {pays
+            ? "Modifiez les informations du pays."
+            : "Sélectionnez un pays dans la liste. Les informations seront pré-remplies automatiquement."}
+        </DialogDescription>
       </DialogHeader>
-      <div className="space-y-3">
-        <div><Label>Nom du pays *</Label><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Sénégal" /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Code ISO *</Label><Input value={f.code} onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} maxLength={3} disabled={!!pays} placeholder="SN" /></div>
-          <div><Label>Devise</Label><Input value={f.currency} onChange={e => setF({ ...f, currency: e.target.value.toUpperCase() })} placeholder="XOF" /></div>
-        </div>
-        <div><Label>Région *</Label><Input value={f.region} onChange={e => setF({ ...f, region: e.target.value })} placeholder="Afrique" /></div>
+      <div className="space-y-4">
+        {/* Sélecteur de pays avec drapeaux */}
+        {!pays && (
+          <div>
+            <Label>Sélectionner un pays *</Label>
+            <div className="mt-1.5">
+              <CountrySelect
+                value={selectedCountryCode}
+                onSelect={handleCountrySelect}
+                placeholder="Rechercher un pays..."
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Affichage avec drapeau pour l'édition */}
+        {pays && (
+          <div>
+            <Label>Pays</Label>
+            <div className="mt-1.5 flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2">
+              <span className="text-2xl leading-none">
+                {getCountryByCode(pays.code)?.flag || "🌍"}
+              </span>
+              <div>
+                <div className="font-medium">{f.name}</div>
+                <div className="text-xs text-muted-foreground">Code ISO: {f.code}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Informations pré-remplies (affichées après sélection ou pour édition) */}
+        {(selectedCountryCode || pays) && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Code ISO</Label>
+                <Input
+                  value={f.code}
+                  disabled
+                  className="bg-surface"
+                />
+              </div>
+              <div>
+                <Label>Région</Label>
+                <Input
+                  value={f.region}
+                  onChange={e => setF({ ...f, region: e.target.value })}
+                  placeholder="Afrique"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Devise</Label>
+              <Input
+                value={f.currency}
+                onChange={e => setF({ ...f, currency: e.target.value.toUpperCase() })}
+                placeholder="EUR"
+                maxLength={3}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                EUR par défaut. Modifiable si nécessaire.
+              </p>
+            </div>
+          </>
+        )}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>Annuler</Button>
-        <Button onClick={submit}>{pays ? "Enregistrer" : "Ajouter le pays"}</Button>
+        <Button onClick={submit} disabled={!f.code || !f.name}>
+          {pays ? "Enregistrer" : "Ajouter le pays"}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
