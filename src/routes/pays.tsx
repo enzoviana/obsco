@@ -11,7 +11,7 @@ import {
 import { CountrySelect } from "@/components/ui/country-select";
 import { getUser } from "@/lib/auth";
 import {
-  COUNTRIES, getAgencies, ensureCountriesLoaded, addCountry, updateCountry, deleteCountry, type Country,
+  COUNTRIES, getAgencies, ensureCountriesLoaded, reloadCountries, addCountry, updateCountry, deleteCountry, type Country,
 } from "@/lib/agencies";
 import { exportCSV } from "@/lib/export";
 import { toast } from "sonner";
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/pays")({
 function PaysPage() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
-  const [, force] = useState(0);
+  const [refresh, setRefresh] = useState(0);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Country | null>(null);
 
@@ -33,20 +33,24 @@ function PaysPage() {
     if (typeof window === "undefined") return;
     if (!getUser()) navigate({ to: "/login" });
     ensureCountriesLoaded();
-    force(x => x + 1);
-    const sync = () => force(x => x + 1);
+    setRefresh(x => x + 1);
+    const sync = () => {
+      // Recharger les pays depuis le localStorage à chaque événement
+      reloadCountries();
+      setRefresh(x => x + 1);
+    };
     window.addEventListener("datafuse:countries", sync);
     return () => window.removeEventListener("datafuse:countries", sync);
   }, [navigate]);
 
-  const agencies = typeof window !== "undefined" ? getAgencies() : [];
-
   const rows = useMemo(() => {
+    // Recharger les agences à chaque rendu pour avoir les données fraîches
+    const agencies = typeof window !== "undefined" ? getAgencies() : [];
     const ql = q.toLowerCase().trim();
     return COUNTRIES
       .map(c => ({ ...c, agences: agencies.filter(a => a.country === c.code).length }))
       .filter(r => !ql || r.name.toLowerCase().includes(ql) || r.code.toLowerCase().includes(ql) || r.region.toLowerCase().includes(ql));
-  }, [agencies, q]);
+  }, [q, refresh]);
 
   const handleExport = () => {
     exportCSV("pays", rows.map(r => ({ Pays: r.name, "Code ISO": r.code, Région: r.region, Devise: r.currency, Agences: r.agences })));
@@ -168,6 +172,7 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
         addCountry({ ...f, code: f.code.toUpperCase() });
         toast.success(`Pays ${f.name} ajouté`);
       }
+      // Fermer immédiatement - l'événement 'datafuse:countries' va déclencher le rafraîchissement
       onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");

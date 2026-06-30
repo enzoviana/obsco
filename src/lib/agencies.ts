@@ -40,6 +40,22 @@ export function ensureCountriesLoaded() {
     }
   } catch { /* ignore */ }
 }
+export function reloadCountries() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(COUNTRY_KEY);
+    if (raw) {
+      const saved: Country[] = JSON.parse(raw);
+      COUNTRIES.splice(0, COUNTRIES.length, ...saved);
+      console.log(`✅ ${saved.length} pays rechargés depuis localStorage`);
+    } else {
+      COUNTRIES.splice(0, COUNTRIES.length); // Vider si pas de données
+      console.log("⚠️ Aucune donnée pays dans localStorage");
+    }
+  } catch (e) {
+    console.error("❌ Erreur lors du rechargement des pays:", e);
+  }
+}
 export function addCountry(c: Country) {
   ensureCountriesLoaded();
   if (COUNTRIES.some(x => x.code === c.code)) throw new Error("Code ISO déjà utilisé");
