@@ -94,7 +94,7 @@ SMTP_SECURE="false"                   # true si port 465
 SMTP_USER=""                          # email@example.com
 SMTP_PASS=""                          # Mot de passe / App Password
 SMTP_FROM="noreply@datafuse.app"      # Email expéditeur
-FRONTEND_URL="http://localhost:8080"   # URL du frontend pour les liens
+FRONTEND_URL="https://obsco.vercel.app"   # URL du frontend pour les liens
 ```
 
 ### Configuration SMTP recommandée par service

@@ -417,7 +417,7 @@ function ImportPage() {
       }
 
       // Envoyer à l'API
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/import/monthly`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/monthly`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

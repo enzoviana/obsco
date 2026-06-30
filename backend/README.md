@@ -12,7 +12,7 @@ cp .env.example .env
 npm install
 npx prisma migrate dev --name init   # crée les tables
 npm run seed                         # crée le super_admin + données démo
-npm run dev                          # API sur http://localhost:4000
+npm run dev                          # API sur https://evening-sierra-79086-961c10c199fc.herokuapp.com
 ```
 
 Identifiants démo (modifiables via `.env`) :

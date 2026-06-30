@@ -66,7 +66,7 @@ export async function sendEmail(options: EmailOptions) {
 }
 
 export function generateWelcomeEmail(pharmacyName: string, email: string, temporaryPassword: string) {
-  const loginUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+  const loginUrl = process.env.FRONTEND_URL || "https://obsco.vercel.app";
 
   const html = `
     <!DOCTYPE html>
@@ -169,7 +169,7 @@ Accéder à l'espace OBSCO : ${loginUrl}/login
 }
 
 export function generatePasswordResetEmail(email: string, resetToken: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:8080"}/reset-password?token=${resetToken}`;
+  const resetUrl = `${process.env.FRONTEND_URL || "https://obsco.vercel.app"}/reset-password?token=${resetToken}`;
 
   const html = `
     <!DOCTYPE html>

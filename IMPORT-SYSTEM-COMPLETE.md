@@ -375,7 +375,7 @@ JWT_SECRET=...
 
 **Frontend (.env) :**
 ```bash
-VITE_API_URL=http://localhost:4000
+VITE_API_URL=https://evening-sierra-79086-961c10c199fc.herokuapp.com
 ```
 
 ---

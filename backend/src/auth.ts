@@ -22,7 +22,10 @@ const SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, SECRET, { expiresIn: EXPIRES_IN });
+  return jwt.sign(payload, SECRET, { 
+    // On ajoute "as any" pour court-circuiter la vérification stricte de StringValue
+    expiresIn: EXPIRES_IN as any 
+  });
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {

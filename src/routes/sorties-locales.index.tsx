@@ -77,7 +77,7 @@ function SortiesIndex() {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/import/sorties-locales?${params}`,
+        `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/sorties-locales?${params}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,

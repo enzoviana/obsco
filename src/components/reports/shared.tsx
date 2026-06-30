@@ -175,7 +175,7 @@ export function useMonthlyData(year: number, month: number, scope: Scope, countr
         if (scope === "agency") params.append("agencyId", agencyId);
 
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/monthly-summary?${params}`,
+          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/monthly-summary?${params}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
@@ -216,7 +216,7 @@ export function useCountryData(year: number, month: number) {
       setLoading(true);
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/by-country?year=${year}&month=${month}`,
+          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/by-country?year=${year}&month=${month}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
@@ -261,7 +261,7 @@ export function useEvolutionData(year: number, scope: Scope, countryCode: string
         if (scope === "agency") params.append("agencyId", agencyId);
 
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/evolution?${params}`,
+          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/evolution?${params}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
@@ -305,7 +305,7 @@ export function usePanoramicData(year: number, productCip: string) {
       setLoading(true);
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/panoramic?year=${year}&productCip=${productCip}`,
+          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/panoramic?year=${year}&productCip=${productCip}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
@@ -346,7 +346,7 @@ export function useYearStocksData(year: number) {
         for (let month = 1; month <= 12; month++) {
           promises.push(
             fetch(
-              `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/reports/by-country?year=${year}&month=${month}`,
+              `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/by-country?year=${year}&month=${month}`,
               {
                 headers: {
                   Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
