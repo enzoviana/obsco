@@ -646,7 +646,7 @@ export function getProductLaboratories(): string[] {
 
 export function addCustomProduct(input: {
   name: string; laboratory: string; type: string; productStatus: EntityStatus;
-  pghtPays: number; pricing?: Record<string, number>; objectives?: Record<string, number>;
+  pghtPays: number; cip?: string; pricing?: Record<string, number>; objectives?: Record<string, number>;
 }): ProductPanoramic {
   const id = `PRC-${Date.now().toString(36).toUpperCase()}`;
   const fournisseurs: ProductPanoramic["fournisseurs"] = {};
@@ -655,8 +655,12 @@ export function addCustomProduct(input: {
   }
   const obj = input.objectives ?? {};
   const budgetMois = Object.values(obj).reduce((a, b) => a + b, 0) || 1000;
+  // Utiliser le CIP fourni ou en générer un automatiquement
+  const generatedCip = input.cip && input.cip.trim()
+    ? input.cip.trim()
+    : String(3400900000000 + Math.floor(Math.random() * 999_999_999));
   const product: ProductPanoramic = {
-    id, cip: String(3400900000000 + Math.floor(Math.random() * 999_999_999)),
+    id, cip: generatedCip,
     name: input.name, laboratory: input.laboratory, type: input.type, productStatus: input.productStatus,
     pghtPays: input.pghtPays, ventes: 0, budgetMois, tauxReal: 0,
     ventesAn1: 0, tauxEvol: 0, ca: 0,

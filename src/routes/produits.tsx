@@ -186,6 +186,7 @@ function ProduitsPage() {
 function ProductDialog({ onClose, product }: { onClose: () => void; product: ProductPanoramic | null }) {
   const labs = getProductLaboratories();
   const [name, setName] = useState(product?.name ?? "");
+  const [cip, setCip] = useState(product?.cip ?? "");
   const [laboratory, setLab] = useState(product?.laboratory ?? labs[0] ?? "");
   const [type, setType] = useState(product?.type ?? PRODUCT_TYPES[0]);
   const [status, setStatus] = useState<EntityStatus>(product?.productStatus ?? "active");
@@ -213,7 +214,7 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
       setProductObjectives(product.id, objs);
       toast.success("Produit mis à jour");
     } else {
-      addCustomProduct({ name, laboratory, type, productStatus: status, pghtPays: price, pricing: prices, objectives: objs });
+      addCustomProduct({ name, cip, laboratory, type, productStatus: status, pghtPays: price, pricing: prices, objectives: objs });
       toast.success("Produit créé");
     }
     onClose();
@@ -236,7 +237,24 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
         </TabsList>
 
         <TabsContent value="info" className="mt-4 space-y-3">
-          <div><Label>Désignation *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="ex. Paracétamol 500 bte/20" /></div>
+          <div>
+            <Label>Désignation *</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="ex. Paracétamol 500 bte/20" />
+          </div>
+          <div>
+            <Label>Code produit (CIP)</Label>
+            <Input
+              value={cip}
+              onChange={e => setCip(e.target.value)}
+              placeholder="ex. 3400936000001 (optionnel, auto-généré si vide)"
+              disabled={!!product}
+            />
+            {!product && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Facultatif. Si laissé vide, un code sera généré automatiquement.
+              </p>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Laboratoire *</Label>
