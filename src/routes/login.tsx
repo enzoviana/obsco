@@ -17,7 +17,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState(API_ENABLED ? "admin@obco.app" : "agence@obco.io");
+  const [email, setEmail] = useState(API_ENABLED ? "admin@datafuse.app" : "agence@obco.io");
   const [password, setPassword] = useState(API_ENABLED ? "ChangeMe123!" : "demo");
   const [role, setRoleState] = useState<"pharmacy" | "admin">("pharmacy");
   const [loading, setLoading] = useState(false);
