@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 import { ScopeSelector, useScopeState, useScopedReportData, ReportStocks } from "@/components/reports/shared";
 
 export const Route = createFileRoute("/sorties-locales/stocks-pays")({
-  head: () => ({ meta: [{ title: "Rapport 5 — Stocks locaux pays — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Rapport 5 — Stocks locaux pays — OBCO" }] }),
   component: Page,
 });
 

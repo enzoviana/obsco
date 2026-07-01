@@ -35,7 +35,7 @@ type EmailOptions = {
 };
 
 export async function sendEmail(options: EmailOptions) {
-  const from = process.env.SMTP_FROM || "noreply@datafuse.app";
+  const from = process.env.SMTP_FROM || "noreply@obco.app";
 
   if (!transporter) {
     // Mode développement : afficher l'email dans la console
@@ -50,7 +50,7 @@ export async function sendEmail(options: EmailOptions) {
 
   try {
     const info = await transporter.sendMail({
-      from: `"DATAFUSE" <${from}>`,
+      from: `"OBCO" <${from}>`,
       to: options.to,
       subject: options.subject,
       text: options.text,

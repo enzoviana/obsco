@@ -13,7 +13,7 @@ import { getAllProducts, productStats } from "@/lib/products";
 import { useDashboardData } from "@/lib/useDashboardData";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Tableau de bord — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Tableau de bord — OBCO" }] }),
   component: Dashboard,
 });
 

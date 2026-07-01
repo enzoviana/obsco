@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login, getUser, API_ENABLED } from "@/lib/auth";
+import Logo from "@/assets/Logo.svg";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Connexion — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Connexion — OBCO" }] }),
   beforeLoad: () => {
     if (typeof window !== "undefined" && getUser()) throw redirect({ to: "/" });
   },
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState(API_ENABLED ? "admin@datafuse.app" : "agence@datafuse.io");
+  const [email, setEmail] = useState(API_ENABLED ? "admin@obco.app" : "agence@obco.io");
   const [password, setPassword] = useState(API_ENABLED ? "ChangeMe123!" : "demo");
   const [role, setRoleState] = useState<"pharmacy" | "admin">("pharmacy");
   const [loading, setLoading] = useState(false);
@@ -56,10 +57,7 @@ function LoginPage() {
           backgroundSize: "48px 48px, 64px 64px",
         }} />
         <div className="relative flex items-center gap-2.5">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-foreground/15 backdrop-blur">
-            <Pill className="h-5 w-5" />
-          </div>
-          <div className="text-lg font-bold tracking-tight">DATA<span className="opacity-80">FUSE</span></div>
+          <img src={Logo} alt="OBCO" className="h-12 w-auto brightness-0 invert" />
         </div>
 
         <div className="relative space-y-6">
@@ -87,17 +85,14 @@ function LoginPage() {
           </div>
         </div>
 
-        <div className="relative text-xs opacity-70">© 2026 DataFuse SAS · Tous droits réservés</div>
+        <div className="relative text-xs opacity-70">© 2026 OBCO · Tous droits réservés</div>
       </div>
 
       {/* Right form */}
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-              <Pill className="h-4 w-4" />
-            </div>
-            <div className="text-lg font-bold tracking-tight">DATA<span className="text-primary">FUSE</span></div>
+            <img src={Logo} alt="OBCO" className="h-10 w-auto" />
           </div>
 
           <div className="text-xs font-medium uppercase tracking-wider text-primary">Bienvenue</div>

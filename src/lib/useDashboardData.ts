@@ -132,22 +132,22 @@ export function useDashboardData(): DashboardData {
     };
 
     // Écouter les événements de mise à jour des données
-    window.addEventListener("datafuse:agencies", reloadData);
-    window.addEventListener("datafuse:products", reloadData);
-    window.addEventListener("datafuse:labs", reloadData);
-    window.addEventListener("datafuse:gros", reloadData);
-    window.addEventListener("datafuse:countries", reloadData);
-    window.addEventListener("datafuse:pricing", reloadData);
-    window.addEventListener("datafuse:objectives", reloadData);
+    window.addEventListener("obco:agencies", reloadData);
+    window.addEventListener("obco:products", reloadData);
+    window.addEventListener("obco:labs", reloadData);
+    window.addEventListener("obco:gros", reloadData);
+    window.addEventListener("obco:countries", reloadData);
+    window.addEventListener("obco:pricing", reloadData);
+    window.addEventListener("obco:objectives", reloadData);
 
     return () => {
-      window.removeEventListener("datafuse:agencies", reloadData);
-      window.removeEventListener("datafuse:products", reloadData);
-      window.removeEventListener("datafuse:labs", reloadData);
-      window.removeEventListener("datafuse:gros", reloadData);
-      window.removeEventListener("datafuse:countries", reloadData);
-      window.removeEventListener("datafuse:pricing", reloadData);
-      window.removeEventListener("datafuse:objectives", reloadData);
+      window.removeEventListener("obco:agencies", reloadData);
+      window.removeEventListener("obco:products", reloadData);
+      window.removeEventListener("obco:labs", reloadData);
+      window.removeEventListener("obco:gros", reloadData);
+      window.removeEventListener("obco:countries", reloadData);
+      window.removeEventListener("obco:pricing", reloadData);
+      window.removeEventListener("obco:objectives", reloadData);
     };
   }, []);
 

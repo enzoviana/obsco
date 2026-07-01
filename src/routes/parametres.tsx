@@ -11,7 +11,7 @@ import { User, Bell, Lock, Building, Palette, Globe, Code2, Download, Github, Us
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/parametres")({
-  head: () => ({ meta: [{ title: "Paramètres — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Paramètres — OBCO" }] }),
   component: SettingsPage,
 });
 
@@ -111,7 +111,7 @@ function SaveBar() {
 
 function ProfileSection({ email, name }: { email: string; name: string }) {
   return (
-    <Section title="Profil" desc="Vos informations personnelles affichées sur DataFuse.">
+    <Section title="Profil" desc="Vos informations personnelles affichées sur OBCO.">
       <Field label="Nom complet"><Input defaultValue={name} /></Field>
       <Field label="Email"><Input type="email" defaultValue={email} /></Field>
       <Field label="Téléphone"><Input type="tel" placeholder="06 12 34 56 78" /></Field>
@@ -140,7 +140,7 @@ function NotificationsSection() {
       <ToggleRow title="Ruptures de stock" desc="Notification immédiate en cas de rupture." defaultChecked />
       <ToggleRow title="Imports terminés" desc="Confirmation à la fin de chaque import." />
       <ToggleRow title="Rapport hebdomadaire" desc="Résumé chaque lundi matin." defaultChecked />
-      <ToggleRow title="Nouveautés DataFuse" desc="Annonces produit et conseils." />
+      <ToggleRow title="Nouveautés OBCO" desc="Annonces produit et conseils." />
     </Section>
   );
 }

@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 import { ScopeSelector, useScopeState, useScopedReportData, ReportVentesUnits } from "@/components/reports/shared";
 
 export const Route = createFileRoute("/sorties-locales/ventes-un")({
-  head: () => ({ meta: [{ title: "Rapport 3 — Ventes par unités — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Rapport 3 — Ventes par unités — OBCO" }] }),
   component: Page,
 });
 

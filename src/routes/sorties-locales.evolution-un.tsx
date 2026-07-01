@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 import { ScopeSelector, useScopeState, useScopedReportData, ReportEvolutionUN } from "@/components/reports/shared";
 
 export const Route = createFileRoute("/sorties-locales/evolution-un")({
-  head: () => ({ meta: [{ title: "Rapport 4 bis — Évolution unités — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Rapport 4 bis — Évolution unités — OBCO" }] }),
   component: Page,
 });
 

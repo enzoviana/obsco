@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import {
-  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, Search, LogOut, Pill, ChevronDown, ChevronRight,
+  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, Search, LogOut, ChevronDown, ChevronRight,
   FileBarChart2, Boxes, Upload, FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen, Target, Tag,
 } from "lucide-react";
 import { logout, setRole, useUser } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import Logo from "@/assets/Logo.svg";
 
 type LeafItem = {
   to: string;
@@ -95,13 +96,7 @@ export function AppShell({ children, title, subtitle, actions }: {
     <div className="min-h-screen bg-background">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-surface lg:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <Pill className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-bold leading-tight tracking-tight">DATA<span className="text-primary">FUSE</span></div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">ANF Cloud</div>
-          </div>
+          <img src={Logo} alt="OBCO" className="h-10 w-auto" />
         </div>
 
         <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">

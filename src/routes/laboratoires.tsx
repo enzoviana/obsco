@@ -19,7 +19,7 @@ import {
 import { exportCSV } from "@/lib/export";
 
 export const Route = createFileRoute("/laboratoires")({
-  head: () => ({ meta: [{ title: "Laboratoires — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Laboratoires — OBCO" }] }),
   component: LaboratoiresPage,
 });
 
@@ -54,8 +54,8 @@ function LaboratoiresPage() {
         console.error("Erreur lors de la synchronisation des laboratoires:", err);
       }
     };
-    window.addEventListener("datafuse:labs", sync);
-    return () => window.removeEventListener("datafuse:labs", sync);
+    window.addEventListener("obco:labs", sync);
+    return () => window.removeEventListener("obco:labs", sync);
   }, [navigate]);
 
   const filtered = useMemo(() => {

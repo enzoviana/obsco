@@ -19,7 +19,7 @@ import { exportCSV, exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/produits")({
-  head: () => ({ meta: [{ title: "Produits — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Produits — OBCO" }] }),
   component: ProduitsPage,
 });
 
@@ -41,8 +41,8 @@ function ProduitsPage() {
       setAll(products);
     };
     reload();
-    window.addEventListener("datafuse:products", reload);
-    return () => window.removeEventListener("datafuse:products", reload);
+    window.addEventListener("obco:products", reload);
+    return () => window.removeEventListener("obco:products", reload);
   }, [navigate]);
 
   const labs = useMemo(() => Array.from(new Set(all.map(p => p.laboratory))).sort(), [all]);

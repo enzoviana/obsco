@@ -9,7 +9,7 @@ import { getUser } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/change-password")({
-  head: () => ({ meta: [{ title: "Changer le mot de passe — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Changer le mot de passe — OBCO" }] }),
   beforeLoad: () => {
     // Vérifier que l'utilisateur est connecté
     if (typeof window !== "undefined" && !getUser()) {
@@ -67,8 +67,8 @@ function ChangePasswordPage() {
       // Si c'est la première connexion, déconnecter et rediriger vers login
       if (isFirstLogin) {
         // Déconnecter l'utilisateur pour qu'il se reconnecte avec son nouveau mot de passe
-        localStorage.removeItem("datafuse_token");
-        localStorage.removeItem("datafuse_user");
+        localStorage.removeItem("obco_token");
+        localStorage.removeItem("obco_user");
 
         toast.info("Veuillez vous reconnecter avec votre nouveau mot de passe");
 

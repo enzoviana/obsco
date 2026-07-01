@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { CountryToolbar } from "./produits-objectifs";
 
 export const Route = createFileRoute("/produits-tarifs")({
-  head: () => ({ meta: [{ title: "Tarifs produits par pays — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Tarifs produits par pays — OBCO" }] }),
   component: TarifsPage,
 });
 

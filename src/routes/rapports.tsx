@@ -16,7 +16,7 @@ import { exportCSV, exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/rapports")({
-  head: () => ({ meta: [{ title: "Rapports — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Rapports — OBCO" }] }),
   component: RapportsPage,
 });
 

@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [{ title: "Réinitialiser le mot de passe — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Réinitialiser le mot de passe — OBCO" }] }),
   validateSearch: (search: Record<string, unknown>) => {
     return {
       token: (search.token as string) || "",

@@ -18,7 +18,7 @@ import {
 import { exportCSV } from "@/lib/export";
 
 export const Route = createFileRoute("/grossistes")({
-  head: () => ({ meta: [{ title: "Fournisseurs — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Fournisseurs — OBCO" }] }),
   component: GrossistesPage,
 });
 
@@ -38,8 +38,8 @@ function GrossistesPage() {
     
     setList(getGrossistes());
     const sync = () => setList(getGrossistes());
-    window.addEventListener("datafuse:gros", sync);
-    return () => window.removeEventListener("datafuse:gros", sync);
+    window.addEventListener("obco:gros", sync);
+    return () => window.removeEventListener("obco:gros", sync);
   }, [navigate]);
 
   const filtered = useMemo(() => {

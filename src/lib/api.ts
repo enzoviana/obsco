@@ -1,12 +1,12 @@
-// API client for the DATAFUSE Node.js backend.
+// API client for the OBCO Node.js backend.
 // Set VITE_API_URL in your .env to point at your deployed backend
-// (e.g. https://datafuse-api.onrender.com).
+// (e.g. https://obco-api.onrender.com).
 
 const RAW_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") || "";
 export const API_BASE = RAW_BASE;
 export const API_ENABLED = Boolean(RAW_BASE);
 
-const TOKEN_KEY = "datafuse_token";
+const TOKEN_KEY = "obco_token";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -49,9 +49,9 @@ export async function api<T = unknown>(
     if (res.status === 401 && typeof window !== "undefined") {
       // Supprimer le token et l'utilisateur
       setToken(null);
-      localStorage.removeItem("datafuse_user");
+      localStorage.removeItem("obco_user");
       // Déclencher l'événement pour que les composants se mettent à jour
-      window.dispatchEvent(new Event("datafuse:user"));
+      window.dispatchEvent(new Event("obco:user"));
       // Si on n'est pas déjà sur la page de login, rediriger
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login";

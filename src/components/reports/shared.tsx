@@ -41,8 +41,8 @@ export function useScopeState() {
     setAgencies(list);
     if (list[0]) { setCountryCode(c => c || list[0].country); setAgencyId(a => a || list[0].id); }
     const sync = () => setAgencies(getAgencies());
-    window.addEventListener("datafuse:agencies", sync);
-    return () => window.removeEventListener("datafuse:agencies", sync);
+    window.addEventListener("obco:agencies", sync);
+    return () => window.removeEventListener("obco:agencies", sync);
   }, []);
 
   const agency = agencies.find(a => a.id === agencyId);
@@ -178,7 +178,7 @@ export function useMonthlyData(year: number, month: number, scope: Scope, countr
           `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/monthly-summary?${params}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
             },
           }
         );
@@ -219,7 +219,7 @@ export function useCountryData(year: number, month: number) {
           `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/by-country?year=${year}&month=${month}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
             },
           }
         );
@@ -264,7 +264,7 @@ export function useEvolutionData(year: number, scope: Scope, countryCode: string
           `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/evolution?${params}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
             },
           }
         );
@@ -308,7 +308,7 @@ export function usePanoramicData(year: number, productCip: string) {
           `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/panoramic?year=${year}&productCip=${productCip}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
             },
           }
         );
@@ -349,7 +349,7 @@ export function useYearStocksData(year: number) {
               `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/by-country?year=${year}&month=${month}`,
               {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+                  Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
                 },
               }
             ).then(res => res.ok ? res.json() : {})

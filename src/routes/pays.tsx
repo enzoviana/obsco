@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { getCountryByCode, type CountryData } from "@/lib/countries-data";
 
 export const Route = createFileRoute("/pays")({
-  head: () => ({ meta: [{ title: "Pays — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Pays — OBCO" }] }),
   component: PaysPage,
 });
 
@@ -39,8 +39,8 @@ function PaysPage() {
       reloadCountries();
       setRefresh(x => x + 1);
     };
-    window.addEventListener("datafuse:countries", sync);
-    return () => window.removeEventListener("datafuse:countries", sync);
+    window.addEventListener("obco:countries", sync);
+    return () => window.removeEventListener("obco:countries", sync);
   }, [navigate]);
 
   const rows = useMemo(() => {
@@ -172,7 +172,7 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
         addCountry({ ...f, code: f.code.toUpperCase() });
         toast.success(`Pays ${f.name} ajouté`);
       }
-      // Fermer immédiatement - l'événement 'datafuse:countries' va déclencher le rafraîchissement
+      // Fermer immédiatement - l'événement 'obco:countries' va déclencher le rafraîchissement
       onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");

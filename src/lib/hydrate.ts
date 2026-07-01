@@ -1,6 +1,6 @@
 // Hydrate local in-memory stores from the backend API at app boot.
 // All pages keep their sync API; once data arrives we mutate the same arrays
-// and dispatch the existing 'datafuse:*' events so every component re-renders.
+// and dispatch the existing 'obco:*' events so every component re-renders.
 import { API_ENABLED, api, getToken } from "./api";
 import { COUNTRIES, type Country } from "./agencies";
 
@@ -39,8 +39,8 @@ export async function hydrateFromApi(): Promise<void> {
     // Countries (mutate in place — module-level array imported elsewhere)
     if (countries.length) {
       COUNTRIES.splice(0, COUNTRIES.length, ...countries);
-      localStorage.setItem("datafuse_countries_v1", JSON.stringify(countries));
-      dispatch("datafuse:countries");
+      localStorage.setItem("obco_countries_v1", JSON.stringify(countries));
+      dispatch("obco:countries");
     }
 
     // Agencies → localStorage key used by getAgencies()
@@ -50,8 +50,8 @@ export async function hydrateFromApi(): Promise<void> {
         manager: a.manager, city: a.city, createdAt: a.createdAt.slice(0, 10),
         status: (a.status as "active" | "warning" | "inactive" | "blocked") || "active",
       }));
-      localStorage.setItem("datafuse_agencies_v2", JSON.stringify(mapped));
-      dispatch("datafuse:agencies");
+      localStorage.setItem("obco_agencies_v2", JSON.stringify(mapped));
+      dispatch("obco:agencies");
     }
 
     // Wholesalers (grossistes)
@@ -63,8 +63,8 @@ export async function hydrateFromApi(): Promise<void> {
         scope: (w.scope as "country" | "agency") || "country",
         agencyId: w.agencyId ?? undefined,
       }));
-      localStorage.setItem("datafuse_grossistes_v2", JSON.stringify(mapped));
-      dispatch("datafuse:gros");
+      localStorage.setItem("obco_grossistes_v2", JSON.stringify(mapped));
+      dispatch("obco:gros");
     }
 
     // Laboratories
@@ -75,8 +75,8 @@ export async function hydrateFromApi(): Promise<void> {
         createdAt: l.createdAt.slice(0, 10),
         status: (l.status as "active" | "warning" | "inactive" | "blocked") || "active",
       }));
-      localStorage.setItem("datafuse_laboratoires_v2", JSON.stringify(mapped));
-      dispatch("datafuse:labs");
+      localStorage.setItem("obco_laboratoires_v2", JSON.stringify(mapped));
+      dispatch("obco:labs");
     }
 
     // Prices → { [productId]: { [country]: price } }
@@ -86,8 +86,8 @@ export async function hydrateFromApi(): Promise<void> {
         pmap[p.productId] = pmap[p.productId] || {};
         pmap[p.productId][p.countryCode] = p.price;
       }
-      localStorage.setItem("datafuse_prices", JSON.stringify(pmap));
-      dispatch("datafuse:pricing");
+      localStorage.setItem("obco_prices", JSON.stringify(pmap));
+      dispatch("obco:pricing");
     }
 
     // Objectives → { [productId]: { [country]: targetUnits } } (current year sum-by-country)
@@ -97,8 +97,8 @@ export async function hydrateFromApi(): Promise<void> {
         omap[o.productId] = omap[o.productId] || {};
         omap[o.productId][o.countryCode] = (omap[o.productId][o.countryCode] || 0) + o.targetUnits;
       }
-      localStorage.setItem("datafuse_objectives", JSON.stringify(omap));
-      dispatch("datafuse:objectives");
+      localStorage.setItem("obco_objectives", JSON.stringify(omap));
+      dispatch("obco:objectives");
     }
 
     // Products: persisted as custom products so getPanoramicProducts picks them up.
@@ -116,8 +116,8 @@ export async function hydrateFromApi(): Promise<void> {
           cumulBudget: 0, cumulRealise: 0, txRealPrev: 0, poids: 0, fournisseurs,
         };
       });
-      localStorage.setItem("datafuse_custom_products", JSON.stringify(mapped));
-      dispatch("datafuse:products");
+      localStorage.setItem("obco_custom_products", JSON.stringify(mapped));
+      dispatch("obco:products");
     }
 
     _done = true;

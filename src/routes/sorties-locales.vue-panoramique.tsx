@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 import { ScopeSelector, useScopeState, useScopedReportData, ReportVuePanoramique } from "@/components/reports/shared";
 
 export const Route = createFileRoute("/sorties-locales/vue-panoramique")({
-  head: () => ({ meta: [{ title: "Rapport 6 — Vue panoramique produit — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Rapport 6 — Vue panoramique produit — OBCO" }] }),
   component: Page,
 });
 

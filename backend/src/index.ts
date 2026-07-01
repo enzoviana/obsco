@@ -43,7 +43,7 @@ app.use("/api/import", importRouter);
 app.use("/api/reports", reportsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
-app.get("/", (_req, res) => res.json({ name: "DATAFUSE API", version: "1.0.0" }));
+app.get("/", (_req, res) => res.json({ name: "OBCO API", version: "1.0.0" }));
 
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 
@@ -54,4 +54,4 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 });
 
 const port = Number(process.env.PORT || 4000);
-app.listen(port, () => console.log(`🚀 DATAFUSE API on :${port}`));
+app.listen(port, () => console.log(`🚀 OBCO API on :${port}`));

@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/forgot-password")({
-  head: () => ({ meta: [{ title: "Mot de passe oublié — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Mot de passe oublié — OBCO" }] }),
   component: ForgotPasswordPage,
 });
 

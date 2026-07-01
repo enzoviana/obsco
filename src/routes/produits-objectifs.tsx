@@ -13,7 +13,7 @@ import { exportCSV, exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/produits-objectifs")({
-  head: () => ({ meta: [{ title: "Objectifs produits par pays — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Objectifs produits par pays — OBCO" }] }),
   component: ObjectifsPage,
 });
 

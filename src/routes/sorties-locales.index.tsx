@@ -18,7 +18,7 @@ import { exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/sorties-locales/")({
-  head: () => ({ meta: [{ title: "Sorties Locales — Stocks fournisseurs — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Sorties Locales — Stocks fournisseurs — OBCO" }] }),
   component: SortiesIndex,
 });
 
@@ -80,7 +80,7 @@ function SortiesIndex() {
         `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/sorties-locales?${params}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+            Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
           },
         }
       );
@@ -117,12 +117,12 @@ function SortiesIndex() {
     const syncAgencies = () => setAgencies(getAgencies());
     const syncGrossistes = () => setGrossistes(getGrossistes());
 
-    window.addEventListener("datafuse:agencies", syncAgencies);
-    window.addEventListener("datafuse:gros", syncGrossistes);
+    window.addEventListener("obco:agencies", syncAgencies);
+    window.addEventListener("obco:gros", syncGrossistes);
 
     return () => {
-      window.removeEventListener("datafuse:agencies", syncAgencies);
-      window.removeEventListener("datafuse:gros", syncGrossistes);
+      window.removeEventListener("obco:agencies", syncAgencies);
+      window.removeEventListener("obco:gros", syncGrossistes);
     };
   }, [navigate, agencyId]);
 

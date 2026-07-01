@@ -10,7 +10,7 @@ import { getAllProducts, productStats } from "@/lib/products";
 import { useDashboardData } from "@/lib/useDashboardData";
 
 export const Route = createFileRoute("/stats")({
-  head: () => ({ meta: [{ title: "Statistiques — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Statistiques — OBCO" }] }),
   component: StatsPage,
 });
 

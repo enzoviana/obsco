@@ -13,7 +13,7 @@ export type User = {
   mustChangePassword?: boolean;
 };
 
-const KEY = "datafuse_user";
+const KEY = "obco_user";
 
 function fromApi(u: ApiUser): User {
   return {
@@ -36,7 +36,7 @@ export function getUser(): User | null {
 
 function persist(u: User) {
   localStorage.setItem(KEY, JSON.stringify(u));
-  window.dispatchEvent(new Event("datafuse:user"));
+  window.dispatchEvent(new Event("obco:user"));
 }
 
 // Connexion réelle (backend). Renvoie l'utilisateur ou jette une erreur.
@@ -74,7 +74,7 @@ export async function login(email: string, passwordOrRole: string | Role): Promi
 export function logout() {
   localStorage.removeItem(KEY);
   setToken(null);
-  window.dispatchEvent(new Event("datafuse:user"));
+  window.dispatchEvent(new Event("obco:user"));
 }
 
 export function setRole(role: Role) {
@@ -108,7 +108,7 @@ export function useUser() {
 
   useEffect(() => {
     const sync = () => setUser(getUser());
-    window.addEventListener("datafuse:user", sync);
+    window.addEventListener("obco:user", sync);
     window.addEventListener("storage", sync);
 
     // Au premier montage, essayer de rafraîchir l'utilisateur depuis l'API si on a un token
@@ -134,7 +134,7 @@ export function useUser() {
     }
 
     return () => {
-      window.removeEventListener("datafuse:user", sync);
+      window.removeEventListener("obco:user", sync);
       window.removeEventListener("storage", sync);
     };
   }, [refreshAttempted]);

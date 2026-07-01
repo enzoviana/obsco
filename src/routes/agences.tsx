@@ -15,7 +15,7 @@ import { COUNTRIES, addAgency, deleteAgency, getAgencies, updateAgency, setAgenc
 import { exportCSV } from "@/lib/export";
 
 export const Route = createFileRoute("/agences")({
-  head: () => ({ meta: [{ title: "Agences — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Agences — OBCO" }] }),
   component: AgencesPage,
 });
 
@@ -34,8 +34,8 @@ function AgencesPage() {
     
     setList(getAgencies());
     const sync = () => setList(getAgencies());
-    window.addEventListener("datafuse:agencies", sync);
-    return () => window.removeEventListener("datafuse:agencies", sync);
+    window.addEventListener("obco:agencies", sync);
+    return () => window.removeEventListener("obco:agencies", sync);
   }, [navigate]);
 
   const filtered = useMemo(() => {

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/import")({
-  head: () => ({ meta: [{ title: "Import / Export — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Import / Export — OBCO" }] }),
   component: ImportPage,
 });
 
@@ -69,12 +69,12 @@ function ImportPage() {
 
     // Écouter les changements des agences et grossistes
     const syncAgencies = () => loadAgencyInfo();
-    window.addEventListener("datafuse:agencies", syncAgencies);
-    window.addEventListener("datafuse:gros", syncAgencies);
+    window.addEventListener("obco:agencies", syncAgencies);
+    window.addEventListener("obco:gros", syncAgencies);
 
     return () => {
-      window.removeEventListener("datafuse:agencies", syncAgencies);
-      window.removeEventListener("datafuse:gros", syncAgencies);
+      window.removeEventListener("obco:agencies", syncAgencies);
+      window.removeEventListener("obco:gros", syncAgencies);
     };
   }, [navigate]); // Retirer 'user' des dépendances pour éviter la boucle infinie
 
@@ -421,7 +421,7 @@ function ImportPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("datafuse_token")}`,
+          Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
         },
         body: JSON.stringify(importData),
       });

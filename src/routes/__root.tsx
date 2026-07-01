@@ -123,8 +123,8 @@ function RootComponent() {
       import("../lib/hydrate").then(({ hydrateFromApi }) => hydrateFromApi());
     });
     const onAuth = () => import("../lib/hydrate").then(({ hydrateFromApi }) => hydrateFromApi());
-    window.addEventListener("datafuse:user", onAuth);
-    return () => window.removeEventListener("datafuse:user", onAuth);
+    window.addEventListener("obco:user", onAuth);
+    return () => window.removeEventListener("obco:user", onAuth);
   }, []);
 
   return (

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/stocks")({
-  head: () => ({ meta: [{ title: "Stocks — DATAFUSE" }] }),
+  head: () => ({ meta: [{ title: "Stocks — OBCO" }] }),
   component: StocksPage,
 });
 

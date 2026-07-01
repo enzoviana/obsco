@@ -22,12 +22,12 @@ export const COUNTRIES: Country[] = [
 
 ];
 
-const COUNTRY_KEY = "datafuse_countries_v1";
+const COUNTRY_KEY = "obco_countries_v1";
 let _countriesLoaded = false;
 function persistCountries() {
   if (typeof window === "undefined") return;
   localStorage.setItem(COUNTRY_KEY, JSON.stringify(COUNTRIES));
-  window.dispatchEvent(new Event("datafuse:countries"));
+  window.dispatchEvent(new Event("obco:countries"));
 }
 export function ensureCountriesLoaded() {
   if (_countriesLoaded || typeof window === "undefined") return;
@@ -94,7 +94,7 @@ export type Laboratoire = {
   status: EntityStatus;
 };
 
-const LAB_KEY = "datafuse_laboratoires_v2";
+const LAB_KEY = "obco_laboratoires_v2";
 let _labs: Laboratoire[] | null = null;
 
 function seedLabs(): Laboratoire[] {
@@ -114,7 +114,7 @@ function seedLabs(): Laboratoire[] {
 
 function persistLabs() {
   if (typeof window !== "undefined") localStorage.setItem(LAB_KEY, JSON.stringify(_labs));
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:labs"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:labs"));
 }
 
 export function getLaboratoires(): Laboratoire[] {
@@ -168,7 +168,7 @@ export type Grossiste = {
   agencyId?: string;
 };
 
-const GROS_KEY = "datafuse_grossistes_v2";
+const GROS_KEY = "obco_grossistes_v2";
 let _gros: Grossiste[] | null = null;
 
 function seedGros(): Grossiste[] {
@@ -184,7 +184,7 @@ function seedGros(): Grossiste[] {
 
 function persistGros() {
   if (typeof window !== "undefined") localStorage.setItem(GROS_KEY, JSON.stringify(_gros));
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:gros"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:gros"));
 }
 
 export function getGrossistes(): Grossiste[] {
@@ -229,8 +229,8 @@ export function deleteGrossiste(id: string) {
 // ---------------- Pricing & objectives ----------------
 type PriceMap = Record<string, Record<string, number>>;
 type ObjMap = Record<string, Record<string, number>>;
-const PRICE_KEY = "datafuse_prices";
-const OBJ_KEY = "datafuse_objectives";
+const PRICE_KEY = "obco_prices";
+const OBJ_KEY = "obco_objectives";
 
 function loadMap(key: string): PriceMap {
   if (typeof window === "undefined") return {};
@@ -253,7 +253,7 @@ export function setProductPricing(productId: string, prices: Record<string, numb
   const m = loadMap(PRICE_KEY);
   m[productId] = prices;
   saveMap(PRICE_KEY, m);
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:pricing"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:pricing"));
   for (const [countryCode, price] of Object.entries(prices)) {
     syncPut("/api/prices", { productId, countryCode, price });
   }
@@ -272,7 +272,7 @@ export function setProductObjectives(productId: string, qty: Record<string, numb
   const m = loadMap(OBJ_KEY) as ObjMap;
   m[productId] = qty;
   saveMap(OBJ_KEY, m);
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:objectives"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:objectives"));
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -283,7 +283,7 @@ export function setProductObjectives(productId: string, qty: Record<string, numb
 
 // ---------------- Agencies ----------------
 let _agencies: Agency[] | null = null;
-const KEY = "datafuse_agencies_v2";
+const KEY = "obco_agencies_v2";
 
 function seed(): Agency[] {
   const names = ["ANF Abidjan", "ANF Bamako", "ANF Dakar", "ANF Ouaga", "ANF Douala", "ANF Libreville", "ANF Lomé", "ANF Cotonou"];
@@ -292,7 +292,7 @@ function seed(): Agency[] {
     id: `AG-${String(i + 1).padStart(3, "0")}`,
     name: names[i],
     country: c.code,
-    email: `${names[i].toLowerCase().replace(/\s/g, ".")}@datafuse.io`,
+    email: `${names[i].toLowerCase().replace(/\s/g, ".")}@obco.io`,
     manager: mgr[i],
     city: c.name.split(" ")[0],
     createdAt: `2025-${String(1 + (i % 12)).padStart(2, "0")}-${String(5 + i).padStart(2, "0")}`,
@@ -302,7 +302,7 @@ function seed(): Agency[] {
 
 function persistAgencies() {
   if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(_agencies));
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:agencies"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:agencies"));
 }
 
 export function getAgencies(): Agency[] {
@@ -556,8 +556,8 @@ export type ProductPanoramic = {
   fournisseurs: Record<string, { ventes: number; stocks: number; commandes: number; prixUnitaire: number }>;
 };
 
-const CUSTOM_KEY = "datafuse_custom_products";
-const OVERRIDES_KEY = "datafuse_product_overrides";
+const CUSTOM_KEY = "obco_custom_products";
+const OVERRIDES_KEY = "obco_product_overrides";
 
 let _products: ProductPanoramic[] | null = null;
 
@@ -607,7 +607,7 @@ function seedPanoramic(): ProductPanoramic[] {
 
 type ProductOverride = { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus; pghtPays?: number; deleted?: boolean };
 
-const DELETED_KEY = "datafuse_deleted_products";
+const DELETED_KEY = "obco_deleted_products";
 
 function loadDeleted(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -639,7 +639,7 @@ function saveCustom(list: ProductPanoramic[]) {
   if (typeof window !== "undefined") {
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
     console.log(`✅ ${list.length} produits sauvegardés, dispatch événement`);
-    window.dispatchEvent(new Event("datafuse:products"));
+    window.dispatchEvent(new Event("obco:products"));
   }
 }
 
@@ -715,7 +715,7 @@ export function updateProduct(id: string, patch: ProductOverride) {
     const o = loadOverrides();
     o[id] = { ...(o[id] || {}), ...patch };
     saveOverrides(o);
-    if (typeof window !== "undefined") window.dispatchEvent(new Event("datafuse:products"));
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:products"));
   }
   const apiPatch: Record<string, unknown> = {};
   if (patch.name) apiPatch.name = patch.name;

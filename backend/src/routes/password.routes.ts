@@ -103,7 +103,7 @@ router.post("/request-reset", async (req, res) => {
       const emailContent = generatePasswordResetEmail(email, resetToken);
       await sendEmail({
         to: email,
-        subject: "Réinitialisation de votre mot de passe DATAFUSE",
+        subject: "Réinitialisation de votre mot de passe OBCO",
         html: emailContent.html,
         text: emailContent.text,
       });
