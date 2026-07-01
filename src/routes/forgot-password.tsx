@@ -57,8 +57,8 @@ function ForgotPasswordPage() {
 
         {success ? (
           <div className="bg-card border border-border rounded-2xl p-6 text-center space-y-4">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-              <Mail className="h-6 w-6 text-green-600" />
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Mail className="h-6 w-6 text-primary" />
             </div>
             <div>
               <h3 className="font-semibold mb-1">Email envoyé !</h3>

@@ -79,14 +79,14 @@ export function generateWelcomeEmail(pharmacyName: string, email: string, tempor
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6; margin: 0; padding: 0; }
         .wrapper { width: 100%; background-color: #f3f4f6; padding: 40px 0; }
         .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
-        .header { background-color: #059669; color: #ffffff; padding: 40px 30px; text-align: center; }
+        .header { background-color: #2b4665; color: #ffffff; padding: 40px 30px; text-align: center; }
         .content { padding: 40px 30px; background: #ffffff; }
         .credentials { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 24px; margin: 24px 0; }
         .credential-row { margin: 12px 0; font-size: 15px; }
         .label { font-weight: 600; color: #4b5563; display: inline-block; width: 180px; }
         .value { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; background: #eaedf1; padding: 4px 8px; border-radius: 4px; color: #111827; font-size: 14px; }
         .btn-container { text-align: center; margin: 30px 0; }
-        .button { display: inline-block; background-color: #10b981; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
+        .button { display: inline-block; background-color: #3b5a7f; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(43, 70, 101, 0.2); }
         .warning { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 4px 4px 0; font-size: 14px; color: #78350f; }
         .features { margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 24px; }
         .features-list { padding-left: 20px; color: #4b5563; }
@@ -185,7 +185,7 @@ export function generatePasswordResetEmail(email: string, resetToken: string) {
         .header { background-color: #1f2937; color: #ffffff; padding: 30px; text-align: center; }
         .content { padding: 40px 30px; background: #ffffff; }
         .btn-container { text-align: center; margin: 30px 0; }
-        .button { display: inline-block; background-color: #10b981; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; }
+        .button { display: inline-block; background-color: #3b5a7f; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px; }
         .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 30px; padding: 0 20px; }
       </style>
     </head>

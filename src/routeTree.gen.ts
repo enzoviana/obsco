@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StocksRouteImport } from './routes/stocks'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SortiesLocalesRouteImport } from './routes/sorties-locales'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as ProduitsTarifsRouteImport } from './routes/produits-tarifs'
 import { Route as ProduitsObjectifsRouteImport } from './routes/produits-objectifs'
@@ -23,6 +24,7 @@ import { Route as LaboratoiresRouteImport } from './routes/laboratoires'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as GrossistesRouteImport } from './routes/grossistes'
 import { Route as FournisseursRouteImport } from './routes/fournisseurs'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AgencesRouteImport } from './routes/agences'
 import { Route as IndexRouteImport } from './routes/index'
@@ -50,6 +52,11 @@ const StatsRoute = StatsRouteImport.update({
 const SortiesLocalesRoute = SortiesLocalesRouteImport.update({
   id: '/sorties-locales',
   path: '/sorties-locales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RapportsRoute = RapportsRouteImport.update({
@@ -105,6 +112,11 @@ const GrossistesRoute = GrossistesRouteImport.update({
 const FournisseursRoute = FournisseursRouteImport.update({
   id: '/fournisseurs',
   path: '/fournisseurs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
@@ -184,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agences': typeof AgencesRoute
   '/change-password': typeof ChangePasswordRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/fournisseurs': typeof FournisseursRoute
   '/grossistes': typeof GrossistesRoute
   '/import': typeof ImportRoute
@@ -195,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/produits-objectifs': typeof ProduitsObjectifsRoute
   '/produits-tarifs': typeof ProduitsTarifsRoute
   '/rapports': typeof RapportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sorties-locales': typeof SortiesLocalesRouteWithChildren
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
@@ -213,6 +227,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agences': typeof AgencesRoute
   '/change-password': typeof ChangePasswordRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/fournisseurs': typeof FournisseursRoute
   '/grossistes': typeof GrossistesRoute
   '/import': typeof ImportRoute
@@ -224,6 +239,7 @@ export interface FileRoutesByTo {
   '/produits-objectifs': typeof ProduitsObjectifsRoute
   '/produits-tarifs': typeof ProduitsTarifsRoute
   '/rapports': typeof RapportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
   '/sorties-locales/evolution-ca': typeof SortiesLocalesEvolutionCaRoute
@@ -242,6 +258,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/agences': typeof AgencesRoute
   '/change-password': typeof ChangePasswordRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/fournisseurs': typeof FournisseursRoute
   '/grossistes': typeof GrossistesRoute
   '/import': typeof ImportRoute
@@ -253,6 +270,7 @@ export interface FileRoutesById {
   '/produits-objectifs': typeof ProduitsObjectifsRoute
   '/produits-tarifs': typeof ProduitsTarifsRoute
   '/rapports': typeof RapportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sorties-locales': typeof SortiesLocalesRouteWithChildren
   '/stats': typeof StatsRoute
   '/stocks': typeof StocksRoute
@@ -273,6 +291,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agences'
     | '/change-password'
+    | '/forgot-password'
     | '/fournisseurs'
     | '/grossistes'
     | '/import'
@@ -284,6 +303,7 @@ export interface FileRouteTypes {
     | '/produits-objectifs'
     | '/produits-tarifs'
     | '/rapports'
+    | '/reset-password'
     | '/sorties-locales'
     | '/stats'
     | '/stocks'
@@ -302,6 +322,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agences'
     | '/change-password'
+    | '/forgot-password'
     | '/fournisseurs'
     | '/grossistes'
     | '/import'
@@ -313,6 +334,7 @@ export interface FileRouteTypes {
     | '/produits-objectifs'
     | '/produits-tarifs'
     | '/rapports'
+    | '/reset-password'
     | '/stats'
     | '/stocks'
     | '/sorties-locales/evolution-ca'
@@ -330,6 +352,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agences'
     | '/change-password'
+    | '/forgot-password'
     | '/fournisseurs'
     | '/grossistes'
     | '/import'
@@ -341,6 +364,7 @@ export interface FileRouteTypes {
     | '/produits-objectifs'
     | '/produits-tarifs'
     | '/rapports'
+    | '/reset-password'
     | '/sorties-locales'
     | '/stats'
     | '/stocks'
@@ -360,6 +384,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgencesRoute: typeof AgencesRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   FournisseursRoute: typeof FournisseursRoute
   GrossistesRoute: typeof GrossistesRoute
   ImportRoute: typeof ImportRoute
@@ -371,6 +396,7 @@ export interface RootRouteChildren {
   ProduitsObjectifsRoute: typeof ProduitsObjectifsRoute
   ProduitsTarifsRoute: typeof ProduitsTarifsRoute
   RapportsRoute: typeof RapportsRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SortiesLocalesRoute: typeof SortiesLocalesRouteWithChildren
   StatsRoute: typeof StatsRoute
   StocksRoute: typeof StocksRoute
@@ -397,6 +423,13 @@ declare module '@tanstack/react-router' {
       path: '/sorties-locales'
       fullPath: '/sorties-locales'
       preLoaderRoute: typeof SortiesLocalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rapports': {
@@ -474,6 +507,13 @@ declare module '@tanstack/react-router' {
       path: '/fournisseurs'
       fullPath: '/fournisseurs'
       preLoaderRoute: typeof FournisseursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/change-password': {
@@ -604,6 +644,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgencesRoute: AgencesRoute,
   ChangePasswordRoute: ChangePasswordRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   FournisseursRoute: FournisseursRoute,
   GrossistesRoute: GrossistesRoute,
   ImportRoute: ImportRoute,
@@ -615,6 +656,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProduitsObjectifsRoute: ProduitsObjectifsRoute,
   ProduitsTarifsRoute: ProduitsTarifsRoute,
   RapportsRoute: RapportsRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SortiesLocalesRoute: SortiesLocalesRouteWithChildren,
   StatsRoute: StatsRoute,
   StocksRoute: StocksRoute,
