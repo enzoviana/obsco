@@ -266,7 +266,7 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
                 className="h-4 w-4 rounded border-gray-300"
               />
               <Label htmlFor="isANF" className="cursor-pointer">
-                Pays ANF (Approvisionnement National des Fournisseurs)
+                Pays ANF 
               </Label>
             </div>
           </>

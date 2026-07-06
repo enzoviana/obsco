@@ -74,6 +74,7 @@ model Product {
   name        String
   category    String
   laboratory  String
+  basePrice   Float    @default(0)
   prices      ProductPrice[]
   objectives  ProductObjective[]
   stocks      SupplierStock[]

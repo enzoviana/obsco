@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Country" ADD COLUMN "isANF" BOOLEAN NOT NULL DEFAULT false;
