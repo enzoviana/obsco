@@ -143,6 +143,7 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
     name: pays?.name ?? "",
     region: pays?.region ?? "Afrique",
     currency: pays?.currency ?? "EUR",
+    isANF: pays?.isANF ?? false,
   });
 
   // Handler pour la sélection d'un pays
@@ -154,6 +155,7 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
         name: country.name,
         region: country.region,
         currency: "EUR", // Toujours EUR par défaut comme demandé
+        isANF: false,
       });
     }
   };
@@ -253,6 +255,19 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
               <p className="mt-1 text-xs text-muted-foreground">
                 EUR par défaut. Modifiable si nécessaire.
               </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isANF"
+                checked={f.isANF || false}
+                onChange={e => setF({ ...f, isANF: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="isANF" className="cursor-pointer">
+                Pays ANF (Approvisionnement National des Fournisseurs)
+              </Label>
             </div>
           </>
         )}

@@ -13,10 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { getUser } from "@/lib/auth";
 import {
-  COUNTRIES, addLaboratoire, deleteLaboratoire, getLaboratoires, updateLaboratoire, setLaboratoireStatus,
+  addLaboratoire, deleteLaboratoire, getLaboratoires, updateLaboratoire, setLaboratoireStatus,
   type Laboratoire,
 } from "@/lib/agencies";
 import { exportCSV } from "@/lib/export";
+import { WORLD_COUNTRIES } from "@/lib/countries-data";
 
 export const Route = createFileRoute("/laboratoires")({
   head: () => ({ meta: [{ title: "Laboratoires — OBCO" }] }),
@@ -68,7 +69,7 @@ function LaboratoiresPage() {
 
   const handleExport = () => {
     exportCSV("laboratoires", filtered.map(l => {
-      const c = COUNTRIES.find(x => x.code === l.country);
+      const c = WORLD_COUNTRIES.find(x => x.code === l.country);
       return {
         ID: l.id, Laboratoire: l.name, Pays: c?.name ?? l.country, "Code Pays": l.country, "Région": c?.region ?? "",
         Contact: l.contact, Email: l.email, Téléphone: l.phone, Adresse: l.address, Statut: l.status, "Date création": l.createdAt,
@@ -100,7 +101,7 @@ function LaboratoiresPage() {
           <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les pays</SelectItem>
-            {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+            {WORLD_COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -121,7 +122,7 @@ function LaboratoiresPage() {
             </thead>
             <tbody>
               {filtered.map(l => {
-                const c = COUNTRIES.find(x => x.code === l.country);
+                const c = WORLD_COUNTRIES.find(x => x.code === l.country);
                 const blocked = l.status === "blocked";
                 return (
                   <tr key={l.id} className="border-t border-border/60 hover:bg-surface/60">
@@ -181,12 +182,11 @@ function LaboratoiresPage() {
 
 function LabDialog({ onClose, lab }: { onClose: () => void; lab: Laboratoire | null }) {
 const [f, setF] = useState({
-    name: lab?.name ?? "", 
-    // Safely check if COUNTRIES[0] exists before grabbing its code
-    country: lab?.country ?? COUNTRIES[0]?.code ?? "", 
-    contact: lab?.contact ?? "", 
-    email: lab?.email ?? "", 
-    phone: lab?.phone ?? "", 
+    name: lab?.name ?? "",
+    country: lab?.country ?? "",
+    contact: lab?.contact ?? "",
+    email: lab?.email ?? "",
+    phone: lab?.phone ?? "",
     address: lab?.address ?? "",
   });
   const submit = () => {
@@ -206,8 +206,8 @@ const [f, setF] = useState({
         <div>
           <Label>Pays *</Label>
           <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code}) · {c.region}</SelectItem>)}</SelectContent>
+            <SelectTrigger><SelectValue placeholder="Sélectionner un pays" /></SelectTrigger>
+            <SelectContent>{WORLD_COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">

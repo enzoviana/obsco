@@ -59,7 +59,7 @@ function ProduitsPage() {
   const exportFull = () => {
     const panoramique = list.map(p => ({
       ID: p.id, CIP: p.cip, Produit: p.name, Laboratoire: p.laboratory, Type: p.type, Statut: p.productStatus,
-      "PGHT pays": p.pghtPays, "Ventes": p.ventes, "Budget Mois": p.budgetMois,
+      "Ventes": p.ventes, "Budget Mois": p.budgetMois,
       "Taux Réal (%)": p.tauxReal, "Ventes An-1": p.ventesAn1, "Taux Évol (%)": p.tauxEvol,
       "CA": p.ca, "Budget Mois CA": p.budgetMoisCa, "Tx Real Budget CA (%)": p.txRealBudgetCa,
       "Cumul Budget": p.cumulBudget, "Cumul Réalisé": p.cumulRealise,

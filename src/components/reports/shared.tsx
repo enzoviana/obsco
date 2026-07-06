@@ -154,6 +154,21 @@ export function useScopedReportData(scope: Scope, countryCode: string, agencyId:
   }, [scope, countryCode, agencyId]);
 }
 
+/* ---------- Data hook for ANF countries only ---------- */
+export function useScopedReportDataANF(scope: Scope, countryCode: string, agencyId: string) {
+  return useMemo(() => {
+    const agencies = typeof window !== "undefined" ? getAgencies() : [];
+    const agency = agencies.find(a => a.id === agencyId);
+    const codeFilter = scope === "country" ? countryCode : scope === "agency" ? agency?.country ?? "" : "";
+    const agencyFactor = scope === "agency" && agency ? agencyShare(agency, agencies) : 1;
+    // Filtrer uniquement les pays ANF
+    const visibleCountries = COUNTRIES.filter(c => c.isANF && (!codeFilter || c.code === codeFilter));
+    const products = getPanoramicProducts();
+    const selectedCountry = codeFilter || null;
+    return { agencies, agency, agencyFactor, codeFilter, visibleCountries, products, selectedCountry };
+  }, [scope, countryCode, agencyId]);
+}
+
 type Data = ReturnType<typeof useScopedReportData>;
 
 /* ---------- API Data hooks ---------- */
@@ -674,7 +689,7 @@ function buildR4(d: Data, kind: "un" | "ca", apiData: Record<string, Record<numb
 
     for (let m = 1; m <= 12; m++) {
       const monthData = productMonthlyData[m] || { sales: 0, stock: 0, orders: 0 };
-      const v = kind === "un" ? monthData.sales : +(monthData.sales * p.pghtPays).toFixed(2);
+      const v = kind === "un" ? monthData.sales : +(monthData.sales * 10).toFixed(2);
       row[MONTHS[m - 1]] = v;
       total += v;
     }

@@ -4,7 +4,7 @@
 import { syncCreate, syncUpdate, syncDelete, syncPut } from "./sync";
 import { API_ENABLED } from "./api";
 
-export type Country = { code: string; name: string; currency: string; region: string };
+export type Country = { code: string; name: string; currency: string; region: string; isANF?: boolean };
 export type EntityStatus = "active" | "warning" | "inactive" | "blocked";
 
 export type Agency = {

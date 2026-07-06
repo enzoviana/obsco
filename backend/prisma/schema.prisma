@@ -32,6 +32,7 @@ model Country {
   name      String
   currency  String
   region    String
+  isANF     Boolean   @default(false)
   agencies  Agency[]
   prices    ProductPrice[]
   objectives ProductObjective[]
