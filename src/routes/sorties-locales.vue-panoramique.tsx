@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 import { ScopeSelector, useScopeState, useScopedReportData, ReportVuePanoramique } from "@/components/reports/shared";
 
 export const Route = createFileRoute("/sorties-locales/vue-panoramique")({
-  head: () => ({ meta: [{ title: "Rapport 6 — Vue panoramique produit — OBCO" }] }),
+  head: () => ({ meta: [{ title: "Rapport 8 — Vue panoramique produit — OBCO" }] }),
   component: Page,
 });
 
@@ -17,7 +17,7 @@ function Page() {
     if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" });
   }, [navigate]);
   return (
-    <AppShell title="Rapport 6 — Vue panoramique produit" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
+    <AppShell title="Rapport 8 — Vue panoramique produit" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
       <ReportVuePanoramique data={data} suffix={state.fileSuffix} year={state.selectedYear} />
     </AppShell>

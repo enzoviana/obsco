@@ -78,7 +78,7 @@ export function deleteCountry(code: string) {
 export const SUPPLIERS = ["CAMED", "LABOREX MALI", "COPHARMED", "UBIPHARM", "DPM"];
 
 export const PRODUCT_TYPES = [
-  "Médicament", "Parapharmacie", "Dispositif médical", "Complément alimentaire", "Hygiène", "Cosmétique",
+  "Médicament", "Parapharmacie", "Dispositif médical", "Complément alimentaire", "Hygiène", "Cosmétique", "Consommable"
 ];
 
 // ---------------- Laboratoires ----------------
@@ -164,8 +164,6 @@ export type Grossiste = {
   country: string;
   email: string;
   status: EntityStatus;
-  scope: "country" | "agency";  // assigné à tout le pays ou à une agence précise
-  agencyId?: string;
 };
 
 const GROS_KEY = "obco_grossistes_v2";
@@ -173,11 +171,11 @@ let _gros: Grossiste[] | null = null;
 
 function seedGros(): Grossiste[] {
   const seeds: Omit<Grossiste, "id">[] = [
-    { partenaire: "CAMED", type: "Grossiste", country: "CI", email: "contact@camed.ci", status: "active", scope: "country" },
-    { partenaire: "LABOREX MALI", type: "Grossiste", country: "ML", email: "info@laborex.ml", status: "active", scope: "country" },
-    { partenaire: "COPHARMED", type: "Grossiste", country: "SN", email: "contact@copharmed.sn", status: "active", scope: "country" },
-    { partenaire: "UBIPHARM", type: "Grossiste", country: "BF", email: "ubipharm@ubipharm.bf", status: "warning", scope: "country" },
-    { partenaire: "DPM", type: "Grossiste", country: "CM", email: "contact@dpm.cm", status: "active", scope: "country" },
+    { partenaire: "CAMED", type: "Grossiste", country: "CI", email: "contact@camed.ci", status: "active" },
+    { partenaire: "LABOREX MALI", type: "Grossiste", country: "ML", email: "info@laborex.ml", status: "active" },
+    { partenaire: "COPHARMED", type: "Grossiste", country: "SN", email: "contact@copharmed.sn", status: "active" },
+    { partenaire: "UBIPHARM", type: "Grossiste", country: "BF", email: "ubipharm@ubipharm.bf", status: "warning" },
+    { partenaire: "DPM", type: "Grossiste", country: "CM", email: "contact@dpm.cm", status: "active" },
   ];
   return seeds.map((s, i) => ({ ...s, id: `GR-${String(i + 1).padStart(3, "0")}` }));
 }
@@ -207,7 +205,7 @@ export function addGrossiste(g: Omit<Grossiste, "id">): Grossiste {
   const next: Grossiste = { ...g, id: `GR-${Date.now().toString(36).toUpperCase()}` };
   _gros = [next, ...getGrossistes()];
   persistGros();
-  syncCreate("/api/wholesalers", { name: g.partenaire, countryCode: g.country, email: g.email, scope: g.scope, agencyId: g.agencyId || null });
+  syncCreate("/api/wholesalers", { name: g.partenaire, countryCode: g.country, email: g.email });
   return next;
 }
 
@@ -540,7 +538,6 @@ export type ProductPanoramic = {
   laboratory: string;
   type: string;
   productStatus: EntityStatus;
-  pghtPays: number;
   ventes: number;
   budgetMois: number;
   tauxReal: number;
@@ -569,18 +566,17 @@ function seedPanoramic(): ProductPanoramic[] {
   const list: ProductPanoramic[] = [];
   for (let i = 0; i < 80; i++) {
     const name = `${roots[i % roots.length]} ${["bte/20", "bte/30", "fl/200ml", "tube/50g"][i % 4]}`;
-    const pght = +(2 + r() * 35).toFixed(2);
     const budgetMois = Math.round(800 + r() * 6000);
     const ventes = Math.round(budgetMois * (0.5 + r() * 0.9));
     const ventesAn1 = Math.round(ventes * (0.6 + r() * 0.6));
-    const ca = +(ventes * pght).toFixed(2);
-    const budgetMoisCa = +(budgetMois * pght).toFixed(2);
+    const ca = +(ventes * 10).toFixed(2);
+    const budgetMoisCa = +(budgetMois * 10).toFixed(2);
     const cumulBudget = budgetMois * (3 + Math.floor(r() * 8));
     const cumulRealise = Math.round(cumulBudget * (0.55 + r() * 0.55));
     const fournisseurs: ProductPanoramic["fournisseurs"] = {};
     for (const s of SUPPLIERS) {
       fournisseurs[s] = {
-        prixUnitaire: +(pght * (0.9 + r() * 0.3)).toFixed(2),
+        prixUnitaire: +(10 * (0.9 + r() * 0.3)).toFixed(2),
         ventes: Math.round(r() * (ventes / 2)),
         stocks: Math.round(20 + r() * 400),
         commandes: Math.round(r() * 120),
@@ -592,7 +588,7 @@ function seedPanoramic(): ProductPanoramic[] {
       name, laboratory: labs[i % labs.length],
       type: PRODUCT_TYPES[i % PRODUCT_TYPES.length],
       productStatus: "active",
-      pghtPays: pght, ventes, budgetMois,
+      ventes, budgetMois,
       tauxReal: +((ventes / budgetMois) * 100).toFixed(1),
       ventesAn1, tauxEvol: +(((ventes - ventesAn1) / (ventesAn1 || 1)) * 100).toFixed(1),
       ca, budgetMoisCa, txRealBudgetCa: +((ca / budgetMoisCa) * 100).toFixed(1),
@@ -605,7 +601,7 @@ function seedPanoramic(): ProductPanoramic[] {
   return list;
 }
 
-type ProductOverride = { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus; pghtPays?: number; deleted?: boolean };
+type ProductOverride = { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus; deleted?: boolean };
 
 const DELETED_KEY = "obco_deleted_products";
 
@@ -679,12 +675,12 @@ export function getProductLaboratories(): string[] {
 
 export function addCustomProduct(input: {
   name: string; laboratory: string; type: string; productStatus: EntityStatus;
-  pghtPays: number; cip?: string; pricing?: Record<string, number>; objectives?: Record<string, number>;
+  cip?: string; pricing?: Record<string, number>; objectives?: Record<string, number>;
 }): ProductPanoramic {
   const id = `PRC-${Date.now().toString(36).toUpperCase()}`;
   const fournisseurs: ProductPanoramic["fournisseurs"] = {};
   for (const s of SUPPLIERS) {
-    fournisseurs[s] = { prixUnitaire: input.pghtPays, ventes: 0, stocks: 0, commandes: 0 };
+    fournisseurs[s] = { prixUnitaire: 0, ventes: 0, stocks: 0, commandes: 0 };
   }
   const obj = input.objectives ?? {};
   const budgetMois = Object.values(obj).reduce((a, b) => a + b, 0) || 1000;
@@ -695,15 +691,15 @@ export function addCustomProduct(input: {
   const product: ProductPanoramic = {
     id, cip: cipValue,
     name: input.name, laboratory: input.laboratory, type: input.type, productStatus: input.productStatus,
-    pghtPays: input.pghtPays, ventes: 0, budgetMois, tauxReal: 0,
+    ventes: 0, budgetMois, tauxReal: 0,
     ventesAn1: 0, tauxEvol: 0, ca: 0,
-    budgetMoisCa: budgetMois * input.pghtPays, txRealBudgetCa: 0,
+    budgetMoisCa: budgetMois * 10, txRealBudgetCa: 0,
     cumulBudget: budgetMois * 12, cumulRealise: 0, txRealPrev: 0, poids: 0, fournisseurs,
   };
   saveCustom([product, ...loadCustom()]);
   if (input.pricing) setProductPricing(id, input.pricing);
   if (input.objectives) setProductObjectives(id, input.objectives);
-  syncCreate("/api/products", { cip: product.cip, name: input.name, category: input.type, laboratory: input.laboratory, basePrice: input.pghtPays });
+  syncCreate("/api/products", { cip: product.cip, name: input.name, category: input.type, laboratory: input.laboratory });
   return product;
 }
 
@@ -721,7 +717,6 @@ export function updateProduct(id: string, patch: ProductOverride) {
   if (patch.name) apiPatch.name = patch.name;
   if (patch.laboratory) apiPatch.laboratory = patch.laboratory;
   if (patch.type) apiPatch.category = patch.type;
-  if (patch.pghtPays !== undefined) apiPatch.basePrice = patch.pghtPays;
   if (Object.keys(apiPatch).length) syncUpdate(`/api/products/${id}`, apiPatch);
 }
 

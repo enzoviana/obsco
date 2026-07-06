@@ -18,7 +18,7 @@ import { exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/sorties-locales/")({
-  head: () => ({ meta: [{ title: "Sorties Locales — Stocks fournisseurs — OBCO" }] }),
+  head: () => ({ meta: [{ title: "Sorties Locales — Sorties Locales — OBCO" }] }),
   component: SortiesIndex,
 });
 
@@ -248,7 +248,7 @@ function SortiesIndex() {
   return (
     <AppShell
       title="Sorties Locales"
-      subtitle={`Stocks fournisseurs · ${scopeLabel}`}
+      subtitle={`Sorties Locales · ${scopeLabel}`}
       actions={
         <Button size="sm" onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />

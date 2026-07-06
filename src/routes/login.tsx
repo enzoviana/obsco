@@ -61,16 +61,17 @@ function LoginPage() {
         </div>
 
         <div className="relative space-y-6">
-          <h1 className="font-display text-5xl leading-[1.05]">Le système nerveux<br/>de votre officine.</h1>
+          <h1 className="font-display text-5xl leading-[1.05]">Le centre de Pilotage<br/>de votre Activité.</h1>
           <p className="max-w-md text-sm opacity-85">
-            Une plateforme unique pour piloter vos stocks, vos commandes et votre réseau —
-            de 10 à 50 000 références, sans friction.
+            La technologie au service de votre distribution pharmaceutique, pour centraliser vos données et améliorer votre visibilité sur le terrain.
+
           </p>
           <div className="grid gap-3 max-w-md">
             {[
               { icon: Zap, t: "Synchronisation temps réel", d: "Importez, vendez, ajustez instantanément." },
-              { icon: ShieldCheck, t: "Conforme & sécurisé", d: "RGPD, hébergement HDS, audit complet." },
-              { icon: Building2, t: "Multi-officines", d: "Vision réseau pour les groupements." },
+              { icon: ShieldCheck, t: "Données centralisées", d: "Importez et consultez vos données en quelques clics." },
+              { icon: Building2, t: "Suivi en temps réel", d: "Pilotez vos ventes, commandes et stocks en toute simplicité." },
+               { icon: Building2, t: "Vision réseau", d: "Analysez l'activité par grossiste, secteur ou produit." },
             ].map((f, i) => (
               <div key={i} className="flex items-start gap-3 rounded-2xl bg-primary-foreground/10 p-3 backdrop-blur">
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-foreground/15">
@@ -85,7 +86,7 @@ function LoginPage() {
           </div>
         </div>
 
-        <div className="relative text-xs opacity-70">© 2026 OBCO · Tous droits réservés</div>
+        <div className="relative text-xs opacity-70">© 2026 OBCO PHARMA · Tous droits réservés</div>
       </div>
 
       {/* Right form */}
@@ -95,13 +96,13 @@ function LoginPage() {
             <img src={Logo} alt="OBCO" className="h-10 w-auto" />
           </div>
 
-          <div className="text-xs font-medium uppercase tracking-wider text-primary">Bienvenue</div>
+          <div className="text-xs font-medium uppercase tracking-wider text-primary">Bienvenue Sur Obco Performances</div>
           <h2 className="mt-1 font-display text-4xl">Connectez-vous</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Accédez à votre tableau de bord ANF.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Accédez à votre tableau de bord.</p>
 
           <form onSubmit={submit} className="mt-8 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email professionnel</Label>
+              <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-1.5">

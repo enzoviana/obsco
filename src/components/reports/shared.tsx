@@ -424,12 +424,12 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
     const ventes = productData.sales;
     const budgetMois = Math.round(p.budgetMois * d.agencyFactor);
     const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
-    const ca = +(ventes * p.pghtPays).toFixed(2);
-    const budgetMoisCa = +(budgetMois * p.pghtPays).toFixed(2);
+    const ca = +(ventes * 10).toFixed(2);
+    const budgetMoisCa = +(budgetMois * 10).toFixed(2);
     const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
-      id: p.id, produit: p.name, pght: p.pghtPays, ventes, budgetMois,
+      id: p.id, produit: p.name, ventes, budgetMois,
       tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
       ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
       ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
@@ -465,7 +465,7 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
     );
   }
   const exportRows = rows.map(r => ({
-    Produit: r.produit, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
+    Produit: r.produit, Ventes: r.ventes, "Budget Mois": r.budgetMois,
     "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
     "Chiffres d'affaire (CA)": r.ca, "Budget Mois CA": r.budgetMoisCa, "Tx Real Budget CA (%)": r.txRealBudgetCa,
     "Cumul Budget": r.cumulBudget, "Cumul Réalisé": r.cumulRealise,
@@ -476,7 +476,7 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
       rows={exportRows} filename={`r1-objectifs-pays-${suffix}`}>
       <Table minWidth={1400}>
         <thead className="bg-surface"><tr>
-          <TH>Produit</TH><TH right>PGHT pays</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
+          <TH>Produit</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
           <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
           <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
           <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. à date %</TH><TH right>Poids %</TH>
@@ -485,7 +485,7 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
           {rows.map(r => (
             <tr key={r.id} className="border-t border-border/60">
               <TD>{r.produit}</TD>
-              <TD right mute>{r.pght}</TD><TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
+              <TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
               <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
               <TD right mute>{fmt(r.ventesAn1)}</TD>
               <TD right><span className={r.tauxEvol >= 0 ? "text-primary" : "text-destructive"}>{pct(r.tauxEvol)}</span></TD>
@@ -499,7 +499,7 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
         <tfoot>
           <tr className="border-t-2 border-border bg-surface text-[11px] font-semibold uppercase tracking-wider">
             <TD>Total</TD>
-            <TD right mute>—</TD><TD right>{fmt(tot.ventes)}</TD><TD right>{fmt(tot.budgetMois)}</TD>
+            <TD right>{fmt(tot.ventes)}</TD><TD right>{fmt(tot.budgetMois)}</TD>
             <TD right>{pct((tot.ventes / Math.max(tot.budgetMois, 1)) * 100)}</TD>
             <TD right>{fmt(tot.ventesAn1)}</TD>
             <TD right>{pct(((tot.ventes - tot.ventesAn1) / Math.max(tot.ventesAn1, 1)) * 100)}</TD>
@@ -525,12 +525,12 @@ function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number
     const ventes = productData.sales;
     const budgetMois = Math.round(p.budgetMois * d.agencyFactor);
     const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
-    const ca = +(ventes * p.pghtPays).toFixed(2);
-    const budgetMoisCa = +(budgetMois * p.pghtPays).toFixed(2);
+    const ca = +(ventes * 10).toFixed(2);
+    const budgetMoisCa = +(budgetMois * 10).toFixed(2);
     const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
-      id: p.id, produit: p.name, pght: p.pghtPays, ventes, budgetMois,
+      id: p.id, produit: p.name, ventes, budgetMois,
       tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
       ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
       ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
@@ -554,7 +554,7 @@ export function ReportObjectifsANF({ data, suffix, year, month, scope, countryCo
     );
   }
   const exportRows = rows.map(r => ({
-    Produit: r.produit, "PGHT pays": r.pght, Ventes: r.ventes, "Budget Mois": r.budgetMois,
+    Produit: r.produit, Ventes: r.ventes, "Budget Mois": r.budgetMois,
     "Taux de réalisation (%)": r.tauxReal, "Ventes An-1": r.ventesAn1, "Taux d'évolution (%)": r.tauxEvol,
     "Chiffres d'affaire (CA)": r.ca, "Budget Mois CA": r.budgetMoisCa, "Tx Real Budget CA (%)": r.txRealBudgetCa,
     "Cumul Budget": r.cumulBudget, "Cumul Réalisé": r.cumulRealise,
@@ -565,7 +565,7 @@ export function ReportObjectifsANF({ data, suffix, year, month, scope, countryCo
       rows={exportRows} filename={`r2-objectifs-anf-${suffix}`}>
       <Table minWidth={1500}>
         <thead className="bg-surface"><tr>
-          <TH>Produit</TH><TH right>PGHT pays</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
+          <TH>Produit</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
           <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
           <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
           <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. prév. %</TH><TH right>Poids %</TH>
@@ -574,7 +574,7 @@ export function ReportObjectifsANF({ data, suffix, year, month, scope, countryCo
           {rows.map(r => (
             <tr key={r.id} className="border-t border-border/60">
               <TD>{r.produit}</TD>
-              <TD right mute>{r.pght}</TD><TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
+              <TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
               <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
               <TD right mute>{fmt(r.ventesAn1)}</TD>
               <TD right><span className={r.tauxEvol >= 0 ? "text-primary" : "text-destructive"}>{pct(r.tauxEvol)}</span></TD>
@@ -601,7 +601,7 @@ function buildR3(d: Data, kind: "un" | "ca", apiData: Record<string, Record<stri
       // Utiliser les données API au lieu de prodRand
       const countryData = apiData[p.cip]?.[c.code];
       const salesValue = countryData?.sales || 0;
-      const v = kind === "un" ? salesValue : +(salesValue * p.pghtPays).toFixed(2);
+      const v = kind === "un" ? salesValue : +(salesValue * 10).toFixed(2);
       row[c.code] = v;
       total += v;
     }
@@ -762,7 +762,7 @@ export function ReportEvolutionCA({ data, suffix, year, scope, countryCode, agen
 
   return (
     <ReportCard title="Rapport 4 bis · Évolution ventes mois par mois — CA"
-      subtitle={`Produit × mois — ${paysLabel} · CA en euros`}
+      subtitle={`Produit × mois — CA en euros`}
       rows={exportRows} filename={`r4bis-evolution-ca-${suffix}`}>
       <Table minWidth={1500}>
         <thead className="bg-surface"><tr>
@@ -850,12 +850,12 @@ function StocksGrid({ data, suffix, kind, title, subtitle, file, year }: {
 
 export function ReportStocks({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
   return <StocksGrid data={data} suffix={suffix} kind="stock" year={year}
-    title="Rapport 5 · Situation stocks locaux par pays"
+    title="Rapport 7 · Situation stocks locaux par pays"
     subtitle="Stocks disponibles par mois et par pays" file="r5-stocks" />;
 }
 export function ReportStocksEnCours({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
   return <StocksGrid data={data} suffix={suffix} kind="encours" year={year}
-    title="Rapport 5 bis · Stocks en cours de livraison"
+    title="Rapport 7 bis · Stocks en cours de livraison"
     subtitle="Quantités en cours par mois et par pays" file="r5bis-stocks-encours" />;
 }
 
@@ -905,7 +905,7 @@ export function ReportVuePanoramique({ data, suffix, year }: { data: Data; suffi
 
   return (
     <ReportCard
-      title="Rapport 6 · Vue panoramique produit"
+      title="Rapport 8 · Vue panoramique produit"
       subtitle={selected ? `Nombre d'unités vendues par mois et par pays — ${selected.name}` : "Aucun produit"}
       rows={exportRows} filename={`r6-vue-panoramique-${selected?.id ?? "none"}-${suffix}`}>
       <div className="mb-4 flex flex-wrap items-center gap-3">

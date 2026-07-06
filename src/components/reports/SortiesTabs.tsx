@@ -3,7 +3,7 @@ import { Truck, FileBarChart2 } from "lucide-react";
 
 type Tab = { to: string; label: string; icon?: typeof Truck; exact?: boolean };
 const TABS: Tab[] = [
-  { to: "/sorties-locales", label: "Stocks fournisseurs", icon: Truck, exact: true },
+  { to: "/sorties-locales", label: "Sorties Locales", icon: Truck, exact: true },
   { to: "/sorties-locales/objectifs-pays", label: "R1 · Obj. pays" },
   { to: "/sorties-locales/objectifs-anf", label: "R2 · Obj. ANF" },
   { to: "/sorties-locales/ventes-un", label: "R3 · Ventes UN" },

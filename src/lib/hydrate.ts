@@ -9,7 +9,7 @@ let _done = false;
 export function isHydrated() { return _done; }
 
 type ApiAgency = { id: string; name: string; city: string; email: string; manager: string; status: string; countryCode: string; createdAt: string };
-type ApiWholesaler = { id: string; name: string; countryCode: string; email?: string | null; status: string; scope: string; agencyId?: string | null };
+type ApiWholesaler = { id: string; name: string; countryCode: string; email?: string | null; status: string };
 type ApiLab = { id: string; name: string; countryCode: string; contact: string; email: string; phone: string; address: string; status: string; createdAt: string };
 type ApiProduct = { id: string; cip: string; name: string; category: string; laboratory: string; basePrice: number };
 type ApiPrice = { productId: string; countryCode: string; price: number };
@@ -60,8 +60,6 @@ export async function hydrateFromApi(): Promise<void> {
         id: w.id, partenaire: w.name, type: "Grossiste" as const,
         country: w.countryCode, email: w.email || "",
         status: (w.status as "active" | "warning" | "inactive" | "blocked") || "active",
-        scope: (w.scope as "country" | "agency") || "country",
-        agencyId: w.agencyId ?? undefined,
       }));
       localStorage.setItem("obco_grossistes_v2", JSON.stringify(mapped));
       dispatch("obco:gros");
@@ -107,11 +105,11 @@ export async function hydrateFromApi(): Promise<void> {
       const SUPPLIERS = ["CAMED", "LABOREX MALI", "COPHARMED", "UBIPHARM", "DPM"];
       const mapped = products.map(p => {
         const fournisseurs: Record<string, { ventes: number; stocks: number; commandes: number; prixUnitaire: number }> = {};
-        for (const s of SUPPLIERS) fournisseurs[s] = { ventes: 0, stocks: 0, commandes: 0, prixUnitaire: p.basePrice };
+        for (const s of SUPPLIERS) fournisseurs[s] = { ventes: 0, stocks: 0, commandes: 0, prixUnitaire: 0 };
         return {
           id: p.id, cip: p.cip, name: p.name, laboratory: p.laboratory, type: p.category,
           productStatus: "active" as const,
-          pghtPays: p.basePrice, ventes: 0, budgetMois: 0, tauxReal: 0,
+          ventes: 0, budgetMois: 0, tauxReal: 0,
           ventesAn1: 0, tauxEvol: 0, ca: 0, budgetMoisCa: 0, txRealBudgetCa: 0,
           cumulBudget: 0, cumulRealise: 0, txRealPrev: 0, poids: 0, fournisseurs,
         };

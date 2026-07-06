@@ -5,7 +5,7 @@ import { getUser } from "@/lib/auth";
 import { ScopeSelector, useScopeState, useScopedReportData, ReportVentesCA } from "@/components/reports/shared";
 
 export const Route = createFileRoute("/sorties-locales/ventes-ca")({
-  head: () => ({ meta: [{ title: "Rapport 3 bis — Ventes par CA — OBCO" }] }),
+  head: () => ({ meta: [{ title: "Rapport 4 — Ventes par CA— OBCO" }] }),
   component: Page,
 });
 
@@ -17,7 +17,7 @@ function Page() {
     if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" });
   }, [navigate]);
   return (
-    <AppShell title="Rapport 3 bis — Ventes par CA" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
+    <AppShell title="Rapport 4 — Ventes par CA" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
       <ScopeSelector {...state} />
       <ReportVentesCA data={data} suffix={state.fileSuffix} year={state.selectedYear} month={state.selectedMonth} />
     </AppShell>

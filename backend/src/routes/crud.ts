@@ -146,7 +146,7 @@ productsRouter.post("/", requireRole("super_admin"), async (req, res) => {
   try {
     const s = z.object({
       cip: z.string().default(""), name: z.string(), category: z.string(),
-      laboratory: z.string(), basePrice: z.number().nonnegative().optional(),
+      laboratory: z.string(),
     }).parse(req.body);
 
     // Si le CIP est vide, générer un code unique avec préfixe NOCIP

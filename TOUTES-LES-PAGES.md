@@ -16,7 +16,7 @@ Votre application dispose maintenant de **toutes les pages dynamiques** connect�
 7. `/produits-tarifs` - Template disponible
 
 ### ✅ Module Sorties Locales (1 page + template)
-1. **`/sorties-locales.index-backend`** ✅ - Stocks fournisseurs
+1. **`/sorties-locales.index-backend`** ✅ - Sorties Locales
 2. `/sorties-locales.vue-panoramique` - Template disponible
 3. `/sorties-locales.objectifs-pays` - Template disponible
 4. `/sorties-locales.objectifs-anf` - Template disponible

@@ -45,8 +45,7 @@ const NAV: NavEntry[] = [
   {
     group: "Sorties Locales", icon: PackageOpen, adminOnly: true, to: "/sorties-locales",
     children: [
-      { to: "/sorties-locales", label: "Stocks fournisseurs", icon: Boxes, exact: true },
-      { to: "/sorties-locales/vue-panoramique", label: "Vue panoramique", icon: LayoutDashboard },
+      { to: "/sorties-locales", label: "Sorties Locales", icon: Boxes, exact: true },
       { to: "/sorties-locales/objectifs-pays", label: "R1 · Objectifs / Pays", icon: Target },
       { to: "/sorties-locales/objectifs-anf", label: "R2 · Objectifs ANF", icon: Target },
       { to: "/sorties-locales/ventes-un", label: "R3 · Ventes (UN)", icon: BarChart3 },
@@ -54,7 +53,8 @@ const NAV: NavEntry[] = [
       { to: "/sorties-locales/evolution-un", label: "R5 · Évolution (UN)", icon: BarChart3 },
       { to: "/sorties-locales/evolution-ca", label: "R5bis · Évolution (CA)", icon: BarChart3 },
       { to: "/sorties-locales/stocks-pays", label: "R6 · Stocks / Pays", icon: Package },
-      { to: "/sorties-locales/stocks-en-cours", label: "Stocks en cours", icon: Package },
+      { to: "/sorties-locales/stocks-en-cours", label: "R7bis · Stocks en cours", icon: Package },
+       { to: "/sorties-locales/vue-panoramique", label: "R8 · Vue panoramique", icon: LayoutDashboard },
     ],
   },
   { to: "/rapports", label: "Rapports", icon: FileBarChart2, adminOnly: true },

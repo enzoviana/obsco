@@ -32,7 +32,7 @@ function TarifsPage() {
     const list = getPanoramicProducts();
     setProducts(list);
     const m: Record<string, Record<string, number>> = {};
-    for (const p of list) m[p.id] = getProductPricing(p.id, p.pghtPays);
+    for (const p of list) m[p.id] = getProductPricing(p.id, 0);
     setMatrix(m);
   }, [navigate]);
 
@@ -85,7 +85,7 @@ function TarifsPage() {
 
   return (
     <AppShell
-      title="Tarifs produits par pays"
+      title="Tarifs produits par pays (EUR)"
       subtitle="Prix unitaire (PGHT) · éditable par pays"
       actions={<>
         <Button variant="outline" size="sm" onClick={() => { exportCSV("tarifs-produits", exportRows()); toast.success("CSV téléchargé"); }}>

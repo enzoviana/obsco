@@ -87,7 +87,7 @@ function ObjectifsPage() {
 
   return (
     <AppShell
-      title="Objectifs produits par pays"
+      title="Objectifs produits par pays (UN)"
       subtitle="Quantités mensuelles cibles · éditable par cellule"
       actions={<>
         <Button variant="outline" size="sm" onClick={() => { exportCSV("objectifs-produits", exportRows()); toast.success("CSV téléchargé"); }}>

@@ -18,7 +18,7 @@ import {
 import { exportCSV } from "@/lib/export";
 
 export const Route = createFileRoute("/grossistes")({
-  head: () => ({ meta: [{ title: "Fournisseurs — OBCO" }] }),
+  head: () => ({ meta: [{ title: "Grossiste — OBCO" }] }),
   component: GrossistesPage,
 });
 
@@ -46,18 +46,15 @@ function GrossistesPage() {
     const ql = q.toLowerCase().trim();
     return list.filter(g =>
       (country === "all" || g.country === country) &&
-      (!ql || g.partenaire.toLowerCase().includes(ql) || g.email.toLowerCase().includes(ql))
+      (!ql || g.Grossistes.toLowerCase().includes(ql) || g.email.toLowerCase().includes(ql))
     );
   }, [list, q, country]);
 
   const handleExport = () => {
-    exportCSV("fournisseurs", filtered.map(g => {
-      const ag = agencies.find(a => a.id === g.agencyId);
+    exportCSV("Grossiste", filtered.map(g => {
       return {
-        ID: g.id, Partenaire: g.partenaire, Type: g.type,
+        ID: g.id, Grossistes: g.Grossistes, Type: g.type,
         "Code Pays": g.country, Pays: COUNTRIES.find(c => c.code === g.country)?.name ?? g.country,
-        "Portée": g.scope === "country" ? "Tout le pays" : "Agence spécifique",
-        "Agence assignée": ag?.name ?? "—",
         Statut: g.status, Email: g.email,
       };
     }));
@@ -66,13 +63,13 @@ function GrossistesPage() {
 
   return (
     <AppShell
-      title="Fournisseurs"
-      subtitle={`${list.length} partenaires · assignation pays ou agence`}
+      title="Grossiste"
+      subtitle={`${list.length} Grossistes`}
       actions={<>
         <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-2 h-4 w-4" />Exporter</Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" />Ajouter un fournisseur</Button>
+            <Button size="sm"><Plus className="mr-2 h-4 w-4" />Ajouter un Grossiste</Button>
           </DialogTrigger>
           <GrossisteDialog onClose={() => setOpen(false)} g={null} />
         </Dialog>
@@ -81,7 +78,7 @@ function GrossistesPage() {
       <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Rechercher un partenaire…" value={q} onChange={e => setQ(e.target.value)} className="pl-9" />
+          <Input placeholder="Rechercher un Grossistes…" value={q} onChange={e => setQ(e.target.value)} className="pl-9" />
         </div>
         <Select value={country} onValueChange={setCountry}>
           <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
@@ -97,9 +94,8 @@ function GrossistesPage() {
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-surface">
               <tr className="text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3 text-left font-medium">Partenaire</th>
+                <th className="px-4 py-3 text-left font-medium">Grossistes</th>
                 <th className="px-4 py-3 text-left font-medium">Pays</th>
-                <th className="px-4 py-3 text-left font-medium">Portée</th>
                 <th className="px-4 py-3 text-left font-medium">Statut</th>
                 <th className="px-4 py-3 text-left font-medium">Email</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -108,7 +104,6 @@ function GrossistesPage() {
             <tbody>
               {filtered.map(g => {
                 const c = COUNTRIES.find(x => x.code === g.country);
-                const ag = agencies.find(a => a.id === g.agencyId);
                 const blocked = g.status === "blocked";
                 return (
                   <tr key={g.id} className="border-t border-border/60 hover:bg-surface/60">
@@ -118,17 +113,12 @@ function GrossistesPage() {
                           <Truck className="h-4 w-4" />
                         </div>
                         <div>
-                          <div className="font-medium">{g.partenaire}</div>
+                          <div className="font-medium">{g.Grossistes}</div>
                           <div className="text-[11px] text-muted-foreground">{g.id} · {g.type}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-muted-foreground"><span className="inline-flex items-center gap-1.5"><MapPin className="h-3 w-3" />{c?.name ?? g.country} <span className="font-mono text-[10px]">({g.country})</span></span></td>
-                    <td className="px-4 py-3.5">
-                      {g.scope === "country"
-                        ? <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-xs text-primary"><Globe2 className="h-3 w-3" />Tout le pays</span>
-                        : <span className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-2 py-1 text-xs"><Building2 className="h-3 w-3" />{ag?.name ?? "Agence inconnue"}</span>}
-                    </td>
                     <td className="px-4 py-3.5"><StatusBadge status={g.status} /></td>
                     <td className="px-4 py-3.5 text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Mail className="h-3 w-3" />{g.email}</span></td>
                     <td className="px-4 py-3.5">
@@ -137,11 +127,11 @@ function GrossistesPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title={blocked ? "Débloquer" : "Bloquer"}
-                          onClick={() => { setGrossisteStatus(g.id, blocked ? "active" : "blocked"); toast.success(blocked ? "Fournisseur débloqué" : "Fournisseur bloqué"); }}>
+                          onClick={() => { setGrossisteStatus(g.id, blocked ? "active" : "blocked"); toast.success(blocked ? "Grossiste débloqué" : "Grossiste bloqué"); }}>
                           {blocked ? <Play className="h-3.5 w-3.5 text-primary" /> : <Ban className="h-3.5 w-3.5 text-warning" />}
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Supprimer"
-                          onClick={() => { if (confirm(`Supprimer ${g.partenaire} ?`)) { deleteGrossiste(g.id); toast.success("Fournisseur supprimé"); } }}>
+                          onClick={() => { if (confirm(`Supprimer ${g.Grossistes} ?`)) { deleteGrossiste(g.id); toast.success("Grossiste supprimé"); } }}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -150,7 +140,7 @@ function GrossistesPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground text-sm">Aucun fournisseur trouvé.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground text-sm">Aucun Grossiste trouvé.</td></tr>
               )}
             </tbody>
           </table>
@@ -166,35 +156,30 @@ function GrossistesPage() {
 
 function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | null }) {
   const [f, setF] = useState<Omit<Grossiste, "id">>({
-    partenaire: g?.partenaire ?? "", type: "Grossiste",
+    Grossistes: g?.Grossistes ?? "", type: "Grossiste",
     country: g?.country ?? COUNTRIES[0].code,
     email: g?.email ?? "", status: g?.status ?? "active",
-    scope: g?.scope ?? "country",
-    agencyId: g?.agencyId,
   });
-  const agencies = getAgencies().filter(a => a.country === f.country);
 
   const submit = () => {
-    if (!f.partenaire || !f.email) { toast.error("Champs requis manquants"); return; }
-    if (f.scope === "agency" && !f.agencyId) { toast.error("Sélectionnez une agence"); return; }
-    const payload = { ...f, agencyId: f.scope === "agency" ? f.agencyId : undefined };
-    if (g) { updateGrossiste(g.id, payload); toast.success("Fournisseur mis à jour"); }
-    else { addGrossiste(payload); toast.success(`${f.partenaire} ajouté`); }
+    if (!f.Grossistes || !f.email) { toast.error("Champs requis manquants"); return; }
+    if (g) { updateGrossiste(g.id, f); toast.success("Grossiste mis à jour"); }
+    else { addGrossiste(f); toast.success(`${f.Grossistes} ajouté`); }
     onClose();
   };
 
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>{g ? "Modifier le fournisseur" : "Nouveau fournisseur"}</DialogTitle>
-        <DialogDescription>Assigner à tout un pays ou à une agence spécifique.</DialogDescription>
+        <DialogTitle>{g ? "Modifier le Grossiste" : "Nouveau Grossiste"}</DialogTitle>
+        <DialogDescription>Informations du Grossiste grossiste.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
-        <div><Label>Partenaire *</Label><Input value={f.partenaire} onChange={e => setF({ ...f, partenaire: e.target.value })} placeholder="ex. CAMED" /></div>
+        <div><Label>Grossistes *</Label><Input value={f.Grossistes} onChange={e => setF({ ...f, Grossistes: e.target.value })} placeholder="ex. CAMED" /></div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Pays *</Label>
-            <Select value={f.country} onValueChange={v => setF({ ...f, country: v, agencyId: undefined })}>
+            <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}</SelectContent>
             </Select>
@@ -205,36 +190,13 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="warning">Attention</SelectItem>
+                <SelectItem value="warning">Retirer</SelectItem>
                 <SelectItem value="inactive">Inactif</SelectItem>
                 <SelectItem value="blocked">Bloqué</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
-        <div>
-          <Label>Portée d'assignation *</Label>
-          <Select value={f.scope} onValueChange={(v: Grossiste["scope"]) => setF({ ...f, scope: v, agencyId: undefined })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="country">Tout le pays</SelectItem>
-              <SelectItem value="agency">Agence spécifique</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {f.scope === "agency" && (
-          <div>
-            <Label>Agence *</Label>
-            <Select value={f.agencyId ?? ""} onValueChange={v => setF({ ...f, agencyId: v })}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner une agence" /></SelectTrigger>
-              <SelectContent>
-                {agencies.length === 0
-                  ? <SelectItem value="none" disabled>Aucune agence dans ce pays</SelectItem>
-                  : agencies.map(a => <SelectItem key={a.id} value={a.id}>{a.name} · {a.city}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
         <div><Label>Email *</Label><Input type="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
       </div>
       <DialogFooter>

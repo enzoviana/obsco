@@ -42,16 +42,16 @@ const LABS = [
 ];
 
 const PRODUCTS = [
-  { cip: "3400900000001", name: "Paracétamol 500mg bte/20", category: "Antalgiques", laboratory: "Sanofi", basePrice: 2.5 },
-  { cip: "3400900000002", name: "Amoxicilline 1000mg bte/12", category: "Antibiotiques", laboratory: "Biogaran", basePrice: 7.8 },
-  { cip: "3400900000003", name: "Ibuprofène 200mg bte/30", category: "Anti-inflammatoires", laboratory: "Pfizer", basePrice: 4.2 },
-  { cip: "3400900000004", name: "Vitamine C 500mg bte/30", category: "Vitamines & Minéraux", laboratory: "Bayer", basePrice: 5.1 },
-  { cip: "3400900000005", name: "Doliprane 1000mg bte/8", category: "Antalgiques", laboratory: "Sanofi", basePrice: 3.4 },
-  { cip: "3400900000006", name: "Spasfon 80mg bte/30", category: "Gastro-entérologie", laboratory: "Teva", basePrice: 4.9 },
-  { cip: "3400900000007", name: "Smecta sachets bte/30", category: "Gastro-entérologie", laboratory: "Ipsen", basePrice: 5.6 },
-  { cip: "3400900000008", name: "Voltarène 50mg bte/30", category: "Anti-inflammatoires", laboratory: "Novartis", basePrice: 6.3 },
-  { cip: "3400900000009", name: "Ventoline 100µg flacon", category: "Pneumologie", laboratory: "GSK", basePrice: 4.8 },
-  { cip: "3400900000010", name: "Lévothyrox 50µg bte/30", category: "Endocrinologie", laboratory: "Merck", basePrice: 3.1 },
+  { cip: "3400900000001", name: "Paracétamol 500mg bte/20", category: "Antalgiques", laboratory: "Sanofi" },
+  { cip: "3400900000002", name: "Amoxicilline 1000mg bte/12", category: "Antibiotiques", laboratory: "Biogaran" },
+  { cip: "3400900000003", name: "Ibuprofène 200mg bte/30", category: "Anti-inflammatoires", laboratory: "Pfizer" },
+  { cip: "3400900000004", name: "Vitamine C 500mg bte/30", category: "Vitamines & Minéraux", laboratory: "Bayer" },
+  { cip: "3400900000005", name: "Doliprane 1000mg bte/8", category: "Antalgiques", laboratory: "Sanofi" },
+  { cip: "3400900000006", name: "Spasfon 80mg bte/30", category: "Gastro-entérologie", laboratory: "Teva" },
+  { cip: "3400900000007", name: "Smecta sachets bte/30", category: "Gastro-entérologie", laboratory: "Ipsen" },
+  { cip: "3400900000008", name: "Voltarène 50mg bte/30", category: "Anti-inflammatoires", laboratory: "Novartis" },
+  { cip: "3400900000009", name: "Ventoline 100µg flacon", category: "Pneumologie", laboratory: "GSK" },
+  { cip: "3400900000010", name: "Lévothyrox 50µg bte/30", category: "Endocrinologie", laboratory: "Merck" },
 ];
 
 async function main() {

@@ -77,14 +77,14 @@ function ProduitsPage() {
       }
       fournisseurs.push(row);
     }
-    exportXLSX("produits-complet", { Panoramique: panoramique, "Stocks fournisseurs": fournisseurs });
-    toast.success("Export complet téléchargé (panoramique + stocks fournisseurs)");
+    exportXLSX("produits-complet", { Panoramique: panoramique, "Sorties Locales": fournisseurs });
+    toast.success("Export complet téléchargé (panoramique + Sorties Locales)");
   };
 
   const exportSimpleCSV = () => {
     exportCSV("produits", list.map(p => ({
       ID: p.id, Désignation: p.name, Laboratoire: p.laboratory, Type: p.type,
-      "Prix référence (€)": p.pghtPays, "Objectif mois": p.budgetMois, Statut: p.productStatus,
+      "Objectif mois": p.budgetMois, Statut: p.productStatus,
     })));
     toast.success("CSV simple téléchargé");
   };
@@ -196,13 +196,12 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
   const [laboratory, setLab] = useState(product?.laboratory ?? labs[0] ?? "");
   const [type, setType] = useState(product?.type ?? PRODUCT_TYPES[0]);
   const [status, setStatus] = useState<EntityStatus>(product?.productStatus ?? "active");
-  const [price, setPrice] = useState<number>(product?.pghtPays ?? 0);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [objs, setObjs] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (product) {
-      setPrices(getProductPricing(product.id, product.pghtPays));
+      setPrices(getProductPricing(product.id, 0));
       setObjs(getProductObjectives(product.id, product.budgetMois));
     } else {
       const p: Record<string, number> = {};
@@ -215,12 +214,12 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
   const submit = () => {
     if (!name || !laboratory) { toast.error("Désignation et laboratoire requis"); return; }
     if (product) {
-      updateProduct(product.id, { name, laboratory, type, productStatus: status, pghtPays: price });
+      updateProduct(product.id, { name, laboratory, type, productStatus: status });
       setProductPricing(product.id, prices);
       setProductObjectives(product.id, objs);
       toast.success("Produit mis à jour");
     } else {
-      addCustomProduct({ name, cip, laboratory, type, productStatus: status, pghtPays: price, pricing: prices, objectives: objs });
+      addCustomProduct({ name, cip, laboratory, type, productStatus: status, pricing: prices, objectives: objs });
       toast.success("Produit créé");
     }
     onClose();
@@ -242,13 +241,13 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
           <TabsTrigger value="obj" className="flex-1"><Target className="h-3.5 w-3.5 mr-2" />Objectifs (qté)</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="info" className="mt-4 space-y-3">
+<TabsContent value="info" className="mt-4 space-y-3">
           <div>
             <Label>Désignation *</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="ex. Paracétamol 500 bte/20" />
           </div>
           <div>
-            <Label>Code produit (CIP)</Label>
+            <Label>Code produit (CIP / GTIN)</Label>
             <Input
               value={cip}
               onChange={e => setCip(e.target.value)}
@@ -277,24 +276,18 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Prix de référence (€)</Label>
-              <Input type="number" step="0.01" value={price} onChange={e => setPrice(parseFloat(e.target.value) || 0)} />
-            </div>
-            <div>
-              <Label>Statut</Label>
-              <Select value={status} onValueChange={(v: EntityStatus) => setStatus(v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="warning">Attention</SelectItem>
-                  <SelectItem value="inactive">Inactif</SelectItem>
-                  <SelectItem value="blocked">Bloqué</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <div>
+            <Label>Statut</Label>
+            <Select value={status} onValueChange={(v: EntityStatus) => setStatus(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="warning">Retirer</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
+                <SelectItem value="blocked">Bloqué</SelectItem>
+              </SelectContent>
+            </Select>
+          </div> {/* <-- Le doublon de div a été retiré ici */}
         </TabsContent>
 
         <TabsContent value="prix" className="mt-4">

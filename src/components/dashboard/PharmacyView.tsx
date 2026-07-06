@@ -198,7 +198,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: { bg: "bg-primary/12", text: "text-primary", label: "Completed" },
     processing: { bg: "bg-accent", text: "text-accent-foreground", label: "Processing" },
     active: { bg: "bg-primary/12", text: "text-primary", label: "Active" },
-    warning: { bg: "bg-warning/15", text: "text-warning-foreground", label: "Attention" },
+    warning: { bg: "bg-warning/15", text: "text-warning-foreground", label: "Retirer" },
   };
   const v = map[status] ?? map.active;
   return (
