@@ -198,6 +198,7 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
         laboratory: z.string().min(1, "Le laboratoire est requis"),
         category: z.string().default("Médicament"),
         basePrice: z.number().optional().default(0),
+        countryCode: z.string().optional().default("FR"),
       })
     );
 
@@ -214,12 +215,41 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
     const results = {
       created: 0,
       updated: 0,
+      laboratoriesCreated: 0,
       errors: [] as string[],
     };
+
+    // Créer un cache des laboratoires déjà vérifiés pour éviter les requêtes multiples
+    const labCache = new Set<string>();
 
     // Traiter chaque produit
     for (const productData of products) {
       try {
+        // Créer le laboratoire s'il n'existe pas
+        if (!labCache.has(productData.laboratory)) {
+          const existingLab = await prisma.laboratory.findFirst({
+            where: { name: productData.laboratory },
+          });
+
+          if (!existingLab) {
+            // Créer le laboratoire
+            await prisma.laboratory.create({
+              data: {
+                name: productData.laboratory,
+                countryCode: productData.countryCode,
+                contact: "",
+                email: "",
+                phone: "",
+                address: "",
+                status: "active",
+              },
+            });
+            results.laboratoriesCreated++;
+            console.log(`✅ Laboratoire créé: ${productData.laboratory}`);
+          }
+          labCache.add(productData.laboratory);
+        }
+
         // Générer un CIP si non fourni
         const finalCip = productData.cip && productData.cip.trim()
           ? productData.cip.trim()
@@ -264,7 +294,7 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
 
     res.json({
       success: true,
-      message: `Import terminé: ${results.created} créés, ${results.updated} mis à jour`,
+      message: `Import terminé: ${results.created} produits créés, ${results.updated} mis à jour, ${results.laboratoriesCreated} laboratoires créés`,
       ...results,
     });
   } catch (error) {

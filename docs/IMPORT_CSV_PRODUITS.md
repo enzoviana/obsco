@@ -16,6 +16,14 @@ La fonctionnalité d'import CSV permet d'importer en masse des produits dans le 
 - **cip** (ou `code`) : Code CIP du produit. Si non fourni, un code sera généré automatiquement au format `NOCIP-{timestamp}-{random}`
 - **type** (ou `category`, `categorie`) : Type de produit (Médicament, Parapharmacie, etc.). Par défaut : "Médicament"
 - **prix** (ou `price`, `baseprice`) : Prix de base du produit en euros. Par défaut : 0
+- **countryCode** : Code pays du laboratoire (ex: FR, ML, CI). Par défaut : "FR"
+
+### Création automatique des laboratoires
+
+Si un laboratoire mentionné dans le CSV n'existe pas dans la base de données, il sera **automatiquement créé** avec :
+- Le nom spécifié dans la colonne `laboratoire`
+- Le code pays spécifié dans `countryCode` (ou "FR" par défaut)
+- Un statut "actif"
 
 ### Séparateurs acceptés
 
@@ -26,11 +34,11 @@ Le fichier CSV peut utiliser :
 ## Exemple de fichier CSV
 
 ```csv
-nom,laboratoire,cip,type,prix
-Paracétamol 500mg,LABORATOIRE X,3400936000001,Médicament,2.50
-Ibuprofène 400mg,LABORATOIRE Y,3400938000002,Médicament,3.20
-Vitamine C 1000mg,LABORATOIRE Z,,Complément alimentaire,5.00
-Gel hydroalcoolique 500ml,LABORATOIRE A,,Hygiène,3.50
+nom,laboratoire,cip,type,prix,countryCode
+Paracétamol 500mg,LABORATOIRE X,3400936000001,Médicament,2.50,FR
+Ibuprofène 400mg,LABORATOIRE Y,3400938000002,Médicament,3.20,FR
+Vitamine C 1000mg,LABORATOIRE Z,,Complément alimentaire,5.00,ML
+Gel hydroalcoolique 500ml,LABORATOIRE A,,Hygiène,3.50,CI
 ```
 
 ## Utilisation
@@ -70,7 +78,8 @@ POST /api/import/products
     "laboratory": "LABORATOIRE X",
     "cip": "3400936000001",
     "category": "Médicament",
-    "basePrice": 2.50
+    "basePrice": 2.50,
+    "countryCode": "FR"
   }
 ]
 ```
@@ -79,9 +88,10 @@ POST /api/import/products
 ```json
 {
   "success": true,
-  "message": "Import terminé: 2 créés, 1 mis à jour",
+  "message": "Import terminé: 2 produits créés, 1 mis à jour, 1 laboratoires créés",
   "created": 2,
   "updated": 1,
+  "laboratoriesCreated": 1,
   "errors": []
 }
 ```

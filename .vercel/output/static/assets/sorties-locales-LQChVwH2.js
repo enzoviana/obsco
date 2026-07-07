@@ -1,1 +1,0 @@
-import{c as e}from"./useRouter-aOSexHG1.js";import{ut as t}from"./index-CUofTWnN.js";var n=e(),r=()=>(0,n.jsx)(t,{});export{r as component};

@@ -1,6 +1,6 @@
-nom,laboratoire,cip,type,prix
-Paracétamol 500mg bte/20,LABORATOIRE X,3400936000001,Médicament,2.50
-Ibuprofène 400mg bte/30,LABORATOIRE Y,3400938000002,Médicament,3.20
-Vitamine C 1000mg bte/60,LABORATOIRE Z,,Complément alimentaire,5.00
-Gel hydroalcoolique 500ml,LABORATOIRE A,,Hygiène,3.50
-Masque chirurgical x50,LABORATOIRE B,,Dispositif médical,8.00
+nom,laboratoire,cip,type,prix,countryCode
+Paracétamol 500mg bte/20,LABORATOIRE X,3400936000001,Médicament,2.50,FR
+Ibuprofène 400mg bte/30,LABORATOIRE Y,3400938000002,Médicament,3.20,FR
+Vitamine C 1000mg bte/60,LABORATOIRE Z,,Complément alimentaire,5.00,ML
+Gel hydroalcoolique 500ml,LABORATOIRE A,,Hygiène,3.50,CI
+Masque chirurgical x50,LABORATOIRE B,,Dispositif médical,8.00,FR

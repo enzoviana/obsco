@@ -387,6 +387,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
       const labIdx = headers.findIndex(h => h.includes("labo") || h === "laboratory");
       const categoryIdx = headers.findIndex(h => h.includes("type") || h === "category" || h.includes("categorie"));
       const priceIdx = headers.findIndex(h => h.includes("prix") || h === "price" || h.includes("baseprice"));
+      const countryIdx = headers.findIndex(h => h.includes("country") || h === "pays" || h.includes("countrycode"));
 
       if (nameIdx === -1 || labIdx === -1) {
         toast.error("Le CSV doit contenir au minimum les colonnes 'nom' et 'laboratoire'");
@@ -410,6 +411,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
           const price = parseFloat(values[priceIdx].replace(/[^\d.]/g, ""));
           if (!isNaN(price)) product.basePrice = price;
         }
+        if (countryIdx !== -1 && values[countryIdx]) product.countryCode = values[countryIdx].toUpperCase();
 
         if (product.name && product.laboratory) {
           products.push(product);
@@ -434,7 +436,15 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
 
     setLoading(true);
     try {
-      const result = await apiPost("/import/products", preview);
+      const result = await apiPost<{
+        success: boolean;
+        message: string;
+        created: number;
+        updated: number;
+        laboratoriesCreated: number;
+        errors: string[];
+        error?: string;
+      }>("/api/import/products", preview);
 
       if (result.success) {
         toast.success(result.message);
@@ -457,7 +467,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "nom,laboratoire,cip,type,prix\nParacétamol 500mg,LABORATOIRE X,3400936000001,Médicament,2.50\nIbuprofène 400mg,LABORATOIRE Y,3400938000002,Médicament,3.20";
+    const csvContent = "nom,laboratoire,cip,type,prix,countryCode\nParacétamol 500mg,LABORATOIRE X,3400936000001,Médicament,2.50,FR\nIbuprofène 400mg,LABORATOIRE Y,3400938000002,Médicament,3.20,FR\nVitamine C 1000mg,LABORATOIRE Z,,Complément alimentaire,5.00,ML";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -471,7 +481,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
       <DialogHeader>
         <DialogTitle>Importer des produits via CSV</DialogTitle>
         <DialogDescription>
-          Téléchargez un fichier CSV contenant vos produits. Format attendu : nom, laboratoire, cip (optionnel), type (optionnel), prix (optionnel).
+          Téléchargez un fichier CSV contenant vos produits. Les laboratoires inexistants seront créés automatiquement.
         </DialogDescription>
       </DialogHeader>
 
@@ -485,7 +495,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
             className="mt-2"
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            Colonnes requises : <b>nom</b>, <b>laboratoire</b>. Colonnes optionnelles : cip, type, prix
+            Colonnes requises : <b>nom</b>, <b>laboratoire</b>. Colonnes optionnelles : cip, type, prix, countryCode (pays du labo, défaut: FR)
           </p>
         </div>
 
