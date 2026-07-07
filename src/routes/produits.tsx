@@ -467,7 +467,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "nom,laboratoire,cip,type,prix,countryCode\nParacétamol 500mg,LABORATOIRE X,3400936000001,Médicament,2.50,FR\nIbuprofène 400mg,LABORATOIRE Y,3400938000002,Médicament,3.20,FR\nVitamine C 1000mg,LABORATOIRE Z,,Complément alimentaire,5.00,ML";
+    const csvContent = "nom,laboratoire,cip,type,prix,countryCode\nParacétamol 500mg,LABORATOIRE X,3400936000001,Médicaments,2.50,FR\nIbuprofène 400mg,LABORATOIRE Y,3400938000002,Médicaments,3.20,FR\nVitamine C 1000mg,LABORATOIRE Z,,Complément alimentaire,5.00,ML";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -521,7 +521,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
                       <td className="px-2 py-2">{p.name}</td>
                       <td className="px-2 py-2">{p.laboratory}</td>
                       <td className="px-2 py-2 font-mono">{p.cip || "-"}</td>
-                      <td className="px-2 py-2">{p.category || "Médicament"}</td>
+                      <td className="px-2 py-2">{p.category || "Médicaments"}</td>
                       <td className="px-2 py-2 text-right">{p.basePrice ? `${p.basePrice}€` : "-"}</td>
                     </tr>
                   ))}
