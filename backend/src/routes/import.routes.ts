@@ -219,6 +219,17 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
       errors: [] as string[],
     };
 
+    // Récupérer le premier pays disponible comme fallback
+    const defaultCountry = await prisma.country.findFirst({
+      orderBy: { code: "asc" },
+    });
+
+    if (!defaultCountry) {
+      return res.status(500).json({
+        error: "Aucun pays n'existe dans la base de données. Veuillez créer au moins un pays avant d'importer des produits.",
+      });
+    }
+
     // Créer un cache des laboratoires déjà vérifiés pour éviter les requêtes multiples
     const labCache = new Set<string>();
 
@@ -232,11 +243,24 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
           });
 
           if (!existingLab) {
+            // Vérifier si le pays spécifié existe
+            const countryExists = await prisma.country.findUnique({
+              where: { code: productData.countryCode },
+            });
+
+            const finalCountryCode = countryExists
+              ? productData.countryCode
+              : defaultCountry.code;
+
+            if (!countryExists) {
+              console.log(`⚠️ Pays "${productData.countryCode}" introuvable, utilisation du pays par défaut "${defaultCountry.code}" pour le laboratoire "${productData.laboratory}"`);
+            }
+
             // Créer le laboratoire
             await prisma.laboratory.create({
               data: {
                 name: productData.laboratory,
-                countryCode: productData.countryCode,
+                countryCode: finalCountryCode,
                 contact: "",
                 email: "",
                 phone: "",
@@ -245,7 +269,7 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
               },
             });
             results.laboratoriesCreated++;
-            console.log(`✅ Laboratoire créé: ${productData.laboratory}`);
+            console.log(`✅ Laboratoire créé: ${productData.laboratory} (pays: ${finalCountryCode})`);
           }
           labCache.add(productData.laboratory);
         }

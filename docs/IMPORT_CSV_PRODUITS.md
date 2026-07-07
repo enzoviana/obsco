@@ -25,6 +25,8 @@ Si un laboratoire mentionné dans le CSV n'existe pas dans la base de données, 
 - Le code pays spécifié dans `countryCode` (ou "FR" par défaut)
 - Un statut "actif"
 
+**Note importante** : Si le code pays spécifié n'existe pas dans la base de données, le système utilisera automatiquement le premier pays disponible. Assurez-vous que les pays ont été créés au préalable dans la section "Pays".
+
 ### Séparateurs acceptés
 
 Le fichier CSV peut utiliser :
