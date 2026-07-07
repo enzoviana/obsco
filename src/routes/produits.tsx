@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileSpreadsheet, Search, Pencil, Trash2, Plus, Save, Target, Tag, Boxes } from "lucide-react";
+import { Download, FileSpreadsheet, Search, Pencil, Trash2, Plus, Save, Target, Tag, Boxes, Upload } from "lucide-react";
 import { AppShell, StatusBadge } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/agencies";
 import { exportCSV, exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
+import { apiPost } from "@/lib/api";
 
 export const Route = createFileRoute("/produits")({
   head: () => ({ meta: [{ title: "Produits — OBCO" }] }),
@@ -31,6 +32,7 @@ function ProduitsPage() {
   const [all, setAll] = useState<ProductPanoramic[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ProductPanoramic | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -96,6 +98,12 @@ function ProduitsPage() {
       actions={<>
         <Button variant="outline" size="sm" onClick={exportSimpleCSV}><Download className="mr-2 h-4 w-4" />CSV simple</Button>
         <Button variant="outline" size="sm" onClick={exportFull}><FileSpreadsheet className="mr-2 h-4 w-4" />Export complet (XLSX)</Button>
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm"><Upload className="mr-2 h-4 w-4" />Importer CSV</Button>
+          </DialogTrigger>
+          <ImportDialog onClose={() => setImportOpen(false)} />
+        </Dialog>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="mr-2 h-4 w-4" />Créer un produit</Button>
@@ -341,6 +349,193 @@ function ProductDialog({ onClose, product }: { onClose: () => void; product: Pro
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>Annuler</Button>
         <Button onClick={submit}><Save className="h-3.5 w-3.5 mr-1.5" />{product ? "Enregistrer" : "Créer le produit"}</Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function ImportDialog({ onClose }: { onClose: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<any[]>([]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      parseCSV(selectedFile);
+    }
+  };
+
+  const parseCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split("\n").filter(line => line.trim());
+
+      if (lines.length < 2) {
+        toast.error("Le fichier CSV doit contenir au moins une ligne d'en-tête et une ligne de données");
+        return;
+      }
+
+      // Parser l'en-tête
+      const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+
+      // Mapper les colonnes
+      const nameIdx = headers.findIndex(h => h.includes("nom") || h === "name" || h.includes("designation"));
+      const cipIdx = headers.findIndex(h => h === "cip" || h === "code");
+      const labIdx = headers.findIndex(h => h.includes("labo") || h === "laboratory");
+      const categoryIdx = headers.findIndex(h => h.includes("type") || h === "category" || h.includes("categorie"));
+      const priceIdx = headers.findIndex(h => h.includes("prix") || h === "price" || h.includes("baseprice"));
+
+      if (nameIdx === -1 || labIdx === -1) {
+        toast.error("Le CSV doit contenir au minimum les colonnes 'nom' et 'laboratoire'");
+        return;
+      }
+
+      // Parser les données
+      const products = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(/[,;]/).map(v => v.trim());
+        if (values.length < 2) continue;
+
+        const product: any = {
+          name: values[nameIdx] || "",
+          laboratory: values[labIdx] || "",
+        };
+
+        if (cipIdx !== -1 && values[cipIdx]) product.cip = values[cipIdx];
+        if (categoryIdx !== -1 && values[categoryIdx]) product.category = values[categoryIdx];
+        if (priceIdx !== -1 && values[priceIdx]) {
+          const price = parseFloat(values[priceIdx].replace(/[^\d.]/g, ""));
+          if (!isNaN(price)) product.basePrice = price;
+        }
+
+        if (product.name && product.laboratory) {
+          products.push(product);
+        }
+      }
+
+      setPreview(products);
+      if (products.length === 0) {
+        toast.error("Aucun produit valide trouvé dans le fichier");
+      } else {
+        toast.success(`${products.length} produits prêts à être importés`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (preview.length === 0) {
+      toast.error("Aucun produit à importer");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await apiPost("/import/products", preview);
+
+      if (result.success) {
+        toast.success(result.message);
+        window.dispatchEvent(new CustomEvent("obco:products"));
+        onClose();
+      } else {
+        toast.error(result.error || "Erreur lors de l'import");
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        console.error("Erreurs d'import:", result.errors);
+        toast.warning(`${result.errors.length} erreur(s) rencontrée(s). Voir la console.`);
+      }
+    } catch (error: any) {
+      console.error("Erreur d'import:", error);
+      toast.error(error.message || "Erreur lors de l'import");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "nom,laboratoire,cip,type,prix\nParacétamol 500mg,LABORATOIRE X,3400936000001,Médicament,2.50\nIbuprofène 400mg,LABORATOIRE Y,3400938000002,Médicament,3.20";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "template_import_produits.csv";
+    link.click();
+    toast.success("Modèle téléchargé");
+  };
+
+  return (
+    <DialogContent className="sm:max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Importer des produits via CSV</DialogTitle>
+        <DialogDescription>
+          Téléchargez un fichier CSV contenant vos produits. Format attendu : nom, laboratoire, cip (optionnel), type (optionnel), prix (optionnel).
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div>
+          <Label>Fichier CSV</Label>
+          <Input
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="mt-2"
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Colonnes requises : <b>nom</b>, <b>laboratoire</b>. Colonnes optionnelles : cip, type, prix
+          </p>
+        </div>
+
+        {file && preview.length > 0 && (
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">Aperçu ({preview.length} produits)</h3>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-card sticky top-0">
+                  <tr className="border-b border-border">
+                    <th className="px-2 py-2 text-left font-medium">Nom</th>
+                    <th className="px-2 py-2 text-left font-medium">Laboratoire</th>
+                    <th className="px-2 py-2 text-left font-medium">CIP</th>
+                    <th className="px-2 py-2 text-left font-medium">Type</th>
+                    <th className="px-2 py-2 text-right font-medium">Prix</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.slice(0, 50).map((p, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="px-2 py-2">{p.name}</td>
+                      <td className="px-2 py-2">{p.laboratory}</td>
+                      <td className="px-2 py-2 font-mono">{p.cip || "-"}</td>
+                      <td className="px-2 py-2">{p.category || "Médicament"}</td>
+                      <td className="px-2 py-2 text-right">{p.basePrice ? `${p.basePrice}€` : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {preview.length > 50 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  ... et {preview.length - 50} autres produits
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="ghost" size="sm" onClick={downloadTemplate}>
+          <Download className="h-3.5 w-3.5 mr-1.5" />Télécharger un modèle
+        </Button>
+        <Button variant="outline" onClick={onClose}>Annuler</Button>
+        <Button onClick={handleImport} disabled={loading || preview.length === 0}>
+          <Upload className="h-3.5 w-3.5 mr-1.5" />
+          {loading ? "Import en cours..." : `Importer ${preview.length} produit(s)`}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

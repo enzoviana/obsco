@@ -63,6 +63,23 @@ export async function api<T = unknown>(
   return data as T;
 }
 
+// ----- HTTP method helpers -----
+export async function apiPost<T = unknown>(path: string, body: unknown): Promise<T> {
+  return api<T>(path, { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function apiPut<T = unknown>(path: string, body: unknown): Promise<T> {
+  return api<T>(path, { method: "PUT", body: JSON.stringify(body) });
+}
+
+export async function apiPatch<T = unknown>(path: string, body: unknown): Promise<T> {
+  return api<T>(path, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export async function apiDelete<T = unknown>(path: string): Promise<T> {
+  return api<T>(path, { method: "DELETE" });
+}
+
 // ----- Typed helpers -----
 export type ApiUser = {
   id: string;
