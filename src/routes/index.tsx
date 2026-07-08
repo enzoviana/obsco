@@ -1,16 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
-  AlertTriangle, ArrowUpRight, Boxes, Download, Package, TrendingUp, Upload,
-  Building2, ShieldAlert, Wallet, Activity, Globe2, Eye, Pencil, MoreHorizontal, Truck,
+  AlertTriangle, Boxes, Package, TrendingUp, Upload,
+  Building2, Wallet, Activity, Eye, Pencil, MoreHorizontal, Truck,
 } from "lucide-react";
 import { AppShell, StatusBadge } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { useUser, getUser } from "@/lib/auth";
 import { ImportModal } from "@/components/dashboard/ImportModal";
-import { getAllProducts, productStats } from "@/lib/products";
-import { useDashboardData } from "@/lib/useDashboardData";
+import { getAgencies, type Agency } from "@/lib/agencies";
 
 interface DashboardStats {
   totals: {
@@ -54,8 +53,6 @@ function Dashboard() {
 
 function PharmacyDash() {
   const [open, setOpen] = useState(false);
-  const stats = productStats();
-  const { stockTrend, recentImports } = useDashboardData();
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -72,10 +69,13 @@ function PharmacyDash() {
         );
         if (response.ok) {
           const data = await response.json();
+          console.log("📊 Stats dashboard reçues:", data);
           setDashStats(data);
+        } else {
+          console.error("❌ Erreur API dashboard-stats:", response.status);
         }
       } catch (error) {
-        console.error("Erreur chargement stats:", error);
+        console.error("❌ Erreur chargement stats:", error);
       } finally {
         setLoading(false);
       }
@@ -337,8 +337,8 @@ function TopLowStock({ products }: { products: Array<{ cip: string; name: string
 }
 
 function AdminDash() {
-  const { allPharmacies, totals, globalTrend } = useDashboardData();
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -354,14 +354,21 @@ function AdminDash() {
         );
         if (response.ok) {
           const data = await response.json();
+          console.log("📊 Stats dashboard Admin reçues:", data);
           setDashStats(data);
+        } else {
+          console.error("❌ Erreur API dashboard-stats:", response.status);
         }
       } catch (error) {
-        console.error("Erreur chargement stats:", error);
+        console.error("❌ Erreur chargement stats:", error);
       } finally {
         setLoading(false);
       }
     };
+
+    // Charger les agences
+    setAgencies(getAgencies());
+
     loadDashboardStats();
   }, []);
 
@@ -440,53 +447,50 @@ function AdminDash() {
         <TopWholesalers wholesalers={dashStats?.topWholesalers || []} />
         <TopLowStock products={dashStats?.lowStockProducts || []} />
 
-        <div className="bento-card md:col-span-12">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold">Agences du réseau</h3>
-            <Button variant="ghost" size="sm" asChild><a href="/agences">Voir tout →</a></Button>
-          </div>
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="py-3 text-left font-medium">Pharmacie</th>
-                  <th className="py-3 text-left font-medium">Ville</th>
-                  <th className="py-3 text-right font-medium">Inventaire €</th>
-                  <th className="py-3 text-right font-medium">Alertes</th>
-                  <th className="py-3 text-left font-medium pl-6">Sync</th>
-                  <th className="py-3 text-left font-medium">Statut</th>
-                  <th className="py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allPharmacies.slice(0, 8).map(p => (
-                  <tr key={p.id} className="border-b border-border/60 last:border-0 hover:bg-surface/60">
-                    <td className="py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-[11px] font-semibold text-accent-foreground">
-                          {p.name.split(" ").map(w => w[0]).slice(0, 2).join("")}
-                        </div>
-                        <div><div className="font-medium">{p.name}</div><div className="text-[11px] text-muted-foreground">#{String(p.id).padStart(4, "0")}</div></div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 text-muted-foreground">{p.city}</td>
-                    <td className="py-3.5 text-right tabular-nums font-medium">€{p.inventory.toLocaleString("fr-FR")}</td>
-                    <td className="py-3.5 text-right tabular-nums">{p.alerts}</td>
-                    <td className="py-3.5 pl-6 text-muted-foreground text-xs">il y a {p.sync.replace("min ago", "min")}</td>
-                    <td className="py-3.5"><StatusBadge status={p.status} /></td>
-                    <td className="py-3.5">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    </td>
+        {agencies.length > 0 && (
+          <div className="bento-card md:col-span-12">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Agences du réseau</h3>
+              <Button variant="ghost" size="sm" asChild><a href="/agences">Voir tout →</a></Button>
+            </div>
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="py-3 text-left font-medium">Agence</th>
+                    <th className="py-3 text-left font-medium">Pays</th>
+                    <th className="py-3 text-left font-medium">Ville</th>
+                    <th className="py-3 text-left font-medium">Contact</th>
+                    <th className="py-3 text-right font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {agencies.slice(0, 8).map(a => (
+                    <tr key={a.id} className="border-b border-border/60 last:border-0 hover:bg-surface/60">
+                      <td className="py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-[11px] font-semibold text-accent-foreground">
+                            {a.name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                          </div>
+                          <div className="font-medium">{a.name}</div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 text-muted-foreground">{a.country}</td>
+                      <td className="py-3.5 text-muted-foreground">{a.city || "-"}</td>
+                      <td className="py-3.5 text-muted-foreground text-sm">-</td>
+                      <td className="py-3.5">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </AppShell>
   );

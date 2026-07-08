@@ -562,22 +562,24 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
 importRouter.get("/dashboard-stats", requireAuth, async (req, res) => {
   try {
     const user = req.user!;
-
-    // Récupérer les données des 6 derniers mois
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    console.log(`📊 Dashboard stats demandées par ${user.email} (role: ${user.role}, agencyId: ${user.agencyId})`);
 
     let whereClause: any = {};
 
     // Filtrer par agence pour les utilisateurs non-admin
     if (user.role !== "super_admin" && user.agencyId) {
       whereClause.agencyId = user.agencyId;
+      console.log(`🔍 Filtre par agence: ${user.agencyId}`);
+    } else {
+      console.log(`🌍 Pas de filtre (super_admin ou pas d'agence)`);
     }
 
     // Données mensuelles
     const monthlyData = await prisma.monthlyData.findMany({
       where: whereClause,
     });
+
+    console.log(`📦 ${monthlyData.length} enregistrements MonthlyData trouvés`);
 
     // Récupérer les produits et grossistes séparément
     const productCips = Array.from(new Set(monthlyData.map(d => d.productCip)));
@@ -680,7 +682,7 @@ importRouter.get("/dashboard-stats", requireAuth, async (req, res) => {
       ? await prisma.agency.count()
       : 1;
 
-    res.json({
+    const result = {
       totals: {
         sales: totalSales,
         stock: totalStock,
@@ -694,7 +696,20 @@ importRouter.get("/dashboard-stats", requireAuth, async (req, res) => {
       topWholesalers,
       lowStockProducts,
       trends,
+    };
+
+    console.log(`✅ Stats calculées:`, {
+      sales: totalSales,
+      stock: totalStock,
+      orders: totalOrders,
+      inventoryValue: totalInventoryValue,
+      products: productStats.size,
+      wholesalers: wholesalerStats.size,
+      topProductsCount: topProducts.length,
+      trendsCount: trends.length,
     });
+
+    res.json(result);
   } catch (error) {
     console.error("Erreur lors de la récupération des stats:", error);
     res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
