@@ -376,6 +376,7 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
       created: 0,
       updated: 0,
       wholesalersCreated: 0,
+      productsCreated: 0,
       errors: [] as string[],
     };
 
@@ -435,15 +436,50 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
           wholesalerCache.set(row.wholesalerName, wholesalerId);
         }
 
-        // Vérifier si le produit existe
-        const productExists = await prisma.product.findUnique({
+        // Vérifier si le produit existe par CIP ou par nom
+        let product = await prisma.product.findUnique({
           where: { cip: row.productCip },
         });
 
-        if (!productExists) {
-          console.log(`⚠️ Produit CIP ${row.productCip} introuvable - création ignorée`);
-          results.errors.push(`Produit CIP ${row.productCip} introuvable dans la base de données`);
-          continue;
+        // Si pas trouvé par CIP, essayer par nom
+        if (!product && row.productName) {
+          product = await prisma.product.findFirst({
+            where: {
+              name: {
+                contains: row.productName,
+                mode: 'insensitive',
+              },
+            },
+          });
+
+          if (product) {
+            console.log(`🔄 Produit trouvé par nom: "${row.productName}" -> CIP ${product.cip}`);
+            // Utiliser le vrai CIP du produit
+            row.productCip = product.cip;
+          }
+        }
+
+        // Si toujours pas trouvé, créer le produit automatiquement
+        if (!product) {
+          console.log(`➕ Création automatique du produit: ${row.productCip} - ${row.productName || 'Sans nom'}`);
+
+          try {
+            product = await prisma.product.create({
+              data: {
+                cip: row.productCip,
+                name: row.productName || row.productCip,
+                laboratory: "Laboratoire inconnu",
+                category: "Médicament",
+                basePrice: 0,
+              },
+            });
+            results.productsCreated++;
+            console.log(`✅ Produit créé: ${product.cip} - ${product.name}`);
+          } catch (createError: any) {
+            console.error(`❌ Erreur création produit ${row.productCip}:`, createError.message);
+            results.errors.push(`Impossible de créer le produit ${row.productCip}: ${createError.message}`);
+            continue;
+          }
         }
 
         // Upsert les données mensuelles
@@ -501,11 +537,16 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
       }
     }
 
-    console.log(`✅ Import terminé: ${results.created} créées, ${results.updated} mises à jour, ${results.wholesalersCreated} grossistes créés, ${results.errors.length} erreurs`);
+    console.log(`✅ Import terminé: ${results.created} créées, ${results.updated} mises à jour, ${results.wholesalersCreated} grossistes créés, ${results.productsCreated} produits créés, ${results.errors.length} erreurs`);
+
+    const messageParts = [];
+    messageParts.push(`${results.created + results.updated} entrée(s)`);
+    if (results.productsCreated > 0) messageParts.push(`${results.productsCreated} produit(s) créé(s)`);
+    if (results.wholesalersCreated > 0) messageParts.push(`${results.wholesalersCreated} grossiste(s) créé(s)`);
 
     res.json({
       success: true,
-      message: `Import terminé: ${results.created} créées, ${results.updated} mises à jour, ${results.wholesalersCreated} grossistes créés`,
+      message: `Import terminé: ${messageParts.join(", ")}`,
       ...results,
     });
   } catch (error) {

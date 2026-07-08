@@ -76,7 +76,9 @@ Le système détecte automatiquement le format utilisé :
 
 Vous n'avez rien à faire, le système s'adapte automatiquement !
 
-## Création automatique des grossistes
+## Création automatique des entités
+
+### Grossistes
 
 Si un grossiste mentionné dans le CSV n'existe pas dans la base de données, il sera **automatiquement créé** avec :
 - Le nom spécifié dans la colonne `grossiste`
@@ -85,7 +87,21 @@ Si un grossiste mentionné dans le CSV n'existe pas dans la base de données, il
 - Un statut "actif"
 - Un scope "country" (visible au niveau pays)
 
-**Note importante** : Si le code pays spécifié n'existe pas dans la base de données, le système utilisera automatiquement le premier pays disponible. Assurez-vous que les pays ont été créés au préalable dans la section "Pays".
+**Note importante** : Si le code pays spécifié n'existe pas dans la base de données, le système utilisera automatiquement le premier pays disponible.
+
+### Produits
+
+Si un produit mentionné dans le CSV n'existe pas dans la base de données, le système :
+1. **Cherche d'abord par code CIP** : Si le CIP existe, le produit est associé automatiquement
+2. **Cherche ensuite par nom** : Si le CIP n'existe pas mais qu'un produit avec un nom similaire existe, il sera automatiquement associé
+3. **Crée le produit** : Si aucune correspondance n'est trouvée, un nouveau produit sera créé avec :
+   - Le code CIP spécifié
+   - Le nom du produit
+   - Laboratoire par défaut : "Laboratoire inconnu"
+   - Catégorie : "Médicament"
+   - Prix de base : 0
+
+Cette logique permet d'importer des données même si les produits n'existent pas encore dans la base.
 
 ## Utilisation
 
@@ -102,8 +118,10 @@ Si un grossiste mentionné dans le CSV n'existe pas dans la base de données, il
 ## Comportement
 
 - **Création/Mise à jour** : Si des données existent déjà pour le même produit, grossiste, agence et période, elles sont **mises à jour**. Sinon, elles sont **créées**.
+- **Produits** : Les produits inexistants sont recherchés par CIP puis par nom, et créés automatiquement si aucune correspondance n'est trouvée
 - **Grossistes** : Les grossistes inexistants sont créés automatiquement
 - **Validation** : Les données sont validées avant import. Les erreurs sont signalées dans la console
+- **Rechargement automatique** : Les données du tableau sont rechargées automatiquement après l'import
 
 ## Permissions
 

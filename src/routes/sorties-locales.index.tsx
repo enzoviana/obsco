@@ -628,13 +628,11 @@ function ImportSortiesDialog({
 
       for (let i = 0; i < rawHeaders.length; i++) {
         const header = rawHeaders[i];
-        const lowerHeader = headers[i];
 
         // Détecter les patterns: "GROSSISTE - Ventes", "GROSSISTE - Stocks", "GROSSISTE - Cmds"
         const match = header.match(/^(.+?)\s*-\s*(ventes?|sales?|sortie|stocks?|commandes?|cmds?|orders?)$/i);
         if (match) {
           const wholesalerName = match[1].trim();
-          const type = match[2].toLowerCase();
 
           if (!processedWholesalers.has(wholesalerName)) {
             processedWholesalers.add(wholesalerName);
@@ -803,6 +801,7 @@ function ImportSortiesDialog({
         created: number;
         updated: number;
         wholesalersCreated: number;
+        productsCreated: number;
         errors: string[];
         error?: string;
       }>("/api/import/sorties-locales-csv", {
@@ -817,7 +816,7 @@ function ImportSortiesDialog({
       if (result.success) {
         toast.success(result.message);
         console.log("🔄 Rechargement des données...");
-        await onSuccess();
+        onSuccess();
         console.log("✅ Données rechargées");
         onClose();
       } else {
