@@ -23,27 +23,45 @@ interface AdvancedStats {
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Statistiques — OBCO" }] }),
   component: StatsPage,
+  loader: () => {
+    console.log("📦 Stats loader appelé");
+    return null;
+  },
 });
 
 const COLORS = ["var(--color-primary)", "oklch(0.72 0.1 158)", "oklch(0.5 0.12 200)", "var(--color-warning)", "var(--color-destructive)", "oklch(0.55 0.04 200)"];
 
 function StatsPage() {
+  console.log("🎯 StatsPage component rendered");
+
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdvancedStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    console.log("✅ Premier useEffect: setMounted(true)");
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
-    if (typeof window === "undefined") return;
+    console.log("🔍 Deuxième useEffect: mounted =", mounted);
+
+    if (!mounted) {
+      console.log("⏸️ mounted = false, on attend...");
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      console.log("⏸️ window undefined, on attend...");
+      return;
+    }
 
     console.log("🔍 Stats Page: Vérification utilisateur...");
 
     const user = getUser();
+    console.log("👤 User:", user);
+
     if (!user) {
       console.log("❌ Stats Page: Pas d'utilisateur, redirection");
       navigate({ to: "/login" });
