@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis, Legend,
@@ -106,6 +106,18 @@ function StatsPage() {
     loadStats();
   }, [mounted, navigate]);
 
+  // Sécurisation du traitement des données pour éviter les crashs SSR
+  const statusDist = useMemo(() => {
+    if (!stats || !stats.statusDist) return [];
+    return stats.statusDist.map(s => ({
+      ...s,
+      fill: s.name === "OK" ? "var(--color-primary)"
+          : s.name === "Faible" ? "var(--color-warning)"
+          : s.name === "Critique" ? "var(--color-destructive)"
+          : "oklch(0.45 0.18 25)"
+    }));
+  }, [stats]);
+
   if (!mounted) {
     return (
       <AppShell title="Statistiques & Analyses" subtitle="Initialisation...">
@@ -125,14 +137,6 @@ function StatsPage() {
       </AppShell>
     );
   }
-
-  const statusDist = stats.statusDist.map(s => ({
-    ...s,
-    fill: s.name === "OK" ? "var(--color-primary)"
-        : s.name === "Faible" ? "var(--color-warning)"
-        : s.name === "Critique" ? "var(--color-destructive)"
-        : "oklch(0.45 0.18 25)"
-  }));
 
   return (
     <AppShell title="Statistiques & Analyses" subtitle="Vision analytique basée sur vos données réelles">
