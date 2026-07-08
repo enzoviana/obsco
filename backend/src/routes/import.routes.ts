@@ -717,6 +717,140 @@ importRouter.get("/dashboard-stats", requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/import/advanced-stats
+ * Récupérer des statistiques avancées pour la page Stats
+ */
+importRouter.get("/advanced-stats", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    console.log(`📊 Advanced stats demandées par ${user.email}`);
+
+    let whereClause: any = {};
+    if (user.role !== "super_admin" && user.agencyId) {
+      whereClause.agencyId = user.agencyId;
+    }
+
+    // Récupérer toutes les données
+    const monthlyData = await prisma.monthlyData.findMany({ where: whereClause });
+    const productCips = Array.from(new Set(monthlyData.map(d => d.productCip)));
+    const products = await prisma.product.findMany({ where: { cip: { in: productCips } } });
+    const productMap = new Map(products.map(p => [p.cip, p]));
+
+    // Stats par catégorie
+    const categoryStats = new Map<string, { count: number; value: number; stock: number; sales: number }>();
+
+    // Stats par laboratoire
+    const labStats = new Map<string, { stock: number; sales: number; value: number }>();
+
+    // Distribution des statuts (basée sur le stock)
+    let statusOk = 0, statusLow = 0, statusCritical = 0, statusRupture = 0;
+
+    // Tendances mensuelles
+    const monthlyTrends: Record<string, { sales: number; stock: number; orders: number }> = {};
+
+    for (const data of monthlyData) {
+      const product = productMap.get(data.productCip);
+      if (!product) continue;
+
+      const category = product.category || "Non catégorisé";
+      const laboratory = product.laboratory || "Laboratoire inconnu";
+      const value = data.stock * (product.basePrice || 0);
+
+      // Par catégorie
+      if (!categoryStats.has(category)) {
+        categoryStats.set(category, { count: 0, value: 0, stock: 0, sales: 0 });
+      }
+      const catStat = categoryStats.get(category)!;
+      catStat.count++;
+      catStat.value += value;
+      catStat.stock += data.stock;
+      catStat.sales += data.sales;
+
+      // Par laboratoire
+      if (!labStats.has(laboratory)) {
+        labStats.set(laboratory, { stock: 0, sales: 0, value: 0 });
+      }
+      const labStat = labStats.get(laboratory)!;
+      labStat.stock += data.stock;
+      labStat.sales += data.sales;
+      labStat.value += value;
+
+      // Statuts
+      if (data.stock === 0) statusRupture++;
+      else if (data.stock < 20) statusCritical++;
+      else if (data.stock < 50) statusLow++;
+      else statusOk++;
+
+      // Tendances mensuelles
+      const monthKey = `${data.year}-${String(data.month).padStart(2, "0")}`;
+      if (!monthlyTrends[monthKey]) {
+        monthlyTrends[monthKey] = { sales: 0, stock: 0, orders: 0 };
+      }
+      monthlyTrends[monthKey].sales += data.sales;
+      monthlyTrends[monthKey].stock += data.stock;
+      monthlyTrends[monthKey].orders += data.orders;
+    }
+
+    // Formatter les données
+    const byCategory = Array.from(categoryStats.entries())
+      .map(([name, stats]) => ({
+        name,
+        count: stats.count,
+        value: Math.round(stats.value / 1000), // en k€
+        stock: stats.stock,
+        sales: stats.sales,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    const topLabs = Array.from(labStats.entries())
+      .map(([name, stats]) => ({
+        name,
+        value: stats.stock,
+        sales: stats.sales,
+        valueEuro: Math.round(stats.value),
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+
+    const statusDist = [
+      { name: "OK", value: statusOk },
+      { name: "Faible", value: statusLow },
+      { name: "Critique", value: statusCritical },
+      { name: "Rupture", value: statusRupture },
+    ];
+
+    const trends = Object.entries(monthlyTrends)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, data]) => ({
+        month,
+        inventory: Math.round(data.stock * 0.1), // Valeur approximative
+        sales: data.sales,
+        stock: data.stock,
+        orders: data.orders,
+      }));
+
+    const totalValue = Array.from(categoryStats.values()).reduce((sum, s) => sum + s.value, 0);
+
+    res.json({
+      summary: {
+        totalProducts: products.length,
+        totalCategories: categoryStats.size,
+        totalLaboratories: labStats.size,
+        totalValue: totalValue * 1000, // reconvertir en euros
+      },
+      byCategory,
+      topLabs,
+      statusDist,
+      trends,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des stats avancées:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+  }
+});
+
+/**
  * GET /api/import/sorties-locales
  * Récupérer les données pour le module Sorties Locales
  * Paramètres query:
