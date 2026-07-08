@@ -13,7 +13,6 @@ import {
   getAgencies,
   getGrossistes,
   getPanoramicProducts,
-  SUPPLIERS,
   type Agency,
   type Grossiste,
 } from "@/lib/agencies";
@@ -154,10 +153,8 @@ function SortiesIndex() {
       } else if (scope === "agency") {
         const ag = agencies.find((a) => a.id === agencyId);
         if (!ag) continue;
-        if (g.scope === "agency" && g.agencyId === agencyId) {
-          include = true;
-          factor = 1;
-        } else if (g.scope === "country" && g.country === ag.country) {
+        // Tous les grossistes du pays de l'agence sont inclus
+        if (g.country === ag.country) {
           const peers = agencies.filter((a) => a.country === ag.country).length || 1;
           include = true;
           factor = 1 / peers;
@@ -251,7 +248,7 @@ function SortiesIndex() {
   }, [grossistes]);
 
   const user = getUser();
-  const isSuperAdmin = user?.role === "super_admin";
+  const isSuperAdmin = user?.role === "admin";
 
   return (
     <AppShell
