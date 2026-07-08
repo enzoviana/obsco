@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   AlertTriangle, Boxes, Package, TrendingUp, Upload,
-  Building2, Wallet, Activity, Eye, Pencil, MoreHorizontal, Truck,
+  Building2, Wallet, Activity, Eye, Pencil, Truck,
 } from "lucide-react";
 import { AppShell, StatusBadge } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -193,26 +193,28 @@ function PharmacyDash() {
             )}
           </div>
           <div className="mt-6 h-64">
-            <ResponsiveContainer>
-              <AreaChart data={dashStats?.trends || []} margin={{ left: -20, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-chart-3)" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="var(--color-chart-3)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
-                <Area type="monotone" dataKey="stock" stroke="var(--color-primary)" strokeWidth={2.5} fill="url(#g1)" name="Stock" />
-                <Area type="monotone" dataKey="sales" stroke="var(--color-chart-3)" strokeWidth={2} fill="url(#g2)" name="Ventes" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <ClientOnly>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dashStats?.trends || []} margin={{ left: -20, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-chart-3)" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="var(--color-chart-3)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                  <Area type="monotone" dataKey="stock" stroke="var(--color-primary)" strokeWidth={2.5} fill="url(#g1)" name="Stock" />
+                  <Area type="monotone" dataKey="sales" stroke="var(--color-chart-3)" strokeWidth={2} fill="url(#g2)" name="Ventes" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ClientOnly>
           </div>
         </div>
 
@@ -444,21 +446,23 @@ function AdminDash() {
             </div>
           </div>
           <div className="mt-6 h-64">
-            <ResponsiveContainer>
-              <AreaChart data={dashStats?.trends || []} margin={{ left: -20, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="ga" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
-                <Area type="monotone" dataKey="sales" stroke="var(--color-primary)" strokeWidth={2.5} fill="url(#ga)" name="Ventes" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <ClientOnly>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dashStats?.trends || []} margin={{ left: -20, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="ga" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                  <Area type="monotone" dataKey="sales" stroke="var(--color-primary)" strokeWidth={2.5} fill="url(#ga)" name="Ventes" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ClientOnly>
           </div>
         </div>
 
@@ -466,15 +470,17 @@ function AdminDash() {
           <h3 className="text-base font-semibold">Commandes par mois</h3>
           <p className="text-xs text-muted-foreground">Volume réseau</p>
           <div className="mt-6 h-64">
-            <ResponsiveContainer>
-              <BarChart data={dashStats?.trends || []} margin={{ left: -20, right: 8, top: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
-                <Bar dataKey="orders" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <ClientOnly>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dashStats?.trends || []} margin={{ left: -20, right: 8, top: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={11} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                  <Bar dataKey="orders" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ClientOnly>
           </div>
         </div>
 
@@ -544,4 +550,20 @@ function Kpi({ className = "", label, value, sub, icon, highlight }: {
       <p className={`mt-2 text-xs ${highlight ? "opacity-80" : "text-muted-foreground"}`}>{sub}</p>
     </div>
   );
+}
+
+// Composant Helper pour empêcher Recharts de crash au rendu serveur (SSR)
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  if (!hasMounted) {
+    // Squelette de chargement temporaire pour éviter les sauts de mise en page (Layout Shifts)
+    return <div className="h-64 w-full bg-accent/20 animate-pulse rounded-lg" />;
+  }
+
+  return <>{children}</>;
 }
