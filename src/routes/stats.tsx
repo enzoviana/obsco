@@ -31,13 +31,26 @@ function StatsPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdvancedStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (typeof window === "undefined") return;
-    if (!getUser()) {
+
+    console.log("🔍 Stats Page: Vérification utilisateur...");
+
+    const user = getUser();
+    if (!user) {
+      console.log("❌ Stats Page: Pas d'utilisateur, redirection");
       navigate({ to: "/login" });
       return;
     }
+
+    console.log("✅ Stats Page: Utilisateur connecté, chargement des stats...");
 
     const loadStats = async () => {
       try {
@@ -73,7 +86,17 @@ function StatsPage() {
     };
 
     loadStats();
-  }, [navigate]);
+  }, [mounted, navigate]);
+
+  if (!mounted) {
+    return (
+      <AppShell title="Statistiques & Analyses" subtitle="Initialisation...">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Initialisation...</div>
+        </div>
+      </AppShell>
+    );
+  }
 
   if (loading || !stats) {
     return (

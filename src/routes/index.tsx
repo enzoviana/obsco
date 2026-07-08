@@ -64,9 +64,17 @@ function PharmacyDash() {
   const [open, setOpen] = useState(false);
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (typeof window === "undefined") return;
+
+    console.log("🔍 Dashboard Pharmacy: Chargement des stats...");
 
     const loadDashboardStats = async () => {
       try {
@@ -103,7 +111,17 @@ function PharmacyDash() {
       }
     };
     loadDashboardStats();
-  }, []);
+  }, [mounted]);
+
+  if (!mounted) {
+    return (
+      <AppShell title="Tableau de bord" subtitle="Initialisation...">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Initialisation...</div>
+        </div>
+      </AppShell>
+    );
+  }
 
   if (loading) {
     return (
@@ -364,9 +382,17 @@ function AdminDash() {
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (typeof window === "undefined") return;
+
+    console.log("🔍 Dashboard Admin: Chargement des stats...");
 
     const loadDashboardStats = async () => {
       try {
