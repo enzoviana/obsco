@@ -609,53 +609,162 @@ function ImportSortiesDialog({
         return;
       }
 
-      // Parser l'en-tête
-      const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+      // Parser l'en-tête en utilisant un séparateur intelligent
+      const separator = text.includes(";") ? ";" : ",";
+      const rawHeaders = lines[0].split(separator).map(h => h.trim());
+      const headers = rawHeaders.map(h => h.toLowerCase());
 
-      // Mapper les colonnes
+      // Détecter le format : simple (cip, grossiste, ventes...) ou wide (produit, GROSSISTE1 - Ventes, GROSSISTE1 - Stocks...)
       const cipIdx = headers.findIndex(h => h.includes("cip") || h.includes("code"));
-      const nameIdx = headers.findIndex(h => h.includes("nom") || h === "name" || h.includes("produit"));
-      const wholesalerIdx = headers.findIndex(h => h.includes("grossiste") || h.includes("wholesaler") || h.includes("fournisseur"));
-      const salesIdx = headers.findIndex(h => h.includes("vente") || h === "sales" || h.includes("sortie"));
-      const stockIdx = headers.findIndex(h => h.includes("stock"));
-      const ordersIdx = headers.findIndex(h => h.includes("commande") || h === "orders");
-      const countryIdx = headers.findIndex(h => h.includes("country") || h === "pays" || h.includes("countrycode"));
-      const cityIdx = headers.findIndex(h => h.includes("ville") || h === "city");
+      const nameIdx = headers.findIndex(h => h.includes("nom") || h === "name" || h.includes("produit") || h === "produit");
+      const wholesalerIdx = headers.findIndex(h => h.includes("grossiste") && !h.includes("-"));
 
-      if (cipIdx === -1 || wholesalerIdx === -1) {
-        toast.error("Le CSV doit contenir au minimum les colonnes 'cip' et 'grossiste'");
-        return;
+      // Détecter les colonnes de grossistes (format: "GROSSISTE - Ventes/Stocks/Cmds")
+      const wholesalerColumns: { name: string; salesIdx: number; stockIdx: number; ordersIdx: number }[] = [];
+      const processedWholesalers = new Set<string>();
+
+      for (let i = 0; i < rawHeaders.length; i++) {
+        const header = rawHeaders[i];
+        const lowerHeader = headers[i];
+
+        // Détecter les patterns: "GROSSISTE - Ventes", "GROSSISTE - Stocks", "GROSSISTE - Cmds"
+        const match = header.match(/^(.+?)\s*-\s*(ventes?|sales?|sortie|stocks?|commandes?|cmds?|orders?)$/i);
+        if (match) {
+          const wholesalerName = match[1].trim();
+          const type = match[2].toLowerCase();
+
+          if (!processedWholesalers.has(wholesalerName)) {
+            processedWholesalers.add(wholesalerName);
+
+            // Trouver les 3 colonnes pour ce grossiste
+            let salesIdx = -1, stockIdx = -1, ordersIdx = -1;
+
+            for (let j = 0; j < rawHeaders.length; j++) {
+              const h = rawHeaders[j];
+              if (h.startsWith(wholesalerName + " -") || h.startsWith(wholesalerName + "-")) {
+                const lower = h.toLowerCase();
+                if (lower.includes("vente") || lower.includes("sales") || lower.includes("sortie")) {
+                  salesIdx = j;
+                } else if (lower.includes("stock")) {
+                  stockIdx = j;
+                } else if (lower.includes("cmd") || lower.includes("commande") || lower.includes("order")) {
+                  ordersIdx = j;
+                }
+              }
+            }
+
+            wholesalerColumns.push({
+              name: wholesalerName,
+              salesIdx,
+              stockIdx,
+              ordersIdx,
+            });
+          }
+        }
       }
 
-      // Parser les données
-      const rows = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(/[,;]/).map(v => v.trim());
-        if (values.length < 2) continue;
+      // Déterminer le format
+      const isWideFormat = wholesalerColumns.length > 0;
+      let rows: any[] = [];
 
-        const row: any = {
-          productCip: values[cipIdx] || "",
-          wholesalerName: values[wholesalerIdx] || "",
-        };
+      if (isWideFormat) {
+        // Format WIDE : une ligne = un produit avec plusieurs grossistes en colonnes
+        console.log(`📊 Format détecté: WIDE avec ${wholesalerColumns.length} grossiste(s)`);
 
-        if (nameIdx !== -1 && values[nameIdx]) row.productName = values[nameIdx];
-        if (salesIdx !== -1 && values[salesIdx]) {
-          const sales = parseInt(values[salesIdx].replace(/[^\d]/g, ""));
-          if (!isNaN(sales)) row.sales = sales;
+        if (nameIdx === -1) {
+          toast.error("Le CSV doit contenir une colonne 'Produit' ou 'Nom'");
+          return;
         }
-        if (stockIdx !== -1 && values[stockIdx]) {
-          const stock = parseInt(values[stockIdx].replace(/[^\d]/g, ""));
-          if (!isNaN(stock)) row.stock = stock;
-        }
-        if (ordersIdx !== -1 && values[ordersIdx]) {
-          const orders = parseInt(values[ordersIdx].replace(/[^\d]/g, ""));
-          if (!isNaN(orders)) row.orders = orders;
-        }
-        if (countryIdx !== -1 && values[countryIdx]) row.countryCode = values[countryIdx].toUpperCase();
-        if (cityIdx !== -1 && values[cityIdx]) row.city = values[cityIdx];
 
-        if (row.productCip && row.wholesalerName) {
-          rows.push(row);
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(separator).map(v => v.trim());
+          if (values.length < 2) continue;
+
+          const productName = values[nameIdx] || "";
+          if (!productName) continue;
+
+          // Extraire le CIP du nom du produit (souvent au début)
+          let productCip = "";
+          if (cipIdx !== -1 && values[cipIdx]) {
+            productCip = values[cipIdx];
+          } else {
+            // Essayer d'extraire un code numérique du nom
+            const cipMatch = productName.match(/^(\d+)/);
+            if (cipMatch) {
+              productCip = cipMatch[1];
+            } else {
+              productCip = productName.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "");
+            }
+          }
+
+          // Créer une ligne pour chaque grossiste
+          for (const wc of wholesalerColumns) {
+            const sales = wc.salesIdx !== -1 && values[wc.salesIdx]
+              ? parseInt(values[wc.salesIdx].replace(/[^\d]/g, "")) || 0
+              : 0;
+            const stock = wc.stockIdx !== -1 && values[wc.stockIdx]
+              ? parseInt(values[wc.stockIdx].replace(/[^\d]/g, "")) || 0
+              : 0;
+            const orders = wc.ordersIdx !== -1 && values[wc.ordersIdx]
+              ? parseInt(values[wc.ordersIdx].replace(/[^\d]/g, "")) || 0
+              : 0;
+
+            // Ne créer une ligne que si au moins une valeur est non nulle
+            if (sales > 0 || stock > 0 || orders > 0) {
+              rows.push({
+                productCip,
+                productName,
+                wholesalerName: wc.name,
+                sales,
+                stock,
+                orders,
+              });
+            }
+          }
+        }
+      } else {
+        // Format SIMPLE : une ligne = un produit + un grossiste
+        console.log("📊 Format détecté: SIMPLE (une ligne par produit/grossiste)");
+
+        if (cipIdx === -1 || wholesalerIdx === -1) {
+          toast.error("Le CSV doit contenir au minimum les colonnes 'cip' et 'grossiste'");
+          return;
+        }
+
+        const salesIdx = headers.findIndex(h => h.includes("vente") || h === "sales" || h.includes("sortie"));
+        const stockIdx = headers.findIndex(h => h.includes("stock"));
+        const ordersIdx = headers.findIndex(h => h.includes("commande") || h === "orders" || h.includes("cmd"));
+        const countryIdx = headers.findIndex(h => h.includes("country") || h === "pays" || h.includes("countrycode"));
+        const cityIdx = headers.findIndex(h => h.includes("ville") || h === "city");
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(separator).map(v => v.trim());
+          if (values.length < 2) continue;
+
+          const row: any = {
+            productCip: values[cipIdx] || "",
+            wholesalerName: values[wholesalerIdx] || "",
+          };
+
+          if (nameIdx !== -1 && values[nameIdx]) row.productName = values[nameIdx];
+          if (salesIdx !== -1 && values[salesIdx]) {
+            const sales = parseInt(values[salesIdx].replace(/[^\d]/g, ""));
+            if (!isNaN(sales)) row.sales = sales;
+          }
+          if (stockIdx !== -1 && values[stockIdx]) {
+            const stock = parseInt(values[stockIdx].replace(/[^\d]/g, ""));
+            if (!isNaN(stock)) row.stock = stock;
+          }
+          if (ordersIdx !== -1 && values[ordersIdx]) {
+            const orders = parseInt(values[ordersIdx].replace(/[^\d]/g, ""));
+            if (!isNaN(orders)) row.orders = orders;
+          }
+          if (countryIdx !== -1 && values[countryIdx]) row.countryCode = values[countryIdx].toUpperCase();
+          if (cityIdx !== -1 && values[cityIdx]) row.city = values[cityIdx];
+
+          if (row.productCip && row.wholesalerName) {
+            rows.push(row);
+          }
         }
       }
 
@@ -718,11 +827,30 @@ function ImportSortiesDialog({
   };
 
   const downloadTemplate = () => {
-    const csvContent = "cip,nom,grossiste,ventes,stocks,commandes,countryCode,ville\n3400936000001,Paracétamol 500mg,CAMED,150,200,50,CI,Abidjan\n3400938000002,Ibuprofène 400mg,LABOREX MALI,120,180,30,ML,Bamako";
+    // Offrir deux formats de template
+    const choice = confirm("Quel format de CSV souhaitez-vous télécharger ?\n\nOK = Format WIDE (colonnes par grossiste)\nAnnuler = Format SIMPLE (une ligne par grossiste)");
+
+    let csvContent: string;
+    let filename: string;
+
+    if (choice) {
+      // Format WIDE (ancien format Excel)
+      csvContent = "Produit;DUOPHARM - Ventes;DUOPHARM - Stocks;DUOPHARM - Cmds;LABOREX SENEGAL - Ventes;LABOREX SENEGAL - Stocks;LABOREX SENEGAL - Cmds;SODIPHARM - Ventes;SODIPHARM - Stocks;SODIPHARM - Cmds\n";
+      csvContent += "Paracétamol 500mg;150;200;50;120;180;30;80;100;20\n";
+      csvContent += "Ibuprofène 400mg;200;250;60;150;200;40;90;120;25";
+      filename = "template_sorties_locales_wide.csv";
+    } else {
+      // Format SIMPLE
+      csvContent = "cip,nom,grossiste,ventes,stocks,commandes,countryCode,ville\n";
+      csvContent += "3400936000001,Paracétamol 500mg,CAMED,150,200,50,CI,Abidjan\n";
+      csvContent += "3400938000002,Ibuprofène 400mg,LABOREX MALI,120,180,30,ML,Bamako";
+      filename = "template_sorties_locales_simple.csv";
+    }
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "template_import_sorties_locales.csv";
+    link.download = filename;
     link.click();
     toast.success("Modèle téléchargé");
   };

@@ -4,15 +4,55 @@
 
 La fonctionnalité d'import CSV permet d'importer en masse les données de sorties locales (ventes, stocks, commandes) par produit et par grossiste pour une agence et une période données.
 
-## Format du fichier CSV
+**Le système supporte 2 formats de fichier CSV** pour s'adapter aux fichiers existants.
 
-### Colonnes requises
+## Formats de fichier CSV supportés
 
+### Format 1 : WIDE (format Excel classique)
+
+Ce format correspond aux anciens fichiers Excel avec une ligne par produit et des colonnes pour chaque grossiste.
+
+**Structure** :
+```csv
+Produit;GROSSISTE1 - Ventes;GROSSISTE1 - Stocks;GROSSISTE1 - Cmds;GROSSISTE2 - Ventes;GROSSISTE2 - Stocks;GROSSISTE2 - Cmds
+Paracétamol 500mg;150;200;50;120;180;30
+Ibuprofène 400mg;200;250;60;150;200;40
+```
+
+**Avantages** :
+- Compatible avec vos fichiers Excel existants
+- Vue d'ensemble sur une seule ligne par produit
+- Facile à lire
+
+**Colonnes** :
+- **Produit** (ou `Nom`) : Nom du produit (obligatoire)
+- **GROSSISTE - Ventes** : Nombre d'unités vendues pour ce grossiste
+- **GROSSISTE - Stocks** : Stock disponible pour ce grossiste
+- **GROSSISTE - Cmds** (ou `Commandes`) : Commandes en cours pour ce grossiste
+
+Le système détecte automatiquement tous les grossistes présents dans l'en-tête.
+
+### Format 2 : SIMPLE (format base de données)
+
+Ce format a une ligne par combinaison produit/grossiste.
+
+**Structure** :
+```csv
+cip,nom,grossiste,ventes,stocks,commandes,countryCode,ville
+3400936000001,Paracétamol 500mg,CAMED,150,200,50,CI,Abidjan
+3400938000002,Ibuprofène 400mg,LABOREX MALI,120,180,30,ML,Bamako
+```
+
+**Avantages** :
+- Format normalisé base de données
+- Facile à générer depuis des exports SQL
+- Flexible pour ajouter des colonnes
+
+**Colonnes requises** :
 - **cip** (ou `code`) : Code CIP du produit (obligatoire)
 - **grossiste** (ou `wholesaler`, `fournisseur`) : Nom du grossiste/fournisseur (obligatoire)
 
-### Colonnes optionnelles
-
+**Colonnes optionnelles** :
 - **nom** (ou `name`, `produit`) : Nom du produit (pour référence)
 - **ventes** (ou `sales`, `sortie`) : Nombre d'unités vendues. Par défaut : 0
 - **stocks** (ou `stock`) : Stock disponible. Par défaut : 0
@@ -20,20 +60,21 @@ La fonctionnalité d'import CSV permet d'importer en masse les données de sorti
 - **countryCode** (ou `pays`, `country`) : Code pays du grossiste (ex: FR, ML, CI). Par défaut : premier pays disponible
 - **ville** (ou `city`) : Ville du grossiste
 
-### Séparateurs acceptés
+## Séparateurs acceptés
 
-Le fichier CSV peut utiliser :
-- Virgule (`,`)
-- Point-virgule (`;`)
+Les deux formats acceptent :
+- **Virgule** (`,`)
+- **Point-virgule** (`;`)
 
-## Exemple de fichier CSV
+Le système détecte automatiquement le séparateur utilisé.
 
-```csv
-cip,nom,grossiste,ventes,stocks,commandes,countryCode,ville
-3400936000001,Paracétamol 500mg,CAMED,150,200,50,CI,Abidjan
-3400938000002,Ibuprofène 400mg,LABOREX MALI,120,180,30,ML,Bamako
-3400939000003,Amoxicilline 500mg,COPHARMED,200,300,100,SN,Dakar
-```
+## Détection automatique du format
+
+Le système détecte automatiquement le format utilisé :
+- **Format WIDE** : Détecté si l'en-tête contient des colonnes du type "GROSSISTE - Ventes"
+- **Format SIMPLE** : Détecté si l'en-tête contient les colonnes "cip" et "grossiste"
+
+Vous n'avez rien à faire, le système s'adapte automatiquement !
 
 ## Création automatique des grossistes
 
@@ -107,9 +148,18 @@ POST /api/import/sorties-locales-csv
 }
 ```
 
-## Modèle CSV
+## Modèles CSV
 
-Un modèle CSV peut être téléchargé directement depuis la fenêtre d'import en cliquant sur "Télécharger un modèle".
+Deux modèles CSV sont disponibles :
+
+1. **Téléchargement depuis l'interface** : Cliquez sur "Télécharger un modèle" dans la fenêtre d'import
+   - Le système vous proposera de choisir entre le format WIDE ou SIMPLE
+
+2. **Fichiers de template** :
+   - Format WIDE : `docs/template_import_sorties_locales_wide.csv`
+   - Format SIMPLE : `docs/template_import_sorties_locales.csv`
+
+Choisissez le format qui correspond le mieux à vos fichiers existants !
 
 ## Bonnes pratiques
 
