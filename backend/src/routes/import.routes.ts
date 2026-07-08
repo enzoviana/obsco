@@ -328,6 +328,160 @@ importRouter.post("/products", requireAuth, requireRole("super_admin"), async (r
 });
 
 /**
+ * POST /api/import/sorties-locales-csv
+ * Importer les sorties locales en masse depuis un CSV
+ */
+importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"), async (req, res) => {
+  try {
+    const SortiesLocalesImportSchema = z.array(
+      z.object({
+        productCip: z.string().min(1, "Le code CIP est requis"),
+        productName: z.string().optional(),
+        wholesalerName: z.string().min(1, "Le nom du grossiste est requis"),
+        sales: z.number().int().min(0).default(0),
+        stock: z.number().int().min(0).default(0),
+        orders: z.number().int().min(0).default(0),
+        countryCode: z.string().optional().default("FR"),
+        city: z.string().optional().default(""),
+      })
+    );
+
+    const BodySchema = z.object({
+      year: z.number().int().min(2020).max(2100),
+      month: z.number().int().min(1).max(12),
+      agencyId: z.string().min(1, "L'agence est requise"),
+      data: SortiesLocalesImportSchema,
+    });
+
+    // Valider les données
+    const parsed = BodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Données invalides",
+        details: parsed.error.errors
+      });
+    }
+
+    const { year, month, agencyId, data } = parsed.data;
+
+    // Vérifier que l'agence existe
+    const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
+    if (!agency) {
+      return res.status(404).json({ error: "Agence introuvable" });
+    }
+
+    const results = {
+      created: 0,
+      updated: 0,
+      wholesalersCreated: 0,
+      errors: [] as string[],
+    };
+
+    // Récupérer le premier pays disponible comme fallback
+    const defaultCountry = await prisma.country.findFirst({
+      orderBy: { code: "asc" },
+    });
+
+    if (!defaultCountry) {
+      return res.status(500).json({
+        error: "Aucun pays n'existe dans la base de données.",
+      });
+    }
+
+    // Cache pour les grossistes
+    const wholesalerCache = new Map<string, string>(); // name -> id
+
+    // Traiter chaque ligne
+    for (const row of data) {
+      try {
+        // Créer ou récupérer le grossiste
+        let wholesalerId: string;
+
+        if (wholesalerCache.has(row.wholesalerName)) {
+          wholesalerId = wholesalerCache.get(row.wholesalerName)!;
+        } else {
+          let wholesaler = await prisma.wholesaler.findFirst({
+            where: { name: row.wholesalerName },
+          });
+
+          if (!wholesaler) {
+            // Vérifier si le pays existe
+            const countryExists = await prisma.country.findUnique({
+              where: { code: row.countryCode },
+            });
+
+            const finalCountryCode = countryExists
+              ? row.countryCode
+              : defaultCountry.code;
+
+            // Créer le grossiste
+            wholesaler = await prisma.wholesaler.create({
+              data: {
+                name: row.wholesalerName,
+                countryCode: finalCountryCode,
+                city: row.city || "",
+                email: "",
+                status: "active",
+                scope: "country",
+              },
+            });
+            results.wholesalersCreated++;
+            console.log(`✅ Grossiste créé: ${row.wholesalerName} (pays: ${finalCountryCode})`);
+          }
+
+          wholesalerId = wholesaler.id;
+          wholesalerCache.set(row.wholesalerName, wholesalerId);
+        }
+
+        // Upsert les données mensuelles
+        await prisma.monthlyData.upsert({
+          where: {
+            agencyId_productCip_wholesalerId_year_month: {
+              agencyId,
+              productCip: row.productCip,
+              wholesalerId,
+              year,
+              month,
+            },
+          },
+          create: {
+            agencyId,
+            productCip: row.productCip,
+            wholesalerId,
+            year,
+            month,
+            sales: row.sales,
+            stock: row.stock,
+            orders: row.orders,
+          },
+          update: {
+            sales: row.sales,
+            stock: row.stock,
+            orders: row.orders,
+            updatedAt: new Date(),
+          },
+        });
+
+        results.updated++;
+      } catch (error: any) {
+        results.errors.push(
+          `Erreur pour ${row.productCip} / ${row.wholesalerName}: ${error.message || "Erreur inconnue"}`
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Import terminé: ${results.updated} entrées créées/mises à jour, ${results.wholesalersCreated} grossistes créés`,
+      ...results,
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'import des sorties locales:", error);
+    res.status(500).json({ error: "Erreur lors de l'import des sorties locales" });
+  }
+});
+
+/**
  * GET /api/import/sorties-locales
  * Récupérer les données pour le module Sorties Locales
  * Paramètres query:

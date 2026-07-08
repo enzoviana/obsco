@@ -1,9 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Search, Download, Truck, Globe2, MapPin, Building2 } from "lucide-react";
+import { Search, Download, Truck, Globe2, MapPin, Building2, Upload } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getUser } from "@/lib/auth";
 import {
   COUNTRIES,
@@ -16,6 +19,7 @@ import {
 } from "@/lib/agencies";
 import { exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
+import { apiPost } from "@/lib/api";
 
 export const Route = createFileRoute("/sorties-locales/")({
   head: () => ({ meta: [{ title: "Sorties Locales — Sorties Locales — OBCO" }] }),
@@ -33,6 +37,7 @@ function SortiesIndex() {
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [grossistes, setGrossistes] = useState<Grossiste[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Sélection de la période
   const currentYear = new Date().getFullYear();
@@ -245,16 +250,33 @@ function SortiesIndex() {
     return Array.from(set).sort();
   }, [grossistes]);
 
+  const user = getUser();
+  const isSuperAdmin = user?.role === "super_admin";
+
   return (
     <AppShell
       title="Sorties Locales"
       subtitle={`Sorties Locales · ${scopeLabel}`}
-      actions={
+      actions={<>
+        {isSuperAdmin && (
+          <Dialog open={importOpen} onOpenChange={setImportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm"><Upload className="mr-2 h-4 w-4" />Importer CSV</Button>
+            </DialogTrigger>
+            <ImportSortiesDialog
+              onClose={() => setImportOpen(false)}
+              agencies={agencies}
+              selectedYear={selectedYear}
+              selectedMonth={selectedMonth}
+              onSuccess={() => loadMonthlyData()}
+            />
+          </Dialog>
+        )}
         <Button size="sm" onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />
           Exporter XLSX
         </Button>
-      }
+      </>}
     >
       <section className="mb-6 rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -531,5 +553,298 @@ function ScopeBtn({
       {icon}
       {label}
     </button>
+  );
+}
+
+function ImportSortiesDialog({
+  onClose,
+  agencies,
+  selectedYear,
+  selectedMonth,
+  onSuccess,
+}: {
+  onClose: () => void;
+  agencies: Agency[];
+  selectedYear: number;
+  selectedMonth: number;
+  onSuccess: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<any[]>([]);
+  const [agencyId, setAgencyId] = useState<string>(agencies[0]?.id || "");
+  const [year, setYear] = useState(selectedYear);
+  const [month, setMonth] = useState(selectedMonth);
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
+  const monthOptions = [
+    { value: 1, label: "Janvier" },
+    { value: 2, label: "Février" },
+    { value: 3, label: "Mars" },
+    { value: 4, label: "Avril" },
+    { value: 5, label: "Mai" },
+    { value: 6, label: "Juin" },
+    { value: 7, label: "Juillet" },
+    { value: 8, label: "Août" },
+    { value: 9, label: "Septembre" },
+    { value: 10, label: "Octobre" },
+    { value: 11, label: "Novembre" },
+    { value: 12, label: "Décembre" },
+  ];
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      parseCSV(selectedFile);
+    }
+  };
+
+  const parseCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split("\n").filter(line => line.trim());
+
+      if (lines.length < 2) {
+        toast.error("Le fichier CSV doit contenir au moins une ligne d'en-tête et une ligne de données");
+        return;
+      }
+
+      // Parser l'en-tête
+      const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+
+      // Mapper les colonnes
+      const cipIdx = headers.findIndex(h => h.includes("cip") || h.includes("code"));
+      const nameIdx = headers.findIndex(h => h.includes("nom") || h === "name" || h.includes("produit"));
+      const wholesalerIdx = headers.findIndex(h => h.includes("grossiste") || h.includes("wholesaler") || h.includes("fournisseur"));
+      const salesIdx = headers.findIndex(h => h.includes("vente") || h === "sales" || h.includes("sortie"));
+      const stockIdx = headers.findIndex(h => h.includes("stock"));
+      const ordersIdx = headers.findIndex(h => h.includes("commande") || h === "orders");
+      const countryIdx = headers.findIndex(h => h.includes("country") || h === "pays" || h.includes("countrycode"));
+      const cityIdx = headers.findIndex(h => h.includes("ville") || h === "city");
+
+      if (cipIdx === -1 || wholesalerIdx === -1) {
+        toast.error("Le CSV doit contenir au minimum les colonnes 'cip' et 'grossiste'");
+        return;
+      }
+
+      // Parser les données
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(/[,;]/).map(v => v.trim());
+        if (values.length < 2) continue;
+
+        const row: any = {
+          productCip: values[cipIdx] || "",
+          wholesalerName: values[wholesalerIdx] || "",
+        };
+
+        if (nameIdx !== -1 && values[nameIdx]) row.productName = values[nameIdx];
+        if (salesIdx !== -1 && values[salesIdx]) {
+          const sales = parseInt(values[salesIdx].replace(/[^\d]/g, ""));
+          if (!isNaN(sales)) row.sales = sales;
+        }
+        if (stockIdx !== -1 && values[stockIdx]) {
+          const stock = parseInt(values[stockIdx].replace(/[^\d]/g, ""));
+          if (!isNaN(stock)) row.stock = stock;
+        }
+        if (ordersIdx !== -1 && values[ordersIdx]) {
+          const orders = parseInt(values[ordersIdx].replace(/[^\d]/g, ""));
+          if (!isNaN(orders)) row.orders = orders;
+        }
+        if (countryIdx !== -1 && values[countryIdx]) row.countryCode = values[countryIdx].toUpperCase();
+        if (cityIdx !== -1 && values[cityIdx]) row.city = values[cityIdx];
+
+        if (row.productCip && row.wholesalerName) {
+          rows.push(row);
+        }
+      }
+
+      setPreview(rows);
+      if (rows.length === 0) {
+        toast.error("Aucune donnée valide trouvée dans le fichier");
+      } else {
+        toast.success(`${rows.length} ligne(s) prête(s) à être importées`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (preview.length === 0) {
+      toast.error("Aucune donnée à importer");
+      return;
+    }
+
+    if (!agencyId) {
+      toast.error("Veuillez sélectionner une agence");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await apiPost<{
+        success: boolean;
+        message: string;
+        created: number;
+        updated: number;
+        wholesalersCreated: number;
+        errors: string[];
+        error?: string;
+      }>("/api/import/sorties-locales-csv", {
+        year,
+        month,
+        agencyId,
+        data: preview,
+      });
+
+      if (result.success) {
+        toast.success(result.message);
+        onSuccess();
+        onClose();
+      } else {
+        toast.error(result.error || "Erreur lors de l'import");
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        console.error("Erreurs d'import:", result.errors);
+        toast.warning(`${result.errors.length} erreur(s) rencontrée(s). Voir la console.`);
+      }
+    } catch (error: any) {
+      console.error("Erreur d'import:", error);
+      toast.error(error.message || "Erreur lors de l'import");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "cip,nom,grossiste,ventes,stocks,commandes,countryCode,ville\n3400936000001,Paracétamol 500mg,CAMED,150,200,50,CI,Abidjan\n3400938000002,Ibuprofène 400mg,LABOREX MALI,120,180,30,ML,Bamako";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "template_import_sorties_locales.csv";
+    link.click();
+    toast.success("Modèle téléchargé");
+  };
+
+  return (
+    <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>Importer les sorties locales via CSV</DialogTitle>
+        <DialogDescription>
+          Importez les données de sorties locales. Les grossistes inexistants seront créés automatiquement.
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label>Agence *</Label>
+            <Select value={agencyId} onValueChange={setAgencyId}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Sélectionner" />
+              </SelectTrigger>
+              <SelectContent>
+                {agencies.map(a => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Année *</Label>
+            <Select value={year.toString()} onValueChange={v => setYear(parseInt(v))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map(y => (
+                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Mois *</Label>
+            <Select value={month.toString()} onValueChange={v => setMonth(parseInt(v))}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Label>Fichier CSV</Label>
+          <Input
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="mt-2"
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Colonnes requises : <b>cip</b>, <b>grossiste</b>. Colonnes optionnelles : nom, ventes, stocks, commandes, countryCode, ville
+          </p>
+        </div>
+
+        {file && preview.length > 0 && (
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">Aperçu ({preview.length} lignes)</h3>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-card sticky top-0">
+                  <tr className="border-b border-border">
+                    <th className="px-2 py-2 text-left font-medium">Code CIP</th>
+                    <th className="px-2 py-2 text-left font-medium">Produit</th>
+                    <th className="px-2 py-2 text-left font-medium">Grossiste</th>
+                    <th className="px-2 py-2 text-right font-medium">Ventes</th>
+                    <th className="px-2 py-2 text-right font-medium">Stocks</th>
+                    <th className="px-2 py-2 text-right font-medium">Commandes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.slice(0, 50).map((p, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="px-2 py-2 font-mono text-xs">{p.productCip}</td>
+                      <td className="px-2 py-2">{p.productName || "-"}</td>
+                      <td className="px-2 py-2">{p.wholesalerName}</td>
+                      <td className="px-2 py-2 text-right">{p.sales || 0}</td>
+                      <td className="px-2 py-2 text-right">{p.stock || 0}</td>
+                      <td className="px-2 py-2 text-right">{p.orders || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {preview.length > 50 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  ... et {preview.length - 50} autres lignes
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="ghost" size="sm" onClick={downloadTemplate}>
+          <Download className="h-3.5 w-3.5 mr-1.5" />Télécharger un modèle
+        </Button>
+        <Button variant="outline" onClick={onClose}>Annuler</Button>
+        <Button onClick={handleImport} disabled={loading || preview.length === 0 || !agencyId}>
+          <Upload className="h-3.5 w-3.5 mr-1.5" />
+          {loading ? "Import en cours..." : `Importer ${preview.length} ligne(s)`}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
