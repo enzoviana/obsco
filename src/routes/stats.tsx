@@ -23,6 +23,8 @@ interface AdvancedStats {
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Statistiques — OBCO" }] }),
   component: StatsPage,
+  // 💡 Ajoute cette option pour forcer le rendu uniquement côté client
+  ssr: false, 
   loader: () => {
     console.log("📦 Stats loader appelé");
     return null;
