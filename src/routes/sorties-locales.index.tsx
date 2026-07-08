@@ -80,6 +80,8 @@ function SortiesIndex() {
         params.append("agencyId", agencyId);
       }
 
+      console.log(`📊 Chargement des données: ${params.toString()}`);
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/sorties-locales?${params}`,
         {
@@ -91,13 +93,14 @@ function SortiesIndex() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log(`✅ Données chargées:`, Object.keys(data).length, "produits");
         setMonthlyDataByProduct(data);
       } else {
-        console.error("Erreur chargement données:", response.statusText);
+        console.error("❌ Erreur chargement données:", response.statusText);
         setMonthlyDataByProduct({});
       }
     } catch (error) {
-      console.error("Erreur chargement données:", error);
+      console.error("❌ Erreur chargement données:", error);
       setMonthlyDataByProduct({});
     } finally {
       setLoading(false);
@@ -791,6 +794,9 @@ function ImportSortiesDialog({
 
     setLoading(true);
     try {
+      console.log(`📤 Envoi de ${preview.length} lignes pour import (année: ${year}, mois: ${month}, agence: ${agencyId})`);
+      console.log("Aperçu des 3 premières lignes:", preview.slice(0, 3));
+
       const result = await apiPost<{
         success: boolean;
         message: string;
@@ -806,20 +812,24 @@ function ImportSortiesDialog({
         data: preview,
       });
 
+      console.log("📥 Résultat de l'import:", result);
+
       if (result.success) {
         toast.success(result.message);
-        onSuccess();
+        console.log("🔄 Rechargement des données...");
+        await onSuccess();
+        console.log("✅ Données rechargées");
         onClose();
       } else {
         toast.error(result.error || "Erreur lors de l'import");
       }
 
       if (result.errors && result.errors.length > 0) {
-        console.error("Erreurs d'import:", result.errors);
+        console.error("❌ Erreurs d'import:", result.errors);
         toast.warning(`${result.errors.length} erreur(s) rencontrée(s). Voir la console.`);
       }
     } catch (error: any) {
-      console.error("Erreur d'import:", error);
+      console.error("❌ Erreur d'import:", error);
       toast.error(error.message || "Erreur lors de l'import");
     } finally {
       setLoading(false);

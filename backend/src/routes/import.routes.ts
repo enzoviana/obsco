@@ -364,6 +364,8 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
 
     const { year, month, agencyId, data } = parsed.data;
 
+    console.log(`📥 Import CSV - ${data.length} lignes reçues pour ${year}/${month}, agence: ${agencyId}`);
+
     // Vérifier que l'agence existe
     const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
     if (!agency) {
@@ -433,7 +435,30 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
           wholesalerCache.set(row.wholesalerName, wholesalerId);
         }
 
+        // Vérifier si le produit existe
+        const productExists = await prisma.product.findUnique({
+          where: { cip: row.productCip },
+        });
+
+        if (!productExists) {
+          console.log(`⚠️ Produit CIP ${row.productCip} introuvable - création ignorée`);
+          results.errors.push(`Produit CIP ${row.productCip} introuvable dans la base de données`);
+          continue;
+        }
+
         // Upsert les données mensuelles
+        const existingData = await prisma.monthlyData.findUnique({
+          where: {
+            agencyId_productCip_wholesalerId_year_month: {
+              agencyId,
+              productCip: row.productCip,
+              wholesalerId,
+              year,
+              month,
+            },
+          },
+        });
+
         await prisma.monthlyData.upsert({
           where: {
             agencyId_productCip_wholesalerId_year_month: {
@@ -462,7 +487,13 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
           },
         });
 
-        results.updated++;
+        if (existingData) {
+          results.updated++;
+          console.log(`✏️ Mise à jour: ${row.productCip} / ${row.wholesalerName} - ventes:${row.sales}, stocks:${row.stock}, cmds:${row.orders}`);
+        } else {
+          results.created++;
+          console.log(`✅ Création: ${row.productCip} / ${row.wholesalerName} - ventes:${row.sales}, stocks:${row.stock}, cmds:${row.orders}`);
+        }
       } catch (error: any) {
         results.errors.push(
           `Erreur pour ${row.productCip} / ${row.wholesalerName}: ${error.message || "Erreur inconnue"}`
@@ -470,9 +501,11 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
       }
     }
 
+    console.log(`✅ Import terminé: ${results.created} créées, ${results.updated} mises à jour, ${results.wholesalersCreated} grossistes créés, ${results.errors.length} erreurs`);
+
     res.json({
       success: true,
-      message: `Import terminé: ${results.updated} entrées créées/mises à jour, ${results.wholesalersCreated} grossistes créés`,
+      message: `Import terminé: ${results.created} créées, ${results.updated} mises à jour, ${results.wholesalersCreated} grossistes créés`,
       ...results,
     });
   } catch (error) {
