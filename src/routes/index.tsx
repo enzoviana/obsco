@@ -35,8 +35,10 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const navigate = useNavigate();
   const user = useUser();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined") {
       const currentUser = getUser();
       if (!currentUser) {
@@ -47,7 +49,14 @@ function Dashboard() {
     }
   }, [navigate, user]);
 
-  if (!user) return null;
+  if (!mounted || !user) return (
+    <AppShell title="Tableau de bord" subtitle="Chargement...">
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    </AppShell>
+  );
+
   return user.role === "admin" ? <AdminDash /> : <PharmacyDash />;
 }
 
@@ -57,22 +66,35 @@ function PharmacyDash() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const loadDashboardStats = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/dashboard-stats`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
-            },
-          }
-        );
+        const token = localStorage.getItem("obco_token");
+        if (!token) {
+          console.error("❌ Pas de token");
+          setLoading(false);
+          return;
+        }
+
+        const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+        console.log(`📡 Appel API: ${apiUrl}/api/import/dashboard-stats`);
+
+        const response = await fetch(`${apiUrl}/api/import/dashboard-stats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log(`📡 Réponse API: ${response.status}`);
+
         if (response.ok) {
           const data = await response.json();
           console.log("📊 Stats dashboard reçues:", data);
           setDashStats(data);
         } else {
-          console.error("❌ Erreur API dashboard-stats:", response.status);
+          const text = await response.text();
+          console.error("❌ Erreur API dashboard-stats:", response.status, text);
         }
       } catch (error) {
         console.error("❌ Erreur chargement stats:", error);
@@ -342,22 +364,35 @@ function AdminDash() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const loadDashboardStats = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/dashboard-stats`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
-            },
-          }
-        );
+        const token = localStorage.getItem("obco_token");
+        if (!token) {
+          console.error("❌ Pas de token");
+          setLoading(false);
+          return;
+        }
+
+        const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+        console.log(`📡 Appel API Admin: ${apiUrl}/api/import/dashboard-stats`);
+
+        const response = await fetch(`${apiUrl}/api/import/dashboard-stats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log(`📡 Réponse API Admin: ${response.status}`);
+
         if (response.ok) {
           const data = await response.json();
           console.log("📊 Stats dashboard Admin reçues:", data);
           setDashStats(data);
         } else {
-          console.error("❌ Erreur API dashboard-stats:", response.status);
+          const text = await response.text();
+          console.error("❌ Erreur API dashboard-stats:", response.status, text);
         }
       } catch (error) {
         console.error("❌ Erreur chargement stats:", error);
