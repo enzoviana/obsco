@@ -23,8 +23,7 @@ interface AdvancedStats {
 export const Route = createFileRoute("/stats")({
   head: () => ({ meta: [{ title: "Statistiques — OBCO" }] }),
   component: StatsPage,
-  // 💡 Ajoute cette option pour forcer le rendu uniquement côté client
-  ssr: false, 
+  ssr: false, // 💡 Ajoute cette ligne pour stopper le rendu serveur sur cette route
   loader: () => {
     console.log("📦 Stats loader appelé");
     return null;
@@ -39,26 +38,8 @@ function StatsPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdvancedStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    console.log("✅ Premier useEffect: setMounted(true)");
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    console.log("🔍 Deuxième useEffect: mounted =", mounted);
-
-    if (!mounted) {
-      console.log("⏸️ mounted = false, on attend...");
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      console.log("⏸️ window undefined, on attend...");
-      return;
-    }
-
     console.log("🔍 Stats Page: Vérification utilisateur...");
 
     const user = getUser();
@@ -76,7 +57,7 @@ function StatsPage() {
       try {
         const token = localStorage.getItem("obco_token");
         if (!token) {
-          console.error("❌ Pas de token");
+          console.error("❌ Pas de token disponible dans le localStorage");
           setLoading(false);
           return;
         }
@@ -84,7 +65,7 @@ function StatsPage() {
         const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
         console.log(`📡 Appel API: ${apiUrl}/api/import/advanced-stats`);
 
-        const response = await fetch(`https://evening-sierra-79086-961c10c199fc.herokuapp.com/api/import/advanced-stats`, {
+        const response = await fetch(`${apiUrl}/api/import/advanced-stats`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -99,16 +80,16 @@ function StatsPage() {
           console.error("❌ Erreur API advanced-stats:", response.status, text);
         }
       } catch (error) {
-        console.error("❌ Erreur chargement stats:", error);
+        console.error("❌ Erreur lors du chargement des statistiques:", error);
       } finally {
         setLoading(false);
       }
     };
 
     loadStats();
-  }, [mounted, navigate]);
+  }, [navigate]);
 
-  // Sécurisation du traitement des données pour éviter les crashs SSR
+  // Traitement sécurisé des données pour les graphiques
   const statusDist = useMemo(() => {
     if (!stats || !stats.statusDist) return [];
     return stats.statusDist.map(s => ({
@@ -120,16 +101,7 @@ function StatsPage() {
     }));
   }, [stats]);
 
-  if (!mounted) {
-    return (
-      <AppShell title="Statistiques & Analyses" subtitle="Initialisation...">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Initialisation...</div>
-        </div>
-      </AppShell>
-    );
-  }
-
+  // Écran de chargement principal (géré uniquement côté client maintenant)
   if (loading || !stats) {
     return (
       <AppShell title="Statistiques & Analyses" subtitle="Chargement...">
@@ -156,6 +128,7 @@ function StatsPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-12">
+        {/* Évolution des stocks */}
         <div className="bento-card md:col-span-8">
           <h3 className="text-base font-semibold">Évolution des stocks — 6 derniers mois</h3>
           <p className="text-xs text-muted-foreground">Tendance globale (unités)</p>
@@ -180,6 +153,7 @@ function StatsPage() {
           </div>
         </div>
 
+        {/* Répartition par statut */}
         <div className="bento-card md:col-span-4">
           <h3 className="text-base font-semibold">Répartition par statut</h3>
           <p className="text-xs text-muted-foreground">État des stocks</p>
@@ -198,6 +172,7 @@ function StatsPage() {
           </div>
         </div>
 
+        {/* Top catégories par valeur */}
         <div className="bento-card md:col-span-7">
           <h3 className="text-base font-semibold">Top catégories par valeur</h3>
           <p className="text-xs text-muted-foreground">Valeur stock en k€</p>
@@ -216,6 +191,7 @@ function StatsPage() {
           </div>
         </div>
 
+        {/* Top laboratoires */}
         <div className="bento-card md:col-span-5">
           <h3 className="text-base font-semibold">Top laboratoires</h3>
           <p className="text-xs text-muted-foreground">Volume de stock</p>
@@ -234,6 +210,7 @@ function StatsPage() {
           </div>
         </div>
 
+        {/* Évolution des ventes */}
         <div className="bento-card md:col-span-12">
           <h3 className="text-base font-semibold">Évolution des ventes — 6 derniers mois</h3>
           <p className="text-xs text-muted-foreground">Unités vendues mensuellement</p>
