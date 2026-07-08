@@ -556,6 +556,152 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
 });
 
 /**
+ * GET /api/import/dashboard-stats
+ * Récupérer les statistiques pour le tableau de bord
+ */
+importRouter.get("/dashboard-stats", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+
+    // Récupérer les données des 6 derniers mois
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    let whereClause: any = {};
+
+    // Filtrer par agence pour les utilisateurs non-admin
+    if (user.role !== "super_admin" && user.agencyId) {
+      whereClause.agencyId = user.agencyId;
+    }
+
+    // Données mensuelles
+    const monthlyData = await prisma.monthlyData.findMany({
+      where: whereClause,
+    });
+
+    // Récupérer les produits et grossistes séparément
+    const productCips = Array.from(new Set(monthlyData.map(d => d.productCip)));
+    const wholesalerIds = Array.from(new Set(monthlyData.map(d => d.wholesalerId)));
+
+    const products = await prisma.product.findMany({
+      where: { cip: { in: productCips } },
+    });
+
+    const wholesalers = await prisma.wholesaler.findMany({
+      where: { id: { in: wholesalerIds } },
+    });
+
+    const productMap = new Map(products.map(p => [p.cip, p]));
+    const wholesalerMap = new Map(wholesalers.map(w => [w.id, w]));
+
+    // Calculer les statistiques
+    let totalSales = 0;
+    let totalStock = 0;
+    let totalOrders = 0;
+    let totalInventoryValue = 0;
+
+    const productStats = new Map<string, { sales: number; stock: number; orders: number; name: string }>();
+    const wholesalerStats = new Map<string, { sales: number; stock: number; name: string }>();
+    const monthlyTrends: Record<string, { sales: number; stock: number; orders: number }> = {};
+
+    for (const data of monthlyData) {
+      totalSales += data.sales;
+      totalStock += data.stock;
+      totalOrders += data.orders;
+
+      const product = productMap.get(data.productCip);
+      const productPrice = product?.basePrice || 0;
+      totalInventoryValue += data.stock * productPrice;
+
+      // Stats par produit
+      if (!productStats.has(data.productCip)) {
+        productStats.set(data.productCip, {
+          sales: 0,
+          stock: 0,
+          orders: 0,
+          name: product?.name || data.productCip,
+        });
+      }
+      const pStats = productStats.get(data.productCip)!;
+      pStats.sales += data.sales;
+      pStats.stock += data.stock;
+      pStats.orders += data.orders;
+
+      // Stats par grossiste
+      if (!wholesalerStats.has(data.wholesalerId)) {
+        const wholesaler = wholesalerMap.get(data.wholesalerId);
+        wholesalerStats.set(data.wholesalerId, {
+          sales: 0,
+          stock: 0,
+          name: wholesaler?.name || data.wholesalerId,
+        });
+      }
+      const wStats = wholesalerStats.get(data.wholesalerId)!;
+      wStats.sales += data.sales;
+      wStats.stock += data.stock;
+
+      // Tendances mensuelles
+      const monthKey = `${data.year}-${String(data.month).padStart(2, "0")}`;
+      if (!monthlyTrends[monthKey]) {
+        monthlyTrends[monthKey] = { sales: 0, stock: 0, orders: 0 };
+      }
+      monthlyTrends[monthKey].sales += data.sales;
+      monthlyTrends[monthKey].stock += data.stock;
+      monthlyTrends[monthKey].orders += data.orders;
+    }
+
+    // Top 5 produits par ventes
+    const topProducts = Array.from(productStats.entries())
+      .sort((a, b) => b[1].sales - a[1].sales)
+      .slice(0, 5)
+      .map(([cip, stats]) => ({ cip, ...stats }));
+
+    // Top 5 grossistes par ventes
+    const topWholesalers = Array.from(wholesalerStats.entries())
+      .sort((a, b) => b[1].sales - a[1].sales)
+      .slice(0, 5)
+      .map(([id, stats]) => ({ id, ...stats }));
+
+    // Produits avec stock bas
+    const lowStockProducts = Array.from(productStats.entries())
+      .filter(([_, stats]) => stats.stock < 50)
+      .sort((a, b) => a[1].stock - b[1].stock)
+      .slice(0, 10)
+      .map(([cip, stats]) => ({ cip, ...stats }));
+
+    // Tendances formatées
+    const trends = Object.entries(monthlyTrends)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, data]) => ({ month, ...data }));
+
+    // Compter les agences
+    const agencyCount = user.role === "super_admin"
+      ? await prisma.agency.count()
+      : 1;
+
+    res.json({
+      totals: {
+        sales: totalSales,
+        stock: totalStock,
+        orders: totalOrders,
+        inventoryValue: totalInventoryValue,
+        agencies: agencyCount,
+        products: productStats.size,
+        wholesalers: wholesalerStats.size,
+      },
+      topProducts,
+      topWholesalers,
+      lowStockProducts,
+      trends,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des stats:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+  }
+});
+
+/**
  * GET /api/import/sorties-locales
  * Récupérer les données pour le module Sorties Locales
  * Paramètres query:
