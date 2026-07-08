@@ -82,7 +82,7 @@ function StatsPage() {
         const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
         console.log(`📡 Appel API: ${apiUrl}/api/import/advanced-stats`);
 
-        const response = await fetch(`${apiUrl}/api/import/advanced-stats`, {
+        const response = await fetch(`https://evening-sierra-79086-961c10c199fc.herokuapp.com/api/import/advanced-stats`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
