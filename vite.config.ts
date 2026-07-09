@@ -1,9 +1,3 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
-//     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
-//     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
@@ -15,5 +9,11 @@ export default defineConfig({
   // On indique explicitement à Nitro de compiler pour Vercel
   nitro: {
     preset: "vercel"
-  }
+  },
+  // 💡 On passe la configuration par l'objet vite, ce qui résout l'erreur TypeScript
+  vite: {
+    ssr: {
+      noExternal: ["@radix-ui/react-dialog", "@radix-ui/react-slot", "tslib"],
+    },
+  },
 });
