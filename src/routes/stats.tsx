@@ -31,6 +31,7 @@ export const Route = createFileRoute("/stats")({
 });
 
 const COLORS = ["var(--color-primary)", "oklch(0.72 0.1 158)", "oklch(0.5 0.12 200)", "var(--color-warning)", "var(--color-destructive)", "oklch(0.55 0.04 200)"];
+console.log("📦 Module /stats chargé");
 
 function StatsPage() {
   console.log("🎯 StatsPage component rendered");
