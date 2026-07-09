@@ -18,7 +18,40 @@ countriesRouter.patch("/:code", requireRole("super_admin"), async (req, res) => 
   res.json(await prisma.country.update({ where: { code: req.params.code }, data: req.body }));
 });
 countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) => {
-  await prisma.country.delete({ where: { code: req.params.code } }); res.status(204).end();
+  try {
+    const countryCode = req.params.code;
+    console.log(`🗑️ Attempting to delete country: ${countryCode}`);
+
+    // Check for foreign key references
+    const [agenciesCount, labsCount, wholesalersCount] = await Promise.all([
+      prisma.agency.count({ where: { countryCode } }),
+      prisma.laboratory.count({ where: { countryCode } }),
+      prisma.wholesaler.count({ where: { countryCode } }),
+    ]);
+
+    if (agenciesCount > 0 || labsCount > 0 || wholesalersCount > 0) {
+      const references = [];
+      if (agenciesCount > 0) references.push(`${agenciesCount} agence(s)`);
+      if (labsCount > 0) references.push(`${labsCount} laboratoire(s)`);
+      if (wholesalersCount > 0) references.push(`${wholesalersCount} grossiste(s)`);
+
+      console.log(`❌ Cannot delete country ${countryCode}: has references in ${references.join(", ")}`);
+
+      return res.status(400).json({
+        error: `Impossible de supprimer ce pays : il est référencé par ${references.join(", ")}. Supprimez ou modifiez d'abord ces entités.`
+      });
+    }
+
+    // Safe to delete
+    await prisma.country.delete({ where: { code: countryCode } });
+    console.log(`✅ Country ${countryCode} deleted successfully`);
+    res.status(204).end();
+  } catch (error) {
+    console.error("❌ Error deleting country:", error);
+    return res.status(500).json({
+      error: "Erreur lors de la suppression du pays"
+    });
+  }
 });
 
 export const agenciesRouter = Router();

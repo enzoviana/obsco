@@ -26,7 +26,33 @@ router.post("/", requireRole("super_admin"), async (req, res) => {
 });
 
 router.patch("/:id", requireRole("super_admin"), async (req, res) => {
-  res.json(await prisma.laboratory.update({ where: { id: req.params.id }, data: req.body }));
+  try {
+    console.log(`📝 Updating laboratory ${req.params.id} with data:`, req.body);
+
+    // Validate with partial schema (allow partial updates)
+    const data = labSchema.partial().parse(req.body);
+
+    const updated = await prisma.laboratory.update({
+      where: { id: req.params.id },
+      data
+    });
+
+    console.log(`✅ Laboratory ${req.params.id} updated successfully:`, updated);
+    res.json(updated);
+  } catch (error) {
+    console.error(`❌ Error updating laboratory ${req.params.id}:`, error);
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: "Données invalides",
+        details: error.errors
+      });
+    }
+
+    return res.status(500).json({
+      error: "Erreur lors de la mise à jour du laboratoire"
+    });
+  }
 });
 
 router.delete("/:id", requireRole("super_admin"), async (req, res) => {
