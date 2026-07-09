@@ -13,7 +13,15 @@ export default defineConfig({
   // 💡 On passe la configuration par l'objet vite, ce qui résout l'erreur TypeScript
   vite: {
     ssr: {
-      noExternal: ["@radix-ui/react-dialog", "@radix-ui/react-slot", "tslib"],
+      // Force tous les packages Radix UI et leurs dépendances à être bundlés avec le code SSR
+      noExternal: [
+        /@radix-ui\/.*/,
+        "tslib",
+        "recharts",
+      ],
+    },
+    optimizeDeps: {
+      include: ["tslib"],
     },
   },
 });
