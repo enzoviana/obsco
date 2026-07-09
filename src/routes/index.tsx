@@ -240,7 +240,7 @@ function PharmacyDash() {
 
         <TopProducts products={dashStats?.topProducts || []} />
         <TopWholesalers wholesalers={dashStats?.topWholesalers || []} />
-        <TopLowStock products={dashStats?.lowStockProducts || []} />
+        
       </div>
 
       <ImportModal open={open} onOpenChange={setOpen} />
@@ -314,50 +314,7 @@ function TopWholesalers({ wholesalers }: { wholesalers: Array<{ id: string; name
   );
 }
 
-function TopLowStock({ products }: { products: Array<{ cip: string; name: string; sales: number; stock: number; orders: number }> }) {
-  return (
-    <div className="bento-card md:col-span-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold">Produits avec stock bas</h3>
-        <Button variant="ghost" size="sm" className="text-xs" asChild>
-          <a href="/sorties-locales">Voir tous →</a>
-        </Button>
-      </div>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
-              <th className="py-2.5 text-left font-medium">Code CIP</th>
-              <th className="py-2.5 text-left font-medium">Produit</th>
-              <th className="py-2.5 text-right font-medium">Stock</th>
-              <th className="py-2.5 text-right font-medium">Ventes</th>
-              <th className="py-2.5 text-right font-medium">Commandes</th>
-              <th className="py-2.5 text-right font-medium">Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.slice(0, 6).map(p => (
-              <tr key={p.cip} className="border-b border-border/60 last:border-0 hover:bg-surface/40">
-                <td className="py-3 font-mono text-xs text-muted-foreground">{p.cip}</td>
-                <td className="py-3 font-medium">{p.name}</td>
-                <td className="py-3 text-right tabular-nums">
-                  <span className={p.stock < 20 ? "text-destructive font-semibold" : p.stock < 50 ? "text-warning" : ""}>
-                    {p.stock}
-                  </span>
-                </td>
-                <td className="py-3 text-right tabular-nums text-muted-foreground">{p.sales.toLocaleString("fr-FR")}</td>
-                <td className="py-3 text-right tabular-nums text-muted-foreground">{p.orders.toLocaleString("fr-FR")}</td>
-                <td className="py-3 text-right">
-                  <StatusBadge status={p.stock === 0 ? "rupture" : p.stock < 20 ? "critical" : "low"} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+
 
 function AdminDash() {
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
@@ -485,7 +442,7 @@ function AdminDash() {
 
         <TopProducts products={dashStats?.topProducts || []} />
         <TopWholesalers wholesalers={dashStats?.topWholesalers || []} />
-        <TopLowStock products={dashStats?.lowStockProducts || []} />
+       
 
         {agencies.length > 0 && (
           <div className="bento-card md:col-span-12">
