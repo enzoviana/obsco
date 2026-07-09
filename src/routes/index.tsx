@@ -30,32 +30,31 @@ interface DashboardStats {
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Tableau de bord — OBCO" }] }),
   component: Dashboard,
+  ssr: false, // Désactiver SSR pour éviter les problèmes avec les graphiques
 });
 
 function Dashboard() {
   const navigate = useNavigate();
   const user = useUser();
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    if (typeof window !== "undefined") {
-      const currentUser = getUser();
-      if (!currentUser) {
-        navigate({ to: "/login" });
-      } else if (currentUser.mustChangePassword) {
-        navigate({ to: "/change-password" });
-      }
+    const currentUser = getUser();
+    if (!currentUser) {
+      navigate({ to: "/login" });
+    } else if (currentUser.mustChangePassword) {
+      navigate({ to: "/change-password" });
     }
-  }, [navigate, user]);
+  }, [navigate]);
 
-  if (!mounted || !user) return (
-    <AppShell title="Tableau de bord" subtitle="Chargement...">
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Chargement...</div>
-      </div>
-    </AppShell>
-  );
+  if (!user) {
+    return (
+      <AppShell title="Tableau de bord" subtitle="Chargement...">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Chargement...</div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return user.role === "admin" ? <AdminDash /> : <PharmacyDash />;
 }
@@ -64,16 +63,8 @@ function PharmacyDash() {
   const [open, setOpen] = useState(false);
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (typeof window === "undefined") return;
-
     console.log("🔍 Dashboard Pharmacy: Chargement des stats...");
 
     const loadDashboardStats = async () => {
@@ -111,17 +102,7 @@ function PharmacyDash() {
       }
     };
     loadDashboardStats();
-  }, [mounted]);
-
-  if (!mounted) {
-    return (
-      <AppShell title="Tableau de bord" subtitle="Initialisation...">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Initialisation...</div>
-        </div>
-      </AppShell>
-    );
-  }
+  }, []);
 
   if (loading) {
     return (
@@ -382,16 +363,8 @@ function AdminDash() {
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (typeof window === "undefined") return;
-
     console.log("🔍 Dashboard Admin: Chargement des stats...");
 
     const loadDashboardStats = async () => {
