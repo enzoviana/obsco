@@ -2,26 +2,31 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // On indique explicitement à Nitro de compiler pour Vercel
+
   nitro: {
-    preset: "vercel"
+    preset: "vercel",
   },
-  // 💡 On passe la configuration par l'objet vite, ce qui résout l'erreur TypeScript
+
   vite: {
     ssr: {
-      // Force tous les packages Radix UI et leurs dépendances à être bundlés avec le code SSR
       noExternal: [
-        /@radix-ui\/.*/,
         "tslib",
-        "recharts",
+        /^@radix-ui\/.*/,
+        /^react-remove-scroll.*/,
+        /^aria-hidden$/,
+        /^use-sidecar$/,
+        /^use-callback-ref$/,
+        /^react-style-singleton$/,
       ],
     },
+
     optimizeDeps: {
-      include: ["tslib"],
+      include: [
+        "tslib",
+        "@radix-ui/react-dialog",
+      ],
     },
   },
 });

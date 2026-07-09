@@ -228,32 +228,6 @@ var Earth = createLucideIcon("earth", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Ellipsis = createLucideIcon("ellipsis", [
-	["circle", {
-		cx: "12",
-		cy: "12",
-		r: "1",
-		key: "41hilf"
-	}],
-	["circle", {
-		cx: "19",
-		cy: "12",
-		r: "1",
-		key: "1wjl8i"
-	}],
-	["circle", {
-		cx: "5",
-		cy: "12",
-		r: "1",
-		key: "1pcz8c"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var FileChartColumn = createLucideIcon("file-chart-column", [
 	["path", {
 		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
@@ -331,19 +305,6 @@ var ArrowRight = createLucideIcon("arrow-right", [["path", {
 }], ["path", {
 	d: "m12 5 7 7-7 7",
 	key: "xquz4c"
-}]]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
-var ArrowUpRight = createLucideIcon("arrow-up-right", [["path", {
-	d: "M7 7h10v10",
-	key: "1tivn9"
-}], ["path", {
-	d: "M7 17 17 7",
-	key: "1vkiza"
 }]]);
 /**
 * @license lucide-react v0.575.0 - ISC
@@ -1296,4 +1257,4 @@ var Zap = createLucideIcon("zap", [["path", {
 	key: "1xq2db"
 }]]);
 //#endregion
-export { FileChartColumn as $, Globe as A, ChevronLeft as B, Package as C, LogOut as D, Mail as E, Download as F, Boxes as G, Check as H, Copy as I, ArrowUpRight as J, Bell as K, Circle as L, FlaskConical as M, FileSpreadsheet as N, Lock as O, Eye as P, TriangleAlert as Q, ChevronUp as R, Palette as S, MapPin as T, Building as U, ChevronDown as V, Building2 as W, ArrowLeft as X, ArrowRight as Y, Activity as Z, Save as _, User as a, ChartColumn as at, Phone as b, TrendingUp as c, Tag as d, Ellipsis as et, Store as f, Search as g, Settings as h, Users as i, CircleAlert as it, FolderOpen as j, LayoutDashboard as k, Trash2 as l, ShieldCheck as m, X as n, CloudUpload as nt, Upload as o, SlidersHorizontal as p, Ban as q, Wallet as r, CircleCheck as rt, Truck as s, Zap as t, Earth as tt, Target as u, Plus as v, PackageOpen as w, Pencil as x, Play as y, ChevronRight as z };
+export { Earth as $, Globe as A, ChevronLeft as B, Package as C, LogOut as D, Mail as E, Download as F, Boxes as G, Check as H, Copy as I, ArrowRight as J, Bell as K, Circle as L, FlaskConical as M, FileSpreadsheet as N, Lock as O, Eye as P, FileChartColumn as Q, ChevronUp as R, Palette as S, MapPin as T, Building as U, ChevronDown as V, Building2 as W, Activity as X, ArrowLeft as Y, TriangleAlert as Z, Save as _, User as a, Phone as b, TrendingUp as c, Tag as d, CloudUpload as et, Store as f, Search as g, Settings as h, Users as i, FolderOpen as j, LayoutDashboard as k, Trash2 as l, ShieldCheck as m, X as n, CircleAlert as nt, Upload as o, SlidersHorizontal as p, Ban as q, Wallet as r, ChartColumn as rt, Truck as s, Zap as t, CircleCheck as tt, Target as u, Plus as v, PackageOpen as w, Pencil as x, Play as y, ChevronRight as z };
