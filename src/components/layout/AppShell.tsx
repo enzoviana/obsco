@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import {
-  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, Search, LogOut, ChevronDown, ChevronRight,
+  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, LogOut, ChevronDown, ChevronRight,
   FileBarChart2, Boxes, Upload, FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen, Target, Tag,
 } from "lucide-react";
 import { logout, setRole, useUser } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { SearchCommand } from "@/components/layout/SearchCommand";
 import Logo from "@/assets/Logo.svg";
 
 type LeafItem = {
@@ -137,11 +138,7 @@ export function AppShell({ children, title, subtitle, actions }: {
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-xl">
           <div className="flex items-center gap-4 px-6 py-4">
-            <div className="hidden md:flex flex-1 max-w-md items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
-              <Search className="h-4 w-4" />
-              <span>Rechercher un produit, une agence, un pays…</span>
-              <kbd className="ml-auto rounded border border-border bg-card px-1.5 py-0.5 text-[10px]">⌘K</kbd>
-            </div>
+            <SearchCommand />
 
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden sm:flex items-center rounded-xl border border-border bg-surface p-1 text-xs font-medium">
