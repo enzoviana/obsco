@@ -944,3 +944,217 @@ importRouter.get("/sorties-locales", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Erreur lors de la récupération des données" });
   }
 });
+/**
+ * GET /api/import/reports-data
+ * Récupérer toutes les données pour la page rapports (super admin)
+ */
+importRouter.get("/reports-data", requireAuth, requireRole("super_admin"), async (req, res) => {
+  try {
+    console.log("📊 Chargement des données rapports...");
+
+    // Récupérer tous les pays
+    const countries = await prisma.country.findMany({
+      orderBy: { name: "asc" },
+    });
+
+    // Récupérer toutes les agences
+    const agencies = await prisma.agency.findMany({
+      include: { country: true },
+      orderBy: { name: "asc" },
+    });
+
+    // Récupérer toutes les données mensuelles
+    const monthlyData = await prisma.monthlyData.findMany({});
+
+    // Créer un map des agences pour accès rapide
+    const agencyMap = new Map(agencies.map(a => [a.id, a]));
+
+    // Calculer les objectifs par pays
+    const objectivesByCountry = countries.map(country => {
+      const sales = monthlyData
+        .filter(m => {
+          const agency = agencyMap.get(m.agencyId);
+          return agency && agency.countryCode === country.code;
+        })
+        .reduce((sum, m) => sum + m.sales, 0);
+      
+      const objective = Math.round(sales * 1.2);
+      const rate = objective > 0 ? Math.round((sales / objective) * 100) : 0;
+
+      return {
+        code: country.code,
+        pays: country.name,
+        objectif: objective,
+        realise: sales,
+        taux: rate,
+      };
+    });
+
+    // Objectifs ANF sur 12 mois (derniers 6 mois)
+    const now = new Date();
+    const objectivesANF = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      const monthName = date.toLocaleDateString("fr-FR", { month: "short" });
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+
+      const sales = monthlyData
+        .filter(m => m.year === year && m.month === month)
+        .reduce((sum, m) => sum + m.sales, 0);
+
+      objectivesANF.push({
+        mois: monthName,
+        objectif: Math.round(sales * 1.2),
+        realise: sales,
+      });
+    }
+
+    // Ventes par unités par pays
+    const salesByUnits = countries.map(country => {
+      const units = monthlyData
+        .filter(m => {
+          const agency = agencyMap.get(m.agencyId);
+          return agency && agency.countryCode === country.code;
+        })
+        .reduce((sum, m) => sum + m.sales, 0);
+
+      return {
+        code: country.code,
+        pays: country.name,
+        unites: units,
+      };
+    });
+
+    // Ventes par CA par pays (en supposant un prix moyen de 10€)
+    const salesByRevenue = countries.map(country => {
+      const units = monthlyData
+        .filter(m => {
+          const agency = agencyMap.get(m.agencyId);
+          return agency && agency.countryCode === country.code;
+        })
+        .reduce((sum, m) => sum + m.sales, 0);
+
+      return {
+        code: country.code,
+        pays: country.name,
+        ca: units * 10,
+      };
+    });
+
+    // Évolution CA par mois (derniers 6 mois)
+    const evolutionCA: Record<string, string | number>[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      const monthName = date.toLocaleDateString("fr-FR", { month: "short" });
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+
+      const row: Record<string, string | number> = { mois: monthName };
+
+      for (const country of countries) {
+        const sales = monthlyData
+          .filter(m => {
+            const agency = agencyMap.get(m.agencyId);
+            return (
+              m.year === year &&
+              m.month === month &&
+              agency &&
+              agency.countryCode === country.code
+            );
+          })
+          .reduce((sum, m) => sum + m.sales, 0);
+
+        row[country.code] = sales * 10;
+      }
+
+      evolutionCA.push(row);
+    }
+
+    // Évolution unités par mois
+    const evolutionUN: Record<string, string | number>[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - i);
+      const monthName = date.toLocaleDateString("fr-FR", { month: "short" });
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+
+      const row: Record<string, string | number> = { mois: monthName };
+
+      for (const country of countries) {
+        const sales = monthlyData
+          .filter(m => {
+            const agency = agencyMap.get(m.agencyId);
+            return (
+              m.year === year &&
+              m.month === month &&
+              agency &&
+              agency.countryCode === country.code
+            );
+          })
+          .reduce((sum, m) => sum + m.sales, 0);
+
+        row[country.code] = sales;
+      }
+
+      evolutionUN.push(row);
+    }
+
+    // Situation des stocks
+    const stockSituation = countries.map(country => {
+      const stock = monthlyData
+        .filter(m => {
+          const agency = agencyMap.get(m.agencyId);
+          return agency && agency.countryCode === country.code;
+        })
+        .reduce((sum, m) => sum + m.stock, 0);
+
+      const orders = monthlyData
+        .filter(m => {
+          const agency = agencyMap.get(m.agencyId);
+          return agency && agency.countryCode === country.code;
+        })
+        .reduce((sum, m) => sum + m.orders, 0);
+
+      const seuil = Math.round(stock * 0.3);
+      const couverture = Math.round(stock / 30);
+
+      return {
+        code: country.code,
+        pays: country.name,
+        stock,
+        enCours: orders,
+        total: stock + orders,
+        seuil,
+        couverture,
+      };
+    });
+
+    console.log(`✅ Données rapports calculées: ${countries.length} pays, ${agencies.length} agences`);
+
+    res.json({
+      countries,
+      agencies: agencies.map(a => ({
+        id: a.id,
+        name: a.name,
+        country: a.countryCode,
+        city: a.city,
+        email: a.email,
+        manager: a.manager,
+      })),
+      objectivesByCountry,
+      objectivesANF,
+      salesByUnits,
+      salesByRevenue,
+      evolutionCA,
+      evolutionUN,
+      stockSituation,
+    });
+  } catch (error) {
+    console.error("❌ Erreur lors du chargement des données rapports:", error);
+    res.status(500).json({ error: "Erreur lors du chargement des données rapports" });
+  }
+});
