@@ -294,6 +294,130 @@ stocksRouter.get("/", async (req, res) => {
   if (req.query.productId) where.productId = String(req.query.productId);
   res.json(await prisma.supplierStock.findMany({ where, include: { product: true, wholesaler: true } }));
 });
+
+// GET /api/stocks/agency - Get stock view for agency users
+stocksRouter.get("/agency", async (req, res) => {
+  try {
+    // Only allow agency users or super_admin viewing a specific agency
+    const agencyId = req.user!.role === "agence" ? req.user!.agencyId : req.query.agencyId as string | undefined;
+
+    if (!agencyId) {
+      return res.status(400).json({ error: "agencyId requis" });
+    }
+
+    // Get the most recent month with data for this agency
+    const latestData = await prisma.monthlyData.findFirst({
+      where: { agencyId },
+      orderBy: [{ year: "desc" }, { month: "desc" }],
+      select: { year: true, month: true },
+    });
+
+    if (!latestData) {
+      // No data yet, return empty result
+      return res.json({
+        products: [],
+        stats: { total: 0, value: 0, lowStock: 0, ruptures: 0 },
+        latestPeriod: null,
+      });
+    }
+
+    // Get all products with their aggregated stock for the latest period
+    const monthlyData = await prisma.monthlyData.findMany({
+      where: {
+        agencyId,
+        year: latestData.year,
+        month: latestData.month,
+      },
+    });
+
+    // Get all products
+    const products = await prisma.product.findMany({});
+    const productMap = new Map(products.map(p => [p.cip, p]));
+
+    // Get prices for products
+    const agency = await prisma.agency.findUnique({
+      where: { id: agencyId },
+      select: { countryCode: true },
+    });
+
+    const prices = agency ? await prisma.productPrice.findMany({
+      where: { countryCode: agency.countryCode },
+    }) : [];
+
+    const priceMap = new Map(prices.map(p => [p.productId, p.price]));
+
+    // Aggregate stock by product CIP
+    const stockByProduct = new Map<string, { stock: number; sales: number }>();
+
+    for (const data of monthlyData) {
+      const existing = stockByProduct.get(data.productCip) || { stock: 0, sales: 0 };
+      existing.stock += data.stock;
+      existing.sales += data.sales;
+      stockByProduct.set(data.productCip, existing);
+    }
+
+    // Build product list with stock info
+    const productsWithStock = [];
+    let totalValue = 0;
+    let lowStockCount = 0;
+    let ruptureCount = 0;
+
+    for (const [cip, stockInfo] of stockByProduct) {
+      const product = productMap.get(cip);
+      if (!product) continue;
+
+      const price = priceMap.get(product.id) || product.basePrice || 0;
+      const stock = stockInfo.stock;
+
+      // Determine threshold (10% of monthly sales, min 10 units)
+      const threshold = Math.max(10, Math.round(stockInfo.sales * 0.1));
+
+      // Determine status
+      let status = "ok";
+      if (stock === 0) {
+        status = "rupture";
+        ruptureCount++;
+      } else if (stock < threshold * 0.3) {
+        status = "critical";
+        lowStockCount++;
+      } else if (stock < threshold) {
+        status = "low";
+        lowStockCount++;
+      }
+
+      totalValue += stock * price;
+
+      productsWithStock.push({
+        id: product.id,
+        cip: product.cip,
+        name: product.name,
+        category: product.category,
+        laboratory: product.laboratory,
+        stock,
+        threshold,
+        price,
+        status,
+        // Mock expiry date (could be added to schema later)
+        expiry: "N/A",
+      });
+    }
+
+    res.json({
+      products: productsWithStock,
+      stats: {
+        total: productsWithStock.length,
+        value: totalValue,
+        lowStock: lowStockCount,
+        ruptures: ruptureCount,
+      },
+      latestPeriod: { year: latestData.year, month: latestData.month },
+    });
+  } catch (error) {
+    console.error("❌ Erreur lors de la récupération des stocks agence:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération des stocks" });
+  }
+});
+
 stocksRouter.put("/", requireRole("super_admin"), async (req, res) => {
   const s = z.object({
     wholesalerId: z.string(), productId: z.string(),

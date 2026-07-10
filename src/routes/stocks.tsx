@@ -4,12 +4,12 @@ import { Search, Download, Upload, ChevronLeft, ChevronRight, SlidersHorizontal 
 import { AppShell, StatusBadge } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getAllProducts, productStats } from "@/lib/products";
 import { getUser } from "@/lib/auth";
 import { ImportModal } from "@/components/dashboard/ImportModal";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/stocks")({
   head: () => ({ meta: [{ title: "Stocks — OBCO" }] }),
@@ -18,18 +18,74 @@ export const Route = createFileRoute("/stocks")({
 
 const PAGE_SIZE = 50;
 
+type Product = {
+  id: string;
+  cip: string;
+  name: string;
+  category: string;
+  laboratory: string;
+  stock: number;
+  threshold: number;
+  price: number;
+  expiry: string;
+  status: string;
+};
+
+type StockStats = {
+  total: number;
+  value: number;
+  lowStock: number;
+  ruptures: number;
+};
+
 function StocksPage() {
   const navigate = useNavigate();
-  useEffect(() => { if (typeof window !== "undefined" && !getUser()) navigate({ to: "/login" }); }, [navigate]);
-
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [all, setAll] = useState<Product[]>([]);
+  const [stats, setStats] = useState<StockStats>({ total: 0, value: 0, lowStock: 0, ruptures: 0 });
+  const [latestPeriod, setLatestPeriod] = useState<{ year: number; month: number } | null>(null);
 
-  const all = getAllProducts();
-  const stats = productStats();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const user = getUser();
+    if (!user) {
+      navigate({ to: "/login" });
+      return;
+    }
+
+    const loadStocks = async () => {
+      setLoading(true);
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+        const token = localStorage.getItem("obco_token");
+
+        const response = await fetch(`${apiUrl}/api/stocks/agency`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Erreur lors du chargement des stocks");
+        }
+
+        const data = await response.json();
+        setAll(data.products || []);
+        setStats(data.stats || { total: 0, value: 0, lowStock: 0, ruptures: 0 });
+        setLatestPeriod(data.latestPeriod);
+      } catch (error: any) {
+        console.error("Erreur chargement stocks:", error);
+        toast.error(error.message || "Erreur lors du chargement des stocks");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStocks();
+  }, [navigate]);
 
   const categories = useMemo(() => Array.from(new Set(all.map(p => p.category))).sort(), [all]);
 
@@ -51,10 +107,15 @@ function StocksPage() {
     return (v: T) => { fn(v); setPage(1); };
   }
 
+  const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+  const subtitle = latestPeriod
+    ? `${stats.total.toLocaleString("fr-FR")} références · Données de ${monthNames[latestPeriod.month - 1]} ${latestPeriod.year}`
+    : `${stats.total.toLocaleString("fr-FR")} références au catalogue`;
+
   return (
     <AppShell
       title="Gestion des stocks"
-      subtitle={`${stats.total.toLocaleString("fr-FR")} références au catalogue`}
+      subtitle={subtitle}
       actions={<>
         <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" />Exporter CSV</Button>
         <Button size="sm" onClick={() => setOpen(true)}><Upload className="mr-2 h-4 w-4" />Importer</Button>
@@ -123,24 +184,35 @@ function StocksPage() {
               </tr>
             </thead>
             <tbody>
-              {slice.map(p => (
-                <tr key={p.id} className="border-t border-border/60 transition-colors hover:bg-surface/60">
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.id}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{p.name}</div>
-                    <div className="text-[11px] text-muted-foreground">CIP {p.cip}</div>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    Chargement des stocks...
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.category}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.laboratory}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">{p.stock}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.threshold}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">€{p.price.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{p.expiry}</td>
-                  <td className="px-4 py-3 text-right"><StatusBadge status={p.status} /></td>
                 </tr>
-              ))}
-              {slice.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">Aucun produit ne correspond à votre recherche.</td></tr>
+              ) : slice.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    {all.length === 0 ? "Aucune donnée de stock disponible. Importez vos données mensuelles." : "Aucun produit ne correspond à votre recherche."}
+                  </td>
+                </tr>
+              ) : (
+                slice.map(p => (
+                  <tr key={p.id} className="border-t border-border/60 transition-colors hover:bg-surface/60">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.id}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{p.name}</div>
+                      <div className="text-[11px] text-muted-foreground">CIP {p.cip}</div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.category}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.laboratory}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium">{p.stock}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.threshold}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">€{p.price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{p.expiry}</td>
+                    <td className="px-4 py-3 text-right"><StatusBadge status={p.status} /></td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

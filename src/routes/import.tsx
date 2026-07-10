@@ -8,6 +8,14 @@ import { exportCSV, exportXLSX, parseUploadedFile } from "@/lib/export";
 import { getAgencies, getGrossistes, getPanoramicProducts } from "@/lib/agencies";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/import")({
   head: () => ({ meta: [{ title: "Import / Export — OBCO" }] }),
@@ -21,12 +29,20 @@ function ImportPage() {
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [agencyInfo, setAgencyInfo] = useState<{ id: string; country: string } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Sélection de l'année et du mois pour l'import
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  // Règle : 1 mois de décalage (si on est en juillet, on peut importer jusqu'à juin)
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1; // 1-12
+
+  // Calculer le mois maximum autorisé (mois actuel - 1)
+  const maxMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const maxYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+  const [selectedYear, setSelectedYear] = useState(maxYear);
+  const [selectedMonth, setSelectedMonth] = useState(maxMonth);
 
   // Générer les options d'années (5 ans en arrière et 1 an en avant)
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
@@ -319,6 +335,7 @@ function ImportPage() {
       }
 
       setParsed(dataRows);
+      setShowPreviewModal(true);
       toast.success(`${dataRows.length} produits détectés`);
     } catch (err) {
       console.error("Erreur parsing:", err);
@@ -434,6 +451,7 @@ function ImportPage() {
       const result = await response.json();
       toast.success(`${result.count} enregistrements importés avec succès`);
       setParsed(null);
+      setShowPreviewModal(false);
     } catch (err: any) {
       console.error("Erreur import:", err);
       setError(err.message || "Erreur lors de l'import");
@@ -453,21 +471,41 @@ function ImportPage() {
             <label className="block text-xs text-muted-foreground mb-1">Mois</label>
             <select
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              onChange={(e) => {
+                const newMonth = Number(e.target.value);
+                const newDate = new Date(selectedYear, newMonth - 1);
+                const maxDate = new Date(maxYear, maxMonth - 1);
+
+                // Vérifier que la date sélectionnée n'est pas dans le futur
+                if (newDate <= maxDate) {
+                  setSelectedMonth(newMonth);
+                }
+              }}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
-              {monthOptions.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
+              {monthOptions.map((m) => {
+                const isDisabled = selectedYear === currentYear && m.value >= currentMonth;
+                return (
+                  <option key={m.value} value={m.value} disabled={isDisabled}>
+                    {m.label} {isDisabled ? "(non disponible)" : ""}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="flex-1">
             <label className="block text-xs text-muted-foreground mb-1">Année</label>
             <select
               value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              onChange={(e) => {
+                const newYear = Number(e.target.value);
+                setSelectedYear(newYear);
+
+                // Ajuster le mois si nécessaire
+                if (newYear === currentYear && selectedMonth >= currentMonth) {
+                  setSelectedMonth(maxMonth);
+                }
+              }}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
               {yearOptions.map((y) => (
@@ -478,9 +516,12 @@ function ImportPage() {
             </select>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          Les données importées seront associées à la période sélectionnée
-        </p>
+        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+          <p className="text-xs text-primary">
+            ⏱️ <strong>Délai d'import :</strong> Vous pouvez importer des données jusqu'au mois de <strong>{monthOptions.find(m => m.value === maxMonth)?.label} {maxYear}</strong>.
+            Les données du mois en cours ne peuvent être importées qu'à partir du 1er du mois suivant.
+          </p>
+        </div>
       </div>
 
       {/* Afficher les fournisseurs disponibles */}
@@ -598,33 +639,19 @@ function ImportPage() {
         </div>
       </div>
 
-      {parsed && parsed.length > 0 && (
-        <div className="mt-6 rounded-2xl border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-display text-xl">Aperçu de l'import · {parsed.length} produits</h3>
-              <p className="text-xs text-muted-foreground">
-                Période : {monthOptions.find(m => m.value === selectedMonth)?.label} {selectedYear}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setParsed(null)}
-                disabled={importing}
-              >
-                Annuler
-              </Button>
-              <Button
-                size="sm"
-                onClick={validateAndImport}
-                disabled={importing}
-              >
-                {importing ? "Import en cours..." : "Valider et importer"}
-              </Button>
-            </div>
-          </div>
+      {/* Modal d'aperçu de l'import */}
+      <Dialog open={showPreviewModal} onOpenChange={(open) => {
+        setShowPreviewModal(open);
+        if (!open) setParsed(null);
+      }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Aperçu de l'import · {parsed?.length || 0} produits</DialogTitle>
+            <DialogDescription>
+              Période : {monthOptions.find(m => m.value === selectedMonth)?.label} {selectedYear}
+            </DialogDescription>
+          </DialogHeader>
+
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-xs">
               <thead className="bg-surface">
@@ -648,7 +675,7 @@ function ImportPage() {
                 </tr>
               </thead>
               <tbody>
-                {parsed.slice(0, 10).map((r, i) => (
+                {parsed?.slice(0, 15).map((r, i) => (
                   <tr key={i} className="border-t border-border/60 hover:bg-surface/30">
                     <td className="px-3 py-2 text-[10px] max-w-[200px] truncate">{String(r.Produit ?? "")}</td>
                     {agencySuppliers.map(s => (
@@ -663,9 +690,32 @@ function ImportPage() {
               </tbody>
             </table>
           </div>
-          {parsed.length > 10 && <div className="mt-3 text-xs text-muted-foreground text-center">…{parsed.length - 10} produits supplémentaires</div>}
-        </div>
-      )}
+          {(parsed?.length || 0) > 15 && (
+            <div className="text-xs text-muted-foreground text-center">
+              …{(parsed?.length || 0) - 15} produits supplémentaires
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setParsed(null);
+                setShowPreviewModal(false);
+              }}
+              disabled={importing}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={validateAndImport}
+              disabled={importing}
+            >
+              {importing ? "Import en cours..." : "Valider et importer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
