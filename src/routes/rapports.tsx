@@ -7,22 +7,22 @@ import {
 import { Download, FileSpreadsheet, Globe2, MapPin, Building2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { getUser, API_ENABLED } from "@/lib/auth";
-import {
-  COUNTRIES, evolutionByRevenue, evolutionByUnits, getAgencies, salesByRevenue, salesByUnit,
-  salesObjectivesANF, salesObjectivesByCountry, stockSituation, type Agency,
-} from "@/lib/agencies";
+import { getUser } from "@/lib/auth";
 import { exportCSV, exportXLSX } from "@/lib/export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/rapports")({
   head: () => ({ meta: [{ title: "Rapports — OBCO" }] }),
   component: RapportsPage,
+  ssr: false,
 });
 
 const PALETTE = ["#10b981", "#0ea5e9", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#22d3ee", "#84cc16"];
 
 type Scope = "all" | "country" | "agency";
+
+type Country = { code: string; name: string };
+type Agency = { id: string; name: string; country: string; city: string; email: string; manager: string };
 
 /* ---------- Scope-aware data shaping ---------- */
 function agencyShare(agency: Agency, agencies: Agency[]) {
@@ -32,31 +32,56 @@ function agencyShare(agency: Agency, agencies: Agency[]) {
 
 function scaleNum(n: number, f: number) { return Math.round(n * f); }
 
-function useScopedData(scope: Scope, countryCode: string, agencyId: string) {
+function useScopedData(
+  scope: Scope,
+  countryCode: string,
+  agencyId: string,
+  reportsData: any,
+  agencies: Agency[],
+  countries: Country[]
+) {
   return useMemo(() => {
-    const agencies = getAgencies();
+    if (!reportsData) {
+      return {
+        objPays: [],
+        objAnf: [],
+        vUn: [],
+        vCa: [],
+        evCa: [],
+        evUn: [],
+        stocks: [],
+        visibleCountries: [],
+        agency: null,
+      };
+    }
+
     const agency = agencies.find(a => a.id === agencyId);
     const codeFilter = scope === "country" ? countryCode : scope === "agency" ? agency?.country ?? "" : "";
     const factor = scope === "agency" && agency ? agencyShare(agency, agencies) : 1;
     const keepCountry = (code: string) => !codeFilter || code === codeFilter;
 
-    const objPays = salesObjectivesByCountry()
-      .filter(r => keepCountry(r.code))
-      .map(r => ({ ...r, objectif: scaleNum(r.objectif, factor), realise: scaleNum(r.realise, factor) }));
+    const objPays = reportsData.objectivesByCountry
+      .filter((r: any) => keepCountry(r.code))
+      .map((r: any) => ({ ...r, objectif: scaleNum(r.objectif, factor), realise: scaleNum(r.realise, factor) }));
 
-    const objAnf = salesObjectivesANF().map(r => ({
+    const objAnf = reportsData.objectivesANF.map((r: any) => ({
       ...r,
-      objectif: scaleNum(r.objectif, factor * (codeFilter ? 1 / COUNTRIES.length : 1)),
-      realise: scaleNum(r.realise, factor * (codeFilter ? 1 / COUNTRIES.length : 1)),
+      objectif: scaleNum(r.objectif, factor * (codeFilter ? 1 / countries.length : 1)),
+      realise: scaleNum(r.realise, factor * (codeFilter ? 1 / countries.length : 1)),
     }));
 
-    const vUn = salesByUnit().filter(r => keepCountry(r.code)).map(r => ({ ...r, unites: scaleNum(r.unites, factor) }));
-    const vCa = salesByRevenue().filter(r => keepCountry(r.code)).map(r => ({ ...r, ca: scaleNum(r.ca, factor) }));
+    const vUn = reportsData.salesByUnits
+      .filter((r: any) => keepCountry(r.code))
+      .map((r: any) => ({ ...r, unites: scaleNum(r.unites, factor) }));
 
-    const shapeMonth = (rows: ReturnType<typeof evolutionByRevenue>) => rows.map(row => {
+    const vCa = reportsData.salesByRevenue
+      .filter((r: any) => keepCountry(r.code))
+      .map((r: any) => ({ ...r, ca: scaleNum(r.ca, factor) }));
+
+    const shapeMonth = (rows: any[]) => rows.map(row => {
       const out: Record<string, number | string> = { mois: row.mois };
       let total = 0;
-      for (const c of COUNTRIES) {
+      for (const c of countries) {
         if (!keepCountry(c.code)) continue;
         const v = scaleNum(Number(row[c.code] ?? 0), factor);
         out[c.code] = v;
@@ -66,26 +91,31 @@ function useScopedData(scope: Scope, countryCode: string, agencyId: string) {
       return out;
     });
 
-    const evCa = shapeMonth(evolutionByRevenue());
-    const evUn = shapeMonth(evolutionByUnits());
+    const evCa = shapeMonth(reportsData.evolutionCA);
+    const evUn = shapeMonth(reportsData.evolutionUN);
 
-    const stocks = stockSituation().filter(r => keepCountry(r.code)).map(r => ({
-      ...r,
-      stock: scaleNum(r.stock, factor),
-      enCours: scaleNum(r.enCours, factor),
-      total: scaleNum(r.total, factor),
-      seuil: scaleNum(r.seuil, factor),
-    }));
+    const stocks = reportsData.stockSituation
+      .filter((r: any) => keepCountry(r.code))
+      .map((r: any) => ({
+        ...r,
+        stock: scaleNum(r.stock, factor),
+        enCours: scaleNum(r.enCours, factor),
+        total: scaleNum(r.total, factor),
+        seuil: scaleNum(r.seuil, factor),
+      }));
 
-    const visibleCountries = COUNTRIES.filter(c => keepCountry(c.code));
+    const visibleCountries = countries.filter(c => keepCountry(c.code));
 
     return { objPays, objAnf, vUn, vCa, evCa, evUn, stocks, visibleCountries, agency };
-  }, [scope, countryCode, agencyId]);
+  }, [scope, countryCode, agencyId, reportsData, agencies, countries]);
 }
 
 function RapportsPage() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [reportsData, setReportsData] = useState<any>(null);
   const [scope, setScope] = useState<Scope>("all");
   const [countryCode, setCountryCode] = useState<string>("");
   const [agencyId, setAgencyId] = useState<string>("");
@@ -94,21 +124,78 @@ function RapportsPage() {
     if (typeof window === "undefined") return;
     const u = getUser();
     if (!u) { navigate({ to: "/login" }); return; }
-    const list = getAgencies();
-    setAgencies(list);
-    if (!countryCode && list[0]) setCountryCode(list[0].country);
-    if (!agencyId && list[0]) setAgencyId(list[0].id);
-  }, [navigate, countryCode, agencyId]);
 
-  const data = useScopedData(scope, countryCode, agencyId);
+    const loadReportsData = async () => {
+      try {
+        const token = localStorage.getItem("obco_token");
+        if (!token) {
+          console.error("❌ Pas de token disponible");
+          setLoading(false);
+          return;
+        }
+
+        const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+        console.log(`📡 Appel API: ${apiUrl}/api/import/reports-data`);
+
+        const response = await fetch(`${apiUrl}/api/import/reports-data`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log(`📡 Réponse API: ${response.status}`);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("📊 Données rapports reçues:", data);
+
+          setCountries(data.countries);
+          setAgencies(data.agencies);
+          setReportsData(data);
+
+          if (!countryCode && data.countries[0]) setCountryCode(data.countries[0].code);
+          if (!agencyId && data.agencies[0]) setAgencyId(data.agencies[0].id);
+        } else {
+          const text = await response.text();
+          console.error("❌ Erreur API reports-data:", response.status, text);
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors du chargement des données rapports:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReportsData();
+  }, [navigate]);
+
+  const data = useScopedData(scope, countryCode, agencyId, reportsData, agencies, countries);
 
   const scopeLabel = scope === "all"
     ? "Tous pays · toutes agences"
     : scope === "country"
-      ? `Pays : ${COUNTRIES.find(c => c.code === countryCode)?.name ?? countryCode}`
+      ? `Pays : ${countries.find(c => c.code === countryCode)?.name ?? countryCode}`
       : `Agence : ${data.agency?.name ?? agencyId}`;
 
   const fileSuffix = scope === "all" ? "global" : scope === "country" ? `pays-${countryCode}` : `agence-${agencyId}`;
+
+  if (loading) {
+    return (
+      <AppShell title="Rapports SuperAdmin" subtitle="Chargement...">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Chargement des rapports...</div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!reportsData) {
+    return (
+      <AppShell title="Rapports SuperAdmin" subtitle="Aucune donnée">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Aucune donnée disponible</div>
+        </div>
+      </AppShell>
+    );
+  }
 
   const exportAll = () => {
     exportXLSX(`rapports-anf-${fileSuffix}`, {
@@ -130,27 +217,6 @@ function RapportsPage() {
       subtitle={`Vision globale · ${scopeLabel}`}
       actions={<Button size="sm" onClick={exportAll}><FileSpreadsheet className="mr-2 h-4 w-4" />Exporter tout (XLSX)</Button>}
     >
-      {/* Message d'information en mode Live */}
-      {API_ENABLED && (
-        <div className="mb-6 rounded-2xl border-2 border-primary/20 bg-primary/5 p-6">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-primary mb-1">📊 Aucune donnée disponible</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Les rapports affichent actuellement des données vides car les agences n'ont pas encore importé leurs fichiers Excel.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Pour voir les données réelles : les agences doivent se connecter et utiliser le module{" "}
-                <span className="font-semibold text-foreground">Import données</span> pour uploader leurs fichiers Excel mensuels.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Scope selector */}
       <section className="mb-6 rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -165,7 +231,7 @@ function RapportsPage() {
               value={countryCode} onChange={e => setCountryCode(e.target.value)}
               className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
+              {countries.map(c => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
             </select>
           )}
 
