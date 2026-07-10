@@ -10,6 +10,18 @@ export default defineConfig({
   },
 
   vite: {
+    build: {
+      // Force rebuild et cache busting
+      rollupOptions: {
+        output: {
+          // Ajouter un hash aux noms de fichiers pour invalider le cache
+          entryFileNames: `assets/[name]-[hash].js`,
+          chunkFileNames: `assets/[name]-[hash].js`,
+          assetFileNames: `assets/[name]-[hash].[ext]`
+        }
+      }
+    },
+
     ssr: {
       noExternal: [
         "tslib",

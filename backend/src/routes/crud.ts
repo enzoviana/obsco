@@ -23,17 +23,21 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
     console.log(`🗑️ Attempting to delete country: ${countryCode}`);
 
     // Check for foreign key references
-    const [agenciesCount, labsCount, wholesalersCount] = await Promise.all([
+    const [agenciesCount, labsCount, wholesalersCount, pricesCount, objectivesCount] = await Promise.all([
       prisma.agency.count({ where: { countryCode } }),
       prisma.laboratory.count({ where: { countryCode } }),
       prisma.wholesaler.count({ where: { countryCode } }),
+      prisma.productPrice.count({ where: { countryCode } }),
+      prisma.productObjective.count({ where: { countryCode } }),
     ]);
 
-    if (agenciesCount > 0 || labsCount > 0 || wholesalersCount > 0) {
+    if (agenciesCount > 0 || labsCount > 0 || wholesalersCount > 0 || pricesCount > 0 || objectivesCount > 0) {
       const references = [];
       if (agenciesCount > 0) references.push(`${agenciesCount} agence(s)`);
       if (labsCount > 0) references.push(`${labsCount} laboratoire(s)`);
       if (wholesalersCount > 0) references.push(`${wholesalersCount} grossiste(s)`);
+      if (pricesCount > 0) references.push(`${pricesCount} prix produit(s)`);
+      if (objectivesCount > 0) references.push(`${objectivesCount} objectif(s)`);
 
       console.log(`❌ Cannot delete country ${countryCode}: has references in ${references.join(", ")}`);
 

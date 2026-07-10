@@ -21,8 +21,38 @@ const labSchema = z.object({
 });
 
 router.post("/", requireRole("super_admin"), async (req, res) => {
-  const data = labSchema.parse(req.body);
-  res.status(201).json(await prisma.laboratory.create({ data }));
+  try {
+    const data = labSchema.parse(req.body);
+
+    // Verify that the country exists
+    const countryExists = await prisma.country.findUnique({
+      where: { code: data.countryCode }
+    });
+
+    if (!countryExists) {
+      console.log(`❌ Country ${data.countryCode} does not exist`);
+      return res.status(400).json({
+        error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer ce pays.`
+      });
+    }
+
+    const laboratory = await prisma.laboratory.create({ data });
+    console.log(`✅ Laboratory created successfully:`, laboratory);
+    res.status(201).json(laboratory);
+  } catch (error) {
+    console.error(`❌ Error creating laboratory:`, error);
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: "Données invalides",
+        details: error.errors
+      });
+    }
+
+    return res.status(500).json({
+      error: "Erreur lors de la création du laboratoire"
+    });
+  }
 });
 
 router.patch("/:id", requireRole("super_admin"), async (req, res) => {
@@ -31,6 +61,20 @@ router.patch("/:id", requireRole("super_admin"), async (req, res) => {
 
     // Validate with partial schema (allow partial updates)
     const data = labSchema.partial().parse(req.body);
+
+    // If countryCode is being updated, verify it exists
+    if (data.countryCode) {
+      const countryExists = await prisma.country.findUnique({
+        where: { code: data.countryCode }
+      });
+
+      if (!countryExists) {
+        console.log(`❌ Country ${data.countryCode} does not exist`);
+        return res.status(400).json({
+          error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer ce pays.`
+        });
+      }
+    }
 
     const updated = await prisma.laboratory.update({
       where: { id: req.params.id },
