@@ -4,27 +4,22 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { getUser, useUser } from "@/lib/auth";
-import { User, Bell, Lock, Building, Palette, Globe, Code2, Download, Github, Users, ShieldCheck, Plus, Trash2 } from "lucide-react";
+import { User, Bell, Lock, Users, ShieldCheck, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/parametres")({
   head: () => ({ meta: [{ title: "Paramètres — OBCO" }] }),
   component: SettingsPage,
+  ssr: false,
 });
 
 const TABS = [
   { id: "profile", label: "Profil", icon: User },
   { id: "utilisateurs", label: "Utilisateurs (Agences)", icon: Users },
   { id: "admin", label: "Comptes Admin", icon: ShieldCheck },
-  { id: "pharmacy", label: "Officine", icon: Building },
-  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Sécurité", icon: Lock },
-  { id: "appearance", label: "Apparence", icon: Palette },
-  { id: "locale", label: "Langue & Région", icon: Globe },
-
 ] as const;
 
 function SettingsPage() {
@@ -62,15 +57,10 @@ function SettingsPage() {
         </nav>
 
         <div className="rounded-2xl border border-border bg-card p-6">
-          {tab === "profile" && <ProfileSection email={user?.email ?? ""} name={user?.name ?? ""} />}
+          {tab === "profile" && <ProfileSection />}
           {tab === "utilisateurs" && <UsersSection />}
           {tab === "admin" && <AdminAccountsSection />}
-          {tab === "pharmacy" && <PharmacySection />}
-          {tab === "notifications" && <NotificationsSection />}
           {tab === "security" && <SecuritySection />}
-          {tab === "appearance" && <AppearanceSection />}
-          {tab === "locale" && <LocaleSection />}
-
         </div>
       </div>
     </AppShell>
@@ -100,163 +90,351 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
-function SaveBar() {
-  return (
-    <div className="flex justify-end gap-2 pt-2">
-      <Button variant="ghost">Annuler</Button>
-      <Button onClick={() => toast.success("Modifications enregistrées")}>Enregistrer</Button>
-    </div>
-  );
-}
+function ProfileSection() {
+  const user = useUser();
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
 
-function ProfileSection({ email, name }: { email: string; name: string }) {
+  const save = async () => {
+    if (!name || !email) {
+      toast.error("Tous les champs sont requis");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/auth/me/profile`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name, email }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        // Mettre à jour le localStorage
+        const currentUser = JSON.parse(localStorage.getItem("obco_user") || "{}");
+        localStorage.setItem("obco_user", JSON.stringify({ ...currentUser, ...updated }));
+        window.dispatchEvent(new Event("obco:user"));
+        toast.success("Profil mis à jour");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors de la mise à jour");
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la mise à jour");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Section title="Profil" desc="Vos informations personnelles affichées sur OBCO.">
-      <Field label="Nom complet"><Input defaultValue={name} /></Field>
-      <Field label="Email"><Input type="email" defaultValue={email} /></Field>
-      <Field label="Téléphone"><Input type="tel" placeholder="06 12 34 56 78" /></Field>
-      <Field label="Fonction"><Input defaultValue="Responsable agence" /></Field>
-      <SaveBar />
-    </Section>
-  );
-}
-
-function PharmacySection() {
-  return (
-    <Section title="Agence" desc="Informations légales et de contact de votre agence.">
-      <Field label="Raison sociale"><Input defaultValue="ANF Abidjan SARL" /></Field>
-      <Field label="N° FINESS"><Input defaultValue="750012345" /></Field>
-      <Field label="Adresse"><Input defaultValue="14 rue de la République, 75011 Paris" /></Field>
-      <Field label="N° de TVA"><Input defaultValue="FR12345678901" /></Field>
-      <SaveBar />
-    </Section>
-  );
-}
-
-function NotificationsSection() {
-  return (
-    <Section title="Notifications" desc="Choisissez ce que vous souhaitez recevoir.">
-      <ToggleRow title="Alertes de stock faible" desc="Recevoir un email lorsqu'un produit passe sous son seuil." defaultChecked />
-      <ToggleRow title="Ruptures de stock" desc="Notification immédiate en cas de rupture." defaultChecked />
-      <ToggleRow title="Imports terminés" desc="Confirmation à la fin de chaque import." />
-      <ToggleRow title="Rapport hebdomadaire" desc="Résumé chaque lundi matin." defaultChecked />
-      <ToggleRow title="Nouveautés OBCO" desc="Annonces produit et conseils." />
-    </Section>
-  );
-}
-
-function ToggleRow({ title, desc, defaultChecked }: { title: string; desc: string; defaultChecked?: boolean }) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface p-4">
-      <div className="min-w-0">
-        <div className="text-sm font-medium">{title}</div>
-        <div className="text-xs text-muted-foreground">{desc}</div>
+      <Field label="Nom complet">
+        <Input value={name} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <Field label="Email">
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </Field>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="ghost" onClick={() => { setName(user?.name || ""); setEmail(user?.email || ""); }}>
+          Annuler
+        </Button>
+        <Button onClick={save} disabled={loading}>
+          {loading ? "Enregistrement..." : "Enregistrer"}
+        </Button>
       </div>
-      <Switch defaultChecked={defaultChecked} />
-    </div>
+    </Section>
   );
 }
 
 function SecuritySection() {
+  const [loading, setLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const changePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Tous les champs sont requis");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/auth/me/password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (response.ok) {
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        toast.success("Mot de passe modifié");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors du changement de mot de passe");
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors du changement de mot de passe");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Section title="Sécurité" desc="Mot de passe et authentification.">
-      <Field label="Mot de passe actuel"><Input type="password" /></Field>
-      <Field label="Nouveau mot de passe"><Input type="password" /></Field>
-      <Field label="Confirmer"><Input type="password" /></Field>
-      <ToggleRow title="Authentification à deux facteurs" desc="Sécurisez votre compte avec un code à usage unique." defaultChecked />
-      <SaveBar />
-    </Section>
-  );
-}
-
-function AppearanceSection() {
-  return (
-    <Section title="Apparence" desc="Personnalisez l'interface.">
-      <Field label="Thème">
-        <div className="flex gap-2">
-          {["Clair", "Sombre", "Système"].map((t, i) => (
-            <button key={t} className={`rounded-xl border px-4 py-2 text-sm ${i === 0 ? "border-primary bg-accent" : "border-border bg-surface text-muted-foreground"}`}>
-              {t}
-            </button>
-          ))}
-        </div>
+      <Field label="Mot de passe actuel">
+        <Input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          placeholder="••••••••"
+        />
       </Field>
-      <ToggleRow title="Densité compacte" desc="Affichez plus d'informations à l'écran." />
-      <ToggleRow title="Animations réduites" desc="Limite les transitions et animations." />
+      <Field label="Nouveau mot de passe">
+        <Input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="••••••••"
+        />
+      </Field>
+      <Field label="Confirmer">
+        <Input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="••••••••"
+        />
+      </Field>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+          }}
+        >
+          Annuler
+        </Button>
+        <Button onClick={changePassword} disabled={loading}>
+          {loading ? "Modification..." : "Changer le mot de passe"}
+        </Button>
+      </div>
     </Section>
-  );
-}
-
-function LocaleSection() {
-  return (
-    <Section title="Langue & Région" desc="Format des dates, devises et langue de l'interface.">
-      <Field label="Langue"><Input defaultValue="Français (France)" /></Field>
-      <Field label="Devise"><Input defaultValue="EUR (€)" /></Field>
-      <Field label="Fuseau horaire"><Input defaultValue="Europe/Paris (UTC+1)" /></Field>
-      <Field label="Format de date"><Input defaultValue="JJ/MM/AAAA" /></Field>
-      <SaveBar />
-    </Section>
-  );
-}
-
-
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-medium">{value}</div>
-    </div>
   );
 }
 
 function UsersSection() {
-  const [accounts, setAccounts] = useState([
-    { id: "U-001", agence: "ANF Abidjan", email: "abidjan@anf.com", login: "anf.abidjan", role: "Agence", status: "active" },
-    { id: "U-002", agence: "ANF Dakar", email: "dakar@anf.com", login: "anf.dakar", role: "Agence", status: "active" },
-    { id: "U-003", agence: "ANF Bamako", email: "bamako@anf.com", login: "anf.bamako", role: "Agence", status: "active" },
-    { id: "U-004", agence: "ANF Douala", email: "douala@anf.com", login: "anf.douala", role: "Agence", status: "inactive" },
-  ]);
-  const [form, setForm] = useState({ agence: "", email: "", login: "", password: "" });
+  const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [agencies, setAgencies] = useState<any[]>([]);
+  const [form, setForm] = useState({ agencyId: "", email: "", password: "", name: "" });
 
-  const create = () => {
-    if (!form.agence || !form.email || !form.login) return toast.error("Champs requis manquants");
-    setAccounts(a => [...a, { id: `U-${String(a.length + 1).padStart(3, "0")}`, agence: form.agence, email: form.email, login: form.login, role: "Agence", status: "active" }]);
-    setForm({ agence: "", email: "", login: "", password: "" });
-    toast.success("Compte agence créé");
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const [usersRes, agenciesRes] = await Promise.all([
+        fetch(`${apiUrl}/api/users/agencies`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${apiUrl}/api/agencies`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (usersRes.ok) {
+        const users = await usersRes.json();
+        setAccounts(users);
+      }
+
+      if (agenciesRes.ok) {
+        const agenciesData = await agenciesRes.json();
+        setAgencies(agenciesData);
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors du chargement des données");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const create = async () => {
+    if (!form.agencyId || !form.email || !form.password || !form.name) {
+      toast.error("Tous les champs sont requis");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: "agence",
+          agencyId: form.agencyId,
+        }),
+      });
+
+      if (response.ok) {
+        setForm({ agencyId: "", email: "", password: "", name: "" });
+        toast.success("Compte agence créé");
+        loadData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors de la création");
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la création");
+    }
+  };
+
+  const deleteAccount = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer ce compte ?")) return;
+
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/users/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok || response.status === 204) {
+        toast.success("Compte supprimé");
+        loadData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  if (loading) {
+    return (
+      <Section title="Utilisateurs (Agences)" desc="Chargement...">
+        <div className="text-center text-muted-foreground py-8">Chargement...</div>
+      </Section>
+    );
+  }
 
   return (
     <Section title="Utilisateurs (Agences)" desc="Gérez les identifiants et créez de nouveaux comptes agences.">
       <div className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
-        <div><Label className="text-xs">Agence</Label><Input value={form.agence} onChange={e => setForm({ ...form, agence: e.target.value })} placeholder="ANF Lomé" /></div>
-        <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="lome@anf.com" /></div>
-        <div><Label className="text-xs">Identifiant</Label><Input value={form.login} onChange={e => setForm({ ...form, login: e.target.value })} placeholder="anf.lome" /></div>
-        <div><Label className="text-xs">Mot de passe initial</Label><Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" /></div>
+        <div>
+          <Label className="text-xs">Agence</Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={form.agencyId}
+            onChange={(e) => setForm({ ...form, agencyId: e.target.value })}
+          >
+            <option value="">Sélectionner une agence</option>
+            {agencies.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name} - {a.city}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs">Nom complet</Label>
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Jean Dupont" />
+        </div>
+        <div>
+          <Label className="text-xs">Email</Label>
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jean@agence.com" />
+        </div>
+        <div>
+          <Label className="text-xs">Mot de passe initial</Label>
+          <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
+        </div>
         <div className="sm:col-span-2 flex justify-end">
-          <Button size="sm" onClick={create}><Plus className="mr-2 h-4 w-4" />Créer un compte agence</Button>
+          <Button size="sm" onClick={create}>
+            <Plus className="mr-2 h-4 w-4" />
+            Créer un compte agence
+          </Button>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-[11px] uppercase tracking-wider text-muted-foreground">
-            <tr><th className="px-3 py-2 text-left">Agence</th><th className="px-3 py-2 text-left">Identifiant</th><th className="px-3 py-2 text-left">Email</th><th className="px-3 py-2 text-left">Statut</th><th className="px-3 py-2"></th></tr>
+            <tr>
+              <th className="px-3 py-2 text-left">Nom</th>
+              <th className="px-3 py-2 text-left">Agence</th>
+              <th className="px-3 py-2 text-left">Email</th>
+              <th className="px-3 py-2"></th>
+            </tr>
           </thead>
           <tbody>
-            {accounts.map(a => (
-              <tr key={a.id} className="border-t border-border/60">
-                <td className="px-3 py-2.5 font-medium">{a.agence}</td>
-                <td className="px-3 py-2.5 font-mono text-xs">{a.login}</td>
-                <td className="px-3 py-2.5 text-muted-foreground">{a.email}</td>
-                <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${a.status === "active" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{a.status}</span></td>
-                <td className="px-3 py-2.5 text-right">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAccounts(list => list.filter(x => x.id !== a.id)); toast.success("Compte supprimé"); }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+            {accounts.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
+                  Aucun compte agence
                 </td>
               </tr>
-            ))}
+            ) : (
+              accounts.map((a) => (
+                <tr key={a.id} className="border-t border-border/60">
+                  <td className="px-3 py-2.5 font-medium">{a.name}</td>
+                  <td className="px-3 py-2.5">{a.agency?.name || "N/A"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{a.email}</td>
+                  <td className="px-3 py-2.5 text-right">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteAccount(a.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -265,52 +443,176 @@ function UsersSection() {
 }
 
 function AdminAccountsSection() {
-  const [admins, setAdmins] = useState([
-    { id: "A-001", name: "Admin Principal", email: "admin@anf.com", role: "Super-Admin" },
-    { id: "A-002", name: "Pierre Lemoine", email: "p.lemoine@anf.com", role: "Admin" },
-  ]);
+  const user = useUser();
+  const [loading, setLoading] = useState(true);
+  const [admins, setAdmins] = useState<any[]>([]);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
 
-  const create = () => {
-    if (!form.name || !form.email) return toast.error("Champs requis manquants");
-    setAdmins(a => [...a, { id: `A-${String(a.length + 1).padStart(3, "0")}`, name: form.name, email: form.email, role: "Admin" }]);
-    setForm({ name: "", email: "", password: "" });
-    toast.success("Compte admin créé");
+  useEffect(() => {
+    loadAdmins();
+  }, []);
+
+  const loadAdmins = async () => {
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/users/admins`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAdmins(data);
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors du chargement des admins");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const create = async () => {
+    if (!form.name || !form.email || !form.password) {
+      toast.error("Tous les champs sont requis");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: "super_admin",
+          agencyId: null,
+        }),
+      });
+
+      if (response.ok) {
+        setForm({ name: "", email: "", password: "" });
+        toast.success("Compte super-admin créé");
+        loadAdmins();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors de la création");
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la création");
+    }
+  };
+
+  const deleteAdmin = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer ce compte admin ?")) return;
+
+    try {
+      const token = localStorage.getItem("obco_token");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+
+      const response = await fetch(`${apiUrl}/api/users/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok || response.status === 204) {
+        toast.success("Admin supprimé");
+        loadAdmins();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  if (loading) {
+    return (
+      <Section title="Comptes Admin" desc="Chargement...">
+        <div className="text-center text-muted-foreground py-8">Chargement...</div>
+      </Section>
+    );
+  }
+
   return (
-    <Section title="Comptes Admin" desc="Gérez les administrateurs existants ou créez-en de nouveaux.">
+    <Section title="Comptes Admin" desc="Gérez les administrateurs existants ou créez de nouveaux comptes super-admin.">
       <div className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
-        <div><Label className="text-xs">Nom complet</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-        <div><Label className="text-xs">Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-        <div className="sm:col-span-2"><Label className="text-xs">Mot de passe initial</Label><Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+        <div>
+          <Label className="text-xs">Nom complet</Label>
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Admin Name" />
+        </div>
+        <div>
+          <Label className="text-xs">Email</Label>
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="admin@obco.com" />
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-xs">Mot de passe initial</Label>
+          <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
+        </div>
         <div className="sm:col-span-2 flex justify-end">
-          <Button size="sm" onClick={create}><Plus className="mr-2 h-4 w-4" />Créer un compte admin</Button>
+          <Button size="sm" onClick={create}>
+            <Plus className="mr-2 h-4 w-4" />
+            Créer un compte super-admin
+          </Button>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface text-[11px] uppercase tracking-wider text-muted-foreground">
-            <tr><th className="px-3 py-2 text-left">Nom</th><th className="px-3 py-2 text-left">Email</th><th className="px-3 py-2 text-left">Rôle</th><th className="px-3 py-2"></th></tr>
+            <tr>
+              <th className="px-3 py-2 text-left">Nom</th>
+              <th className="px-3 py-2 text-left">Email</th>
+              <th className="px-3 py-2 text-left">Rôle</th>
+              <th className="px-3 py-2"></th>
+            </tr>
           </thead>
           <tbody>
-            {admins.map(a => (
-              <tr key={a.id} className="border-t border-border/60">
-                <td className="px-3 py-2.5 font-medium">{a.name}</td>
-                <td className="px-3 py-2.5 text-muted-foreground">{a.email}</td>
-                <td className="px-3 py-2.5"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">{a.role}</span></td>
-                <td className="px-3 py-2.5 text-right">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={a.role === "Super-Admin"} onClick={() => { setAdmins(list => list.filter(x => x.id !== a.id)); toast.success("Admin supprimé"); }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+            {admins.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
+                  Aucun administrateur
                 </td>
               </tr>
-            ))}
+            ) : (
+              admins.map((a) => (
+                <tr key={a.id} className="border-t border-border/60">
+                  <td className="px-3 py-2.5 font-medium">{a.name}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{a.email}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      Super-Admin
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={a.id === user?.id}
+                      onClick={() => deleteAdmin(a.id)}
+                      title={a.id === user?.id ? "Vous ne pouvez pas supprimer votre propre compte" : "Supprimer"}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
     </Section>
   );
 }
-
