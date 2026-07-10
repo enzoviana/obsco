@@ -290,12 +290,27 @@ wholesalersRouter.get("/", async (req, res) => {
 });
 wholesalersRouter.post("/", requireRole("super_admin"), async (req, res) => {
   const s = z.object({
-    name: z.string(), countryCode: z.string(), city: z.string().optional(), email: z.string().email().optional(),
+    name: z.string(),
+    countryCode: z.string(),
+    city: z.string().optional(),
+    email: z.string().email().optional(),
+    status: z.string().optional(),
+    scope: z.string().optional(),
+    agencyId: z.string().nullable().optional(),
   }).parse(req.body);
   res.status(201).json(await prisma.wholesaler.create({ data: s }));
 });
 wholesalersRouter.patch("/:id", requireRole("super_admin"), async (req, res) => {
-  res.json(await prisma.wholesaler.update({ where: { id: req.params.id }, data: req.body }));
+  const s = z.object({
+    name: z.string().optional(),
+    countryCode: z.string().optional(),
+    city: z.string().nullable().optional(),
+    email: z.string().email().nullable().optional(),
+    status: z.string().optional(),
+    scope: z.string().optional(),
+    agencyId: z.string().nullable().optional(),
+  }).parse(req.body);
+  res.json(await prisma.wholesaler.update({ where: { id: req.params.id }, data: s }));
 });
 wholesalersRouter.delete("/:id", requireRole("super_admin"), async (req, res) => {
   await prisma.wholesaler.delete({ where: { id: req.params.id } }); res.status(204).end();

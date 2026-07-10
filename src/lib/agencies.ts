@@ -215,6 +215,7 @@ export function updateGrossiste(id: string, patch: Partial<Grossiste>) {
   const apiPatch: Record<string, unknown> = { ...patch };
   if (patch.partenaire) { apiPatch.name = patch.partenaire; delete apiPatch.partenaire; }
   if (patch.country) { apiPatch.countryCode = patch.country; delete apiPatch.country; }
+  delete apiPatch.type; // Le champ type n'existe pas dans le schéma backend
   syncUpdate(`/api/wholesalers/${id}`, apiPatch);
 }
 
