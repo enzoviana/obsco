@@ -140,54 +140,7 @@ export function AppShell({ children, title, subtitle, actions }: {
           <div className="flex items-center gap-4 px-6 py-4">
             <SearchCommand />
 
-            <div className="ml-auto flex items-center gap-3">
-              <div className="hidden sm:flex items-center rounded-xl border border-border bg-surface p-1 text-xs font-medium">
-                <button
-                  onClick={() => setRole("pharmacy")}
-                  className={`rounded-lg px-3 py-1.5 transition-colors ${
-                    user?.role === "pharmacy" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Agence
-                </button>
-                <button
-                  onClick={() => setRole("admin")}
-                  className={`rounded-lg px-3 py-1.5 transition-colors ${
-                    user?.role === "admin" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Super-Admin
-                </button>
-              </div>
 
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-4 w-4" />
-                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary" />
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 hover:bg-card">
-                  <div className="grid h-7 w-7 place-items-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">
-                    {user?.name?.[0]?.toUpperCase() ?? "U"}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <div className="text-xs font-medium leading-tight">{user?.name}</div>
-                    <div className="text-[10px] text-muted-foreground leading-tight">{user?.pharmacyName}</div>
-                  </div>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate({ to: "/parametres" })}>
-                    <Settings className="mr-2 h-4 w-4" /> Paramètres
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { logout(); navigate({ to: "/login" }); }}>
-                    <LogOut className="mr-2 h-4 w-4" /> Déconnexion
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
           </div>
         </header>
 
