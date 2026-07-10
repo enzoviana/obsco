@@ -64,6 +64,21 @@ agenciesRouter.get("/", async (req, res) => {
   const where = req.user!.role === "agence" ? { id: req.user!.agencyId || "" } : {};
   res.json(await prisma.agency.findMany({ where, include: { country: true }, orderBy: { name: "asc" } }));
 });
+agenciesRouter.get("/:id", async (req, res) => {
+  try {
+    const agency = await prisma.agency.findUnique({
+      where: { id: req.params.id },
+      include: { country: true },
+    });
+    if (!agency) {
+      return res.status(404).json({ error: "Agence introuvable" });
+    }
+    res.json(agency);
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'agence:", error);
+    res.status(500).json({ error: "Erreur lors de la récupération de l'agence" });
+  }
+});
 agenciesRouter.post("/", requireRole("super_admin"), async (req, res) => {
   try {
     const s = z.object({

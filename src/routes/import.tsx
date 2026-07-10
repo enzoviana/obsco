@@ -30,6 +30,7 @@ function ImportPage() {
   const [agencyInfo, setAgencyInfo] = useState<{ id: string; country: string } | null>(null);
   const [importing, setImporting] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [wholesalers, setWholesalers] = useState<any[]>([]);
 
   // Sélection de l'année et du mois pour l'import
   // Règle : 1 mois de décalage (si on est en juillet, on peut importer jusqu'à juin)
@@ -70,41 +71,70 @@ function ImportPage() {
     }
     setUser(u);
 
+    const apiUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+    const token = localStorage.getItem("obco_token");
+
     // Récupérer l'agence de l'utilisateur connecté
-    const loadAgencyInfo = () => {
-      if (u.role === "pharmacy") {
-        const agencies = getAgencies();
-        const userAgency = agencies.find(a => a.email === u.email);
-        if (userAgency) {
-          setAgencyInfo({ id: userAgency.id, country: userAgency.country });
+    const loadAgencyInfo = async () => {
+      if (u.role === "pharmacy" && u.agencyId) {
+        try {
+          const response = await fetch(`${apiUrl}/api/agencies/${u.agencyId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (response.ok) {
+            const agency = await response.json();
+            setAgencyInfo({ id: agency.id, country: agency.countryCode });
+          }
+        } catch (error) {
+          console.error("Erreur lors du chargement de l'agence:", error);
         }
       }
     };
 
+    // Récupérer les grossistes depuis l'API
+    const loadWholesalers = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/wholesalers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setWholesalers(data);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des grossistes:", error);
+      }
+    };
+
     loadAgencyInfo();
+    loadWholesalers();
 
     // Écouter les changements des agences et grossistes
-    const syncAgencies = () => loadAgencyInfo();
-    window.addEventListener("obco:agencies", syncAgencies);
-    window.addEventListener("obco:gros", syncAgencies);
+    const syncData = () => {
+      loadAgencyInfo();
+      loadWholesalers();
+    };
+    window.addEventListener("obco:agencies", syncData);
+    window.addEventListener("obco:gros", syncData);
 
     return () => {
-      window.removeEventListener("obco:agencies", syncAgencies);
-      window.removeEventListener("obco:gros", syncAgencies);
+      window.removeEventListener("obco:agencies", syncData);
+      window.removeEventListener("obco:gros", syncData);
     };
-  }, [navigate]); // Retirer 'user' des dépendances pour éviter la boucle infinie
+  }, [navigate]);
 
   // Filtrer les fournisseurs attribués à cette agence
   const agencySuppliers = useMemo(() => {
-    const grossistes = getGrossistes();
     const suppliers = new Set<string>();
-    const currentUser = user || getUser(); // Utiliser user s'il existe, sinon getUser()
+    const currentUser = user || getUser();
 
     // Si admin, montrer tous les fournisseurs
     if (currentUser?.role === "admin") {
-      for (const g of grossistes) {
+      for (const g of wholesalers) {
         if (g.status === "blocked" || g.status === "inactive") continue;
-        suppliers.add(g.partenaire);
+        suppliers.add(g.name);
       }
       return Array.from(suppliers).sort();
     }
@@ -113,23 +143,23 @@ function ImportPage() {
     if (!agencyInfo) return [];
 
     // Filtrer les fournisseurs pour l'agence
-    for (const g of grossistes) {
+    for (const g of wholesalers) {
       // Ignorer les grossistes inactifs ou bloqués
       if (g.status === "blocked" || g.status === "inactive") continue;
 
       // Scope "country" : fournisseur disponible pour tout le pays
-      if (g.scope === "country" && g.country === agencyInfo.country) {
-        suppliers.add(g.partenaire);
+      if (g.scope === "country" && g.countryCode === agencyInfo.country) {
+        suppliers.add(g.name);
       }
 
       // Scope "agency" : fournisseur dédié à cette agence spécifique
       if (g.scope === "agency" && g.agencyId === agencyInfo.id) {
-        suppliers.add(g.partenaire);
+        suppliers.add(g.name);
       }
     }
 
     return Array.from(suppliers).sort();
-  }, [agencyInfo]); // Ne dépend que de agencyInfo, pas de user
+  }, [agencyInfo, wholesalers, user]);
 
   // Générer le modèle avec la structure exacte de Sorties Locales
   const templateData = useMemo(() => {
@@ -368,10 +398,9 @@ function ImportPage() {
         }>,
       };
 
-      const grossistes = getGrossistes();
       const grossisteIdMap = new Map<string, string>();
-      for (const g of grossistes) {
-        grossisteIdMap.set(g.partenaire, g.id);
+      for (const g of wholesalers) {
+        grossisteIdMap.set(g.name, g.id);
       }
 
       for (const row of parsed) {
