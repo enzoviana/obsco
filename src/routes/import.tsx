@@ -4,7 +4,7 @@ import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertCircle } from "lu
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { getUser } from "@/lib/auth";
-import { exportCSV, exportXLSX, parseUploadedFile } from "@/lib/export";
+import { exportCSV, exportXLSX, exportStyledImportXLSX, parseUploadedFile } from "@/lib/export";
 import { getAgencies, getGrossistes, getPanoramicProducts } from "@/lib/agencies";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -31,6 +31,7 @@ function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [wholesalers, setWholesalers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   // Sélection de l'année et du mois pour l'import
   // Règle : 1 mois de décalage (si on est en juillet, on peut importer jusqu'à juin)
@@ -76,7 +77,6 @@ function ImportPage() {
 
     // Récupérer l'agence de l'utilisateur connecté
     const loadAgencyInfo = async () => {
-      console.log("🔍 DEBUG - Utilisateur:", { role: u.role, agencyId: u.agencyId });
       if (u.role === "pharmacy" && u.agencyId) {
         try {
           const response = await fetch(`${apiUrl}/api/agencies/${u.agencyId}`, {
@@ -85,15 +85,11 @@ function ImportPage() {
 
           if (response.ok) {
             const agency = await response.json();
-            console.log("🔍 DEBUG - Agence récupérée:", agency);
-            console.log("🔍 DEBUG - agencyInfo défini:", { id: agency.id, country: agency.countryCode });
             setAgencyInfo({ id: agency.id, country: agency.countryCode });
           }
         } catch (error) {
           console.error("Erreur lors du chargement de l'agence:", error);
         }
-      } else {
-        console.log("🔍 DEBUG - Condition agence non remplie (role doit être 'pharmacy' et agencyId doit exister)");
       }
     };
 
@@ -106,7 +102,6 @@ function ImportPage() {
 
         if (response.ok) {
           const data = await response.json();
-          console.log("🔍 DEBUG - Tous les grossistes récupérés:", data);
           setWholesalers(data);
         }
       } catch (error) {
@@ -114,20 +109,40 @@ function ImportPage() {
       }
     };
 
+    // Récupérer tous les produits depuis l'API
+    const loadProducts = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/products`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des produits:", error);
+      }
+    };
+
     loadAgencyInfo();
     loadWholesalers();
+    loadProducts();
 
-    // Écouter les changements des agences et grossistes
+    // Écouter les changements des agences, grossistes et produits
     const syncData = () => {
       loadAgencyInfo();
       loadWholesalers();
+      loadProducts();
     };
     window.addEventListener("obco:agencies", syncData);
     window.addEventListener("obco:gros", syncData);
+    window.addEventListener("obco:products", syncData);
 
     return () => {
       window.removeEventListener("obco:agencies", syncData);
       window.removeEventListener("obco:gros", syncData);
+      window.removeEventListener("obco:products", syncData);
     };
   }, [navigate]);
 
@@ -136,60 +151,34 @@ function ImportPage() {
     const suppliers = new Set<string>();
     const currentUser = user || getUser();
 
-    console.log("🔍 DEBUG - Filtrage des fournisseurs:");
-    console.log("  - Role utilisateur:", currentUser?.role);
-    console.log("  - agencyInfo:", agencyInfo);
-    console.log("  - Nombre de grossistes:", wholesalers.length);
-
     // Si admin, montrer tous les fournisseurs
     if (currentUser?.role === "admin") {
       for (const g of wholesalers) {
         if (g.status === "blocked" || g.status === "inactive") continue;
         suppliers.add(g.name);
       }
-      console.log("  - Mode admin, fournisseurs:", Array.from(suppliers));
       return Array.from(suppliers).sort();
     }
 
     // Si agence sans info, retourner vide
-    if (!agencyInfo) {
-      console.log("  - ⚠️ Pas d'agencyInfo, retour vide");
-      return [];
-    }
+    if (!agencyInfo) return [];
 
     // Filtrer les fournisseurs pour l'agence
     for (const g of wholesalers) {
-      console.log(`  - Grossiste: ${g.name}`, {
-        countryCode: g.countryCode,
-        status: g.status,
-        scope: g.scope,
-        agencyId: g.agencyId,
-      });
-
       // Ignorer les grossistes inactifs ou bloqués
-      if (g.status === "blocked" || g.status === "inactive") {
-        console.log(`    ❌ Ignoré (status: ${g.status})`);
-        continue;
-      }
+      if (g.status === "blocked" || g.status === "inactive") continue;
 
       // Scope "country" : fournisseur disponible pour tout le pays
       if (g.scope === "country" && g.countryCode === agencyInfo.country) {
-        console.log(`    ✅ Ajouté (scope country, match countryCode)`);
         suppliers.add(g.name);
-      } else if (g.scope === "country") {
-        console.log(`    ❌ Pas ajouté (scope country mais countryCode ${g.countryCode} !== ${agencyInfo.country})`);
       }
 
       // Scope "agency" : fournisseur dédié à cette agence spécifique
       if (g.scope === "agency" && g.agencyId === agencyInfo.id) {
-        console.log(`    ✅ Ajouté (scope agency, match agencyId)`);
         suppliers.add(g.name);
-      } else if (g.scope === "agency") {
-        console.log(`    ❌ Pas ajouté (scope agency mais agencyId ${g.agencyId} !== ${agencyInfo.id})`);
       }
     }
 
-    console.log("  - Fournisseurs filtrés:", Array.from(suppliers));
     return Array.from(suppliers).sort();
   }, [agencyInfo, wholesalers, user]);
 
@@ -202,8 +191,13 @@ function ImportPage() {
       };
     }
 
-    // Prendre quelques produits réels comme exemples
-    const products = getPanoramicProducts().slice(0, 10);
+    // Utiliser tous les produits de la BDD
+    if (products.length === 0) {
+      return {
+        headers: [],
+        rows: [],
+      };
+    }
 
     // Créer les noms de colonnes significatifs
     const columnNames: string[] = ["Produit"];
@@ -296,7 +290,7 @@ function ImportPage() {
       headers: [headerRow1, headerRow2],
       rows: [...dataRows, totalRow],
     };
-  }, [agencySuppliers]);
+  }, [agencySuppliers, products]);
 
   const downloadCSV = () => {
     if (agencySuppliers.length === 0) {
@@ -304,10 +298,15 @@ function ImportPage() {
       return;
     }
 
+    if (products.length === 0) {
+      toast.error("Chargement des produits en cours...");
+      return;
+    }
+
     // Combiner les en-têtes et les données
     const allRows = [...templateData.headers, ...templateData.rows];
     exportCSV("modele-import-agence", allRows);
-    toast.success("Modèle CSV téléchargé avec structure Sorties Locales");
+    toast.success(`Modèle CSV téléchargé avec ${products.length} produits`);
   };
 
   const downloadXLSX = () => {
@@ -316,10 +315,14 @@ function ImportPage() {
       return;
     }
 
-    // Combiner les en-têtes et les données
-    const allRows = [...templateData.headers, ...templateData.rows];
-    exportXLSX("modele-import-agence", { "Import Données": allRows });
-    toast.success("Modèle XLSX téléchargé avec structure Sorties Locales");
+    if (products.length === 0) {
+      toast.error("Chargement des produits en cours...");
+      return;
+    }
+
+    // Utiliser la fonction de style avancé pour XLSX
+    exportStyledImportXLSX("modele-import-agence", agencySuppliers, products);
+    toast.success(`Modèle XLSX téléchargé avec ${products.length} produits`);
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
