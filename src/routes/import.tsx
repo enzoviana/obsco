@@ -76,6 +76,7 @@ function ImportPage() {
 
     // Récupérer l'agence de l'utilisateur connecté
     const loadAgencyInfo = async () => {
+      console.log("🔍 DEBUG - Utilisateur:", { role: u.role, agencyId: u.agencyId });
       if (u.role === "pharmacy" && u.agencyId) {
         try {
           const response = await fetch(`${apiUrl}/api/agencies/${u.agencyId}`, {
@@ -84,11 +85,15 @@ function ImportPage() {
 
           if (response.ok) {
             const agency = await response.json();
+            console.log("🔍 DEBUG - Agence récupérée:", agency);
+            console.log("🔍 DEBUG - agencyInfo défini:", { id: agency.id, country: agency.countryCode });
             setAgencyInfo({ id: agency.id, country: agency.countryCode });
           }
         } catch (error) {
           console.error("Erreur lors du chargement de l'agence:", error);
         }
+      } else {
+        console.log("🔍 DEBUG - Condition agence non remplie (role doit être 'pharmacy' et agencyId doit exister)");
       }
     };
 
@@ -101,6 +106,7 @@ function ImportPage() {
 
         if (response.ok) {
           const data = await response.json();
+          console.log("🔍 DEBUG - Tous les grossistes récupérés:", data);
           setWholesalers(data);
         }
       } catch (error) {
@@ -130,34 +136,60 @@ function ImportPage() {
     const suppliers = new Set<string>();
     const currentUser = user || getUser();
 
+    console.log("🔍 DEBUG - Filtrage des fournisseurs:");
+    console.log("  - Role utilisateur:", currentUser?.role);
+    console.log("  - agencyInfo:", agencyInfo);
+    console.log("  - Nombre de grossistes:", wholesalers.length);
+
     // Si admin, montrer tous les fournisseurs
     if (currentUser?.role === "admin") {
       for (const g of wholesalers) {
         if (g.status === "blocked" || g.status === "inactive") continue;
         suppliers.add(g.name);
       }
+      console.log("  - Mode admin, fournisseurs:", Array.from(suppliers));
       return Array.from(suppliers).sort();
     }
 
     // Si agence sans info, retourner vide
-    if (!agencyInfo) return [];
+    if (!agencyInfo) {
+      console.log("  - ⚠️ Pas d'agencyInfo, retour vide");
+      return [];
+    }
 
     // Filtrer les fournisseurs pour l'agence
     for (const g of wholesalers) {
+      console.log(`  - Grossiste: ${g.name}`, {
+        countryCode: g.countryCode,
+        status: g.status,
+        scope: g.scope,
+        agencyId: g.agencyId,
+      });
+
       // Ignorer les grossistes inactifs ou bloqués
-      if (g.status === "blocked" || g.status === "inactive") continue;
+      if (g.status === "blocked" || g.status === "inactive") {
+        console.log(`    ❌ Ignoré (status: ${g.status})`);
+        continue;
+      }
 
       // Scope "country" : fournisseur disponible pour tout le pays
       if (g.scope === "country" && g.countryCode === agencyInfo.country) {
+        console.log(`    ✅ Ajouté (scope country, match countryCode)`);
         suppliers.add(g.name);
+      } else if (g.scope === "country") {
+        console.log(`    ❌ Pas ajouté (scope country mais countryCode ${g.countryCode} !== ${agencyInfo.country})`);
       }
 
       // Scope "agency" : fournisseur dédié à cette agence spécifique
       if (g.scope === "agency" && g.agencyId === agencyInfo.id) {
+        console.log(`    ✅ Ajouté (scope agency, match agencyId)`);
         suppliers.add(g.name);
+      } else if (g.scope === "agency") {
+        console.log(`    ❌ Pas ajouté (scope agency mais agencyId ${g.agencyId} !== ${agencyInfo.id})`);
       }
     }
 
+    console.log("  - Fournisseurs filtrés:", Array.from(suppliers));
     return Array.from(suppliers).sort();
   }, [agencyInfo, wholesalers, user]);
 

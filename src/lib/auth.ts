@@ -10,6 +10,7 @@ export type User = {
   role: Role;
   pharmacyName: string;
   country?: string;
+  agencyId?: string | null;
   mustChangePassword?: boolean;
 };
 
@@ -22,6 +23,7 @@ function fromApi(u: ApiUser): User {
     role: u.role === "super_admin" ? "admin" : "pharmacy",
     pharmacyName: u.role === "super_admin" ? "Réseau ANF" : (u.agency?.name || "Mon agence"),
     country: u.agency?.country?.code,
+    agencyId: u.agencyId,
     mustChangePassword: u.mustChangePassword,
   };
 }
