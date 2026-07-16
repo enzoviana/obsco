@@ -133,7 +133,7 @@ function LaboratoiresPage() {
                         </div>
                         <div>
                           <div className="font-medium">{l.name}</div>
-                          <div className="text-[11px] text-muted-foreground">{l.id}</div>
+                          
                         </div>
                       </div>
                     </td>

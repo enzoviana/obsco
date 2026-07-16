@@ -674,7 +674,7 @@ export function ReportVentesUnits({ data, suffix, year, month }: { data: Data; s
 }
 export function ReportVentesCA({ data, suffix, year, month }: { data: Data; suffix: string; year: number; month: number }) {
   return <ReportPaysGrid data={data} suffix={suffix} kind="ca" year={year} month={month}
-    title="Rapport 3 bis · Ventes par CA (produit × pays)" subtitle="CA en euros par pays sur le mois"
+    title="Rapport 4 · Ventes par CA (produit × pays)" subtitle="CA en euros par pays sur le mois"
     file="r3bis-ventes-ca" />;
 }
 
@@ -729,7 +729,7 @@ export function ReportEvolutionUN({ data, suffix, year, scope, countryCode, agen
   }
 
   return (
-    <ReportCard title="Rapport 4 · Évolution ventes mois par mois — Unités"
+    <ReportCard title="Rapport 5 · Évolution ventes mois par mois — Unités"
       subtitle={`Produit × mois — ${paysLabel} · inclut stock France & reste à recevoir`}
       rows={exportRows} filename={`r4-evolution-un-${suffix}`}>
       <Table minWidth={1600}>
@@ -776,7 +776,7 @@ export function ReportEvolutionCA({ data, suffix, year, scope, countryCode, agen
   }
 
   return (
-    <ReportCard title="Rapport 4 bis · Évolution ventes mois par mois — CA"
+    <ReportCard title="Rapport 6 · Évolution ventes mois par mois — CA"
       subtitle={`Produit × mois — CA en euros`}
       rows={exportRows} filename={`r4bis-evolution-ca-${suffix}`}>
       <Table minWidth={1500}>

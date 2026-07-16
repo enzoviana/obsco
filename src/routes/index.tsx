@@ -385,7 +385,7 @@ function AdminDash() {
       title="Vue Générale"
       subtitle="Tableau de bord réseau"
       actions={<>
-        <Button variant="outline" size="sm" asChild><a href="/rapports"><Activity className="mr-2 h-4 w-4" />Rapports</a></Button>
+        <Button variant="outline" size="sm" asChild><a href="/stats"><Activity className="mr-2 h-4 w-4" />Statistiques</a></Button>
         <Button size="sm" asChild><a href="/agences"><Building2 className="mr-2 h-4 w-4" />Gérer les agences</a></Button>
       </>}
     >

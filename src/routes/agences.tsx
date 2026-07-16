@@ -113,7 +113,7 @@ function AgencesPage() {
                       </div>
                       <div>
                         <div className="font-medium">{a.name}</div>
-                        <div className="text-[11px] text-muted-foreground">{a.id} · {a.city}</div>
+                        <div className="text-[11px] text-muted-foreground"> {a.city}</div>
                       </div>
                     </div>
                   </td>

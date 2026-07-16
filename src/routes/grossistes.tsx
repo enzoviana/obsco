@@ -114,7 +114,7 @@ function GrossistesPage() {
                         </div>
                         <div>
                           <div className="font-medium">{g.partenaire}</div>
-                          <div className="text-[11px] text-muted-foreground">{g.id} · {g.type}</div>
+                          <div className="text-[11px] text-muted-foreground">{g.type}</div>
                         </div>
                       </div>
                     </td>
