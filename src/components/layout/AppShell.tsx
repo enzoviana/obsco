@@ -38,7 +38,7 @@ const NAV: NavEntry[] = [
     children: [
       { to: "/laboratoires", label: "Laboratoires", icon: FlaskConical },
       { to: "/produits", label: "Produits", icon: Boxes },
-      { to: "/admin-produits", label: "🔧 Harmoniser Produits", icon: Wrench },
+      { to: "/admin-produits", label: "Harmoniser Produits", icon: Wrench },
       { to: "/produits-objectifs", label: "Objectifs produits", icon: Target },
       { to: "/produits-tarifs", label: "Tarifs produits", icon: Tag },
       { to: "/pays", label: "Pays", icon: Globe2 },

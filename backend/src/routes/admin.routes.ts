@@ -164,69 +164,86 @@ adminRouter.post("/products/merge-duplicates", async (req, res) => {
       return res.status(404).json({ error: "Certains produits à supprimer sont introuvables" });
     }
 
-    // Utiliser une transaction pour la fusion
+    // Utiliser une transaction pour la fusion avec timeout étendu (30 secondes)
     const result = await prisma.$transaction(async (tx) => {
       const merged: any[] = [];
 
       for (const deleteId of deleteIds) {
-        // 1. Transférer les prix (gérer les doublons)
+        // 1. Gérer les prix - approche optimisée
         const prices = await tx.productPrice.findMany({
           where: { productId: deleteId },
         });
 
-        for (const price of prices) {
-          // Vérifier si un prix existe déjà pour ce pays sur le produit cible
-          const existing = await tx.productPrice.findUnique({
-            where: {
-              productId_countryCode: {
-                productId: keepId,
-                countryCode: price.countryCode,
-              },
-            },
-          });
+        // Récupérer tous les prix existants du produit cible en une seule requête
+        const existingPrices = await tx.productPrice.findMany({
+          where: {
+            productId: keepId,
+            countryCode: { in: prices.map(p => p.countryCode) }
+          },
+        });
 
-          if (existing) {
-            // Un prix existe déjà, garder celui du produit cible et supprimer le doublon
-            console.log(`  ⚠️  Prix déjà existant pour ${price.countryCode}, suppression du doublon`);
-            await tx.productPrice.delete({ where: { id: price.id } });
-          } else {
-            // Pas de conflit, transférer le prix
-            await tx.productPrice.update({
-              where: { id: price.id },
-              data: { productId: keepId },
-            });
-          }
+        const existingCountries = new Set(existingPrices.map(p => p.countryCode));
+
+        // Séparer les prix à supprimer et ceux à transférer
+        const pricesToDelete = prices.filter(p => existingCountries.has(p.countryCode)).map(p => p.id);
+        const pricesToTransfer = prices.filter(p => !existingCountries.has(p.countryCode)).map(p => p.id);
+
+        // Supprimer les doublons en batch
+        if (pricesToDelete.length > 0) {
+          await tx.productPrice.deleteMany({
+            where: { id: { in: pricesToDelete } },
+          });
+          console.log(`  ⚠️  ${pricesToDelete.length} prix en doublon supprimés`);
         }
 
-        // 2. Transférer les objectifs (gérer les doublons)
+        // Transférer les prix uniques en batch
+        if (pricesToTransfer.length > 0) {
+          await tx.productPrice.updateMany({
+            where: { id: { in: pricesToTransfer } },
+            data: { productId: keepId },
+          });
+          console.log(`  ✅ ${pricesToTransfer.length} prix transférés`);
+        }
+
+        // 2. Gérer les objectifs - approche optimisée
         const objectives = await tx.productObjective.findMany({
           where: { productId: deleteId },
         });
 
-        for (const objective of objectives) {
-          // Vérifier si un objectif existe déjà pour ce pays/période sur le produit cible
-          const existing = await tx.productObjective.findUnique({
-            where: {
-              productId_countryCode_year_month: {
-                productId: keepId,
-                countryCode: objective.countryCode,
-                year: objective.year,
-                month: objective.month,
-              },
-            },
-          });
+        // Récupérer tous les objectifs existants du produit cible
+        const existingObjectives = await tx.productObjective.findMany({
+          where: {
+            productId: keepId,
+          },
+        });
 
-          if (existing) {
-            // Un objectif existe déjà, garder celui du produit cible et supprimer le doublon
-            console.log(`  ⚠️  Objectif déjà existant pour ${objective.countryCode} ${objective.month}/${objective.year}, suppression du doublon`);
-            await tx.productObjective.delete({ where: { id: objective.id } });
-          } else {
-            // Pas de conflit, transférer l'objectif
-            await tx.productObjective.update({
-              where: { id: objective.id },
-              data: { productId: keepId },
-            });
-          }
+        const existingObjectiveKeys = new Set(
+          existingObjectives.map(o => `${o.countryCode}-${o.year}-${o.month}`)
+        );
+
+        // Séparer les objectifs à supprimer et ceux à transférer
+        const objectivesToDelete = objectives
+          .filter(o => existingObjectiveKeys.has(`${o.countryCode}-${o.year}-${o.month}`))
+          .map(o => o.id);
+        const objectivesToTransfer = objectives
+          .filter(o => !existingObjectiveKeys.has(`${o.countryCode}-${o.year}-${o.month}`))
+          .map(o => o.id);
+
+        // Supprimer les doublons en batch
+        if (objectivesToDelete.length > 0) {
+          await tx.productObjective.deleteMany({
+            where: { id: { in: objectivesToDelete } },
+          });
+          console.log(`  ⚠️  ${objectivesToDelete.length} objectifs en doublon supprimés`);
+        }
+
+        // Transférer les objectifs uniques en batch
+        if (objectivesToTransfer.length > 0) {
+          await tx.productObjective.updateMany({
+            where: { id: { in: objectivesToTransfer } },
+            data: { productId: keepId },
+          });
+          console.log(`  ✅ ${objectivesToTransfer.length} objectifs transférés`);
         }
 
         // 3. Transférer les stocks fournisseurs (attention aux conflits)
@@ -277,6 +294,9 @@ adminRouter.post("/products/merge-duplicates", async (req, res) => {
       }
 
       return merged;
+    }, {
+      maxWait: 30000, // 30 secondes max avant de commencer
+      timeout: 30000, // 30 secondes max d'exécution
     });
 
     console.log(`✅ Fusionné ${deleteIds.length} produits dans ${keepProduct.name}`);
