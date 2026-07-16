@@ -121,11 +121,11 @@ export function AppShell({ children, title, subtitle, actions }: {
                 to={n.to as never}
                 className={`group flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm transition-all duration-200 ${
                   active
-                    ? "bg-zinc-900 text-white shadow-md shadow-zinc-950/10 dark:bg-zinc-50 dark:text-zinc-950 dark:shadow-none font-medium"
+                    ? "bg-[var(--primary)] text-white shadow-md shadow-[var(--primary)]/10 font-medium"
                     : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-50"
                 }`}
               >
-                <Icon className={`h-[18px] w-[18px] transition-transform duration-200 group-hover:scale-105 ${active ? "text-white dark:text-zinc-950" : "text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"}`} />
+                <Icon className={`h-[18px] w-[18px] transition-transform duration-200 group-hover:scale-105 ${active ? "text-white" : "text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"}`} />
                 {n.label}
               </Link>
             );
@@ -153,9 +153,10 @@ export function AppShell({ children, title, subtitle, actions }: {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Clignotant avec ta couleur d'accentuation */}
             <Button variant="ghost" size="icon" className="relative text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-50 rounded-full h-9 w-9">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-zinc-950" />
+              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-[var(--accent)] ring-2 ring-white dark:ring-zinc-950" />
             </Button>
 
             <span className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
@@ -165,7 +166,7 @@ export function AppShell({ children, title, subtitle, actions }: {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-9 gap-2 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 rounded-full">
                   <Avatar className="h-7 w-7 border border-zinc-200 dark:border-zinc-700">
-                    <AvatarFallback className="text-[11px] bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold">
+                    <AvatarFallback className="text-[11px] bg-[var(--primary)] text-white font-semibold">
                       {getInitials(user?.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -205,8 +206,8 @@ export function AppShell({ children, title, subtitle, actions }: {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="space-y-1">
                 {subtitle && (
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900/5 dark:bg-white/5 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                    <Sparkles className="h-3 w-3 text-zinc-500" />
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--accent)]">
+                    <Sparkles className="h-3 w-3" />
                     {subtitle}
                   </div>
                 )}
@@ -245,12 +246,12 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
       <div className={headerClass}>
         {entry.to ? (
           <Link to={entry.to as never} className="flex flex-1 items-center gap-3" onClick={() => setOpen(true)}>
-            <Icon className={`h-[18px] w-[18px] ${isChildActive || selfActive ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-400"}`} />
+            <Icon className={`h-[18px] w-[18px] ${isChildActive || selfActive ? "text-[var(--primary)]" : "text-zinc-400"}`} />
             <span>{entry.group}</span>
           </Link>
         ) : (
           <button type="button" onClick={() => setOpen(o => !o)} className="flex flex-1 items-center gap-3">
-            <Icon className={`h-[18px] w-[18px] ${isChildActive || selfActive ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-400"}`} />
+            <Icon className={`h-[18px] w-[18px] ${isChildActive || selfActive ? "text-[var(--primary)]" : "text-zinc-400"}`} />
             <span>{entry.group}</span>
           </button>
         )}
@@ -277,11 +278,11 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
                 hash={hash}
                 className={`group flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-all duration-150 ${
                   active
-                    ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-950 font-medium"
+                    ? "bg-[var(--primary)] text-white font-medium"
                     : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-50"
                 }`}
               >
-                <CIcon className={`h-4 w-4 transition-transform duration-150 group-hover:scale-105 ${active ? "text-white dark:text-zinc-950" : "text-zinc-400"}`} />
+                <CIcon className={`h-4 w-4 transition-transform duration-150 group-hover:scale-105 ${active ? "text-white" : "text-zinc-400"}`} />
                 {c.label}
               </Link>
             );
@@ -291,7 +292,6 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
     </div>
   );
 }
-
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; text: string; label: string; dot: string }> = {
     critical: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", dot: "bg-red-500", label: "Critique" },
