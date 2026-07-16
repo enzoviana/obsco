@@ -565,7 +565,7 @@ function SortiesIndex() {
       </section>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {loading && supplierView.length === 0 ? (
+        {loading ? (
           // Skeleton pour les cartes de fournisseurs
           <>
             {Array.from({ length: 5 }).map((_, i) => (
@@ -618,7 +618,7 @@ function SortiesIndex() {
         </div>
       </div>
 
-      {loading && supplierView.length === 0 ? (
+      {loading ? (
         <div className="overflow-hidden rounded-2xl border border-border bg-card p-8">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="relative">
