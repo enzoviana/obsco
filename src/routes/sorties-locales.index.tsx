@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getUser } from "@/lib/auth";
 import {
   COUNTRIES,
@@ -395,21 +396,34 @@ function SortiesIndex() {
           </>
         ) : (
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                if (scope !== "agency" || !agencyId) {
-                  toast.warning("Le mode édition n'est disponible qu'en mode 'Par agence'. Veuillez sélectionner une agence.");
-                  return;
-                }
-                setEditMode(true);
-              }}
-              disabled={scope !== "agency" || !agencyId}
-            >
-              <Edit3 className="mr-2 h-4 w-4" />
-              Modifier
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (scope !== "agency" || !agencyId) {
+                          toast.warning("Le mode édition n'est disponible qu'en mode 'Par agence'. Veuillez sélectionner une agence.");
+                          return;
+                        }
+                        setEditMode(true);
+                      }}
+                      disabled={scope !== "agency" || !agencyId}
+                    >
+                      <Edit3 className="mr-2 h-4 w-4" />
+                      Modifier
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {(scope !== "agency" || !agencyId) && (
+                  <TooltipContent>
+                    <p>Veuillez sélectionner une agence</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
             <Button size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
               Exporter XLSX
@@ -483,12 +497,7 @@ function SortiesIndex() {
           </select>
           {loading && <span className="text-xs text-muted-foreground">Chargement...</span>}
         </div>
-        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-          <p className="text-xs text-primary">
-            ⏱️ <strong>Période disponible :</strong> Vous pouvez consulter les données jusqu'au mois de <strong>{monthOptions.find(m => m.value === maxMonth)?.label} {maxYear}</strong>.
-            Les données du mois en cours ne sont disponibles qu'à partir du 1er du mois suivant.
-          </p>
-        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-lg border border-border bg-surface p-1">
             <ScopeBtn
@@ -556,12 +565,27 @@ function SortiesIndex() {
       </section>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {supplierView.length === 0 && (
+        {loading && supplierView.length === 0 ? (
+          // Skeleton pour les cartes de fournisseurs
+          <>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border bg-card p-4 animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+                <div className="h-4 w-24 bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 rounded mb-3 animate-pulse"></div>
+                <div className="h-8 w-16 bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 rounded mb-2 animate-pulse"></div>
+                <div className="h-3 w-32 bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 rounded mb-3 animate-pulse"></div>
+                <div className="flex justify-between">
+                  <div className="h-3 w-12 bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 rounded animate-pulse"></div>
+                  <div className="h-3 w-12 bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 rounded animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : supplierView.length === 0 ? (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
             Aucun fournisseur ne correspond à ces filtres.
           </div>
-        )}
-        {supplierView.map((sv) => (
+        ) : (
+          supplierView.map((sv) => (
           <div key={sv.name} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Truck className="h-3.5 w-3.5" />
@@ -578,7 +602,8 @@ function SortiesIndex() {
               </span>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4 mb-4">
@@ -593,7 +618,45 @@ function SortiesIndex() {
         </div>
       </div>
 
-      {supplierView.length > 0 && (
+      {loading && supplierView.length === 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card p-8">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="relative">
+              <div className="h-12 w-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
+              <div className="absolute inset-0 h-12 w-12 rounded-full border-4 border-transparent border-t-primary/40 animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Chargement des données...</p>
+              <p className="text-xs text-muted-foreground">Récupération des sorties locales en cours</p>
+            </div>
+          </div>
+
+          {/* Skeleton du tableau */}
+          <div className="space-y-3">
+            {/* Skeleton header */}
+            <div className="flex gap-2">
+              <div className="h-10 w-48 bg-gradient-to-r from-surface via-muted/20 to-surface rounded animate-pulse"></div>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-10 flex-1 bg-gradient-to-r from-surface via-muted/20 to-surface rounded animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}></div>
+              ))}
+            </div>
+
+            {/* Skeleton rows */}
+            {Array.from({ length: 8 }).map((_, rowIdx) => (
+              <div key={rowIdx} className="flex gap-2" style={{ animationDelay: `${rowIdx * 0.05}s` }}>
+                <div className="h-12 w-48 bg-gradient-to-r from-muted/30 via-muted/10 to-muted/30 rounded animate-pulse"></div>
+                {Array.from({ length: 5 }).map((_, colIdx) => (
+                  <div
+                    key={colIdx}
+                    className="h-12 flex-1 bg-gradient-to-r from-muted/30 via-muted/10 to-muted/30 rounded animate-pulse"
+                    style={{ animationDelay: `${(rowIdx * 0.05) + (colIdx * 0.02)}s` }}
+                  ></div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : supplierView.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-[12px]">
@@ -777,7 +840,7 @@ function SortiesIndex() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </AppShell>
   );
 }
