@@ -177,10 +177,7 @@ function StocksPage() {
                 <th className="px-4 py-3 text-left font-medium">Catégorie</th>
                 <th className="px-4 py-3 text-left font-medium">Labo</th>
                 <th className="px-4 py-3 text-right font-medium">Stock</th>
-                <th className="px-4 py-3 text-right font-medium">Seuil</th>
-                <th className="px-4 py-3 text-right font-medium">Prix</th>
-                <th className="px-4 py-3 text-left font-medium">Péremption</th>
-                <th className="px-4 py-3 text-right font-medium">Statut</th>
+
               </tr>
             </thead>
             <tbody>
@@ -199,18 +196,14 @@ function StocksPage() {
               ) : (
                 slice.map(p => (
                   <tr key={p.id} className="border-t border-border/60 transition-colors hover:bg-surface/60">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.id}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">CIP {p.cip}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-[11px] text-muted-foreground">CIP {p.cip}</div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{p.category}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.laboratory}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-medium">{p.stock}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.threshold}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">€{p.price.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{p.expiry}</td>
-                    <td className="px-4 py-3 text-right"><StatusBadge status={p.status} /></td>
+
                   </tr>
                 ))
               )}

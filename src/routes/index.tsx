@@ -124,7 +124,7 @@ function PharmacyDash() {
       title="Tableau de bord"
       subtitle="Vue d'ensemble de vos sorties locales"
       actions={<>
-        <Button variant="outline" size="sm" asChild><a href="/sorties-locales"><Activity className="mr-2 h-4 w-4" />Sorties Locales</a></Button>
+        <Button variant="outline" size="sm" asChild><a href="/stats"><Activity className="mr-2 h-4 w-4" />Statistiques</a></Button>
         <Button size="sm" onClick={() => setOpen(true)}><Upload className="mr-2 h-4 w-4" />Importer des données</Button>
       </>}
     >
