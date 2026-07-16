@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { getUser } from "@/lib/auth";
 import {
-  COUNTRIES, addGrossiste, deleteGrossiste, getGrossistes, updateGrossiste, setGrossisteStatus,
+  addGrossiste, deleteGrossiste, getGrossistes, updateGrossiste, setGrossisteStatus,
   getAgencies, type Grossiste,
 } from "@/lib/agencies";
+import { WORLD_COUNTRIES } from "@/lib/countries-data";
 import { exportCSV } from "@/lib/export";
 
 export const Route = createFileRoute("/grossistes")({
@@ -54,7 +55,7 @@ function GrossistesPage() {
     exportCSV("grossistes", filtered.map(g => {
       return {
         ID: g.id, Partenaire: g.partenaire, Type: g.type,
-        "Code Pays": g.country, Pays: COUNTRIES.find(c => c.code === g.country)?.name ?? g.country,
+        "Code Pays": g.country, Pays: WORLD_COUNTRIES.find(c => c.code === g.country)?.name ?? g.country,
         Statut: g.status, Email: g.email,
       };
     }));
@@ -84,7 +85,7 @@ function GrossistesPage() {
           <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les pays</SelectItem>
-            {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+            {[...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -103,7 +104,7 @@ function GrossistesPage() {
             </thead>
             <tbody>
               {filtered.map(g => {
-                const c = COUNTRIES.find(x => x.code === g.country);
+                const c = WORLD_COUNTRIES.find(x => x.code === g.country);
                 const blocked = g.status === "blocked";
                 return (
                   <tr key={g.id} className="border-t border-border/60 hover:bg-surface/60">
@@ -157,13 +158,13 @@ function GrossistesPage() {
 function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | null }) {
   const [f, setF] = useState<Omit<Grossiste, "id">>({
     partenaire: g?.partenaire ?? "", type: "Grossiste",
-    country: g?.country ?? COUNTRIES[0].code,
+    country: g?.country ?? WORLD_COUNTRIES[0].code,
     email: g?.email ?? "", status: g?.status ?? "active",
   });
 
   // Trier les pays par ordre alphabétique
   const sortedCountries = useMemo(() =>
-    [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
     []
   );
 
@@ -187,7 +188,7 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
             <Label>Pays *</Label>
             <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}</SelectContent>
+              <SelectContent>{sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>

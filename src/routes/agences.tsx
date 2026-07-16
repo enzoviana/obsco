@@ -11,7 +11,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getUser } from "@/lib/auth";
-import { COUNTRIES, addAgency, deleteAgency, getAgencies, updateAgency, setAgencyStatus, type Agency } from "@/lib/agencies";
+import { addAgency, deleteAgency, getAgencies, updateAgency, setAgencyStatus, type Agency } from "@/lib/agencies";
+import { WORLD_COUNTRIES } from "@/lib/countries-data";
 import { exportCSV } from "@/lib/export";
 
 export const Route = createFileRoute("/agences")({
@@ -48,7 +49,7 @@ function AgencesPage() {
 
   const handleExport = () => {
     exportCSV("agences", filtered.map(a => {
-      const c = COUNTRIES.find(x => x.code === a.country);
+      const c = WORLD_COUNTRIES.find(x => x.code === a.country);
       return {
         ID: a.id, Nom: a.name, Pays: c?.name ?? a.country, "Code ISO": a.country, Région: c?.region ?? "",
         Ville: a.city, Email: a.email, Responsable: a.manager, "Date création": a.createdAt, Statut: a.status,
@@ -80,7 +81,7 @@ function AgencesPage() {
           <SelectTrigger className="w-[200px]"><SelectValue placeholder="Pays" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les pays</SelectItem>
-            {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+            {[...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -102,7 +103,7 @@ function AgencesPage() {
             </thead>
             <tbody>
               {filtered.map(a => {
-                const c = COUNTRIES.find(x => x.code === a.country);
+                const c = WORLD_COUNTRIES.find(x => x.code === a.country);
                 const blocked = a.status === "blocked";
                 return (
                 <tr key={a.id} className="border-t border-border/60 hover:bg-surface/60">
@@ -158,7 +159,7 @@ function AgencesPage() {
 
 function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency | null }) {
   const [name, setName] = useState(agency?.name ?? "");
-  const [country, setCountry] = useState(agency?.country ?? COUNTRIES[0].code);
+  const [country, setCountry] = useState(agency?.country ?? WORLD_COUNTRIES[0].code);
   const [manager, setManager] = useState(agency?.manager ?? "");
   const [email, setEmail] = useState(agency?.email ?? "");
   const [city, setCity] = useState(agency?.city ?? "");
@@ -166,7 +167,7 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
 
   // Trier les pays par ordre alphabétique
   const sortedCountries = useMemo(() =>
-    [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
     []
   );
 
@@ -221,7 +222,7 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
           <Select value={country} onValueChange={setCountry}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+              {sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
