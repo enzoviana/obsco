@@ -953,12 +953,24 @@ function ImportSortiesDialog({
 
       // Réutiliser la même logique de parsing que CSV
       const rows = parseDataRows(rawHeaders, headers, data.slice(1).map(row => (row as any[]).map(cell => String(cell || ""))));
-      setPreview(rows);
 
-      if (rows.length === 0) {
+      // Filtrer les lignes de totaux
+      const filteredRows = rows.filter(row => {
+        const cipUpper = row.productCip.toUpperCase().trim();
+        return cipUpper !== "TOTAL" && !cipUpper.includes("TOTAL");
+      });
+
+      const totalRowsIgnored = rows.length - filteredRows.length;
+
+      setPreview(filteredRows);
+
+      if (filteredRows.length === 0) {
         toast.error("Aucune donnée valide trouvée dans le fichier");
       } else {
-        toast.success(`${rows.length} ligne(s) prête(s) à être importées`);
+        const message = totalRowsIgnored > 0
+          ? `${filteredRows.length} ligne(s) prête(s) à être importées (${totalRowsIgnored} ligne(s) de totaux ignorée(s))`
+          : `${filteredRows.length} ligne(s) prête(s) à être importées`;
+        toast.success(message);
       }
     } catch (error: any) {
       console.error("Erreur parsing XLSX:", error);
@@ -1142,11 +1154,22 @@ function ImportSortiesDialog({
       // Utiliser la fonction commune
       const rows = parseDataRows(rawHeaders, headers, dataLines);
 
-      setPreview(rows);
-      if (rows.length === 0) {
+      // Filtrer les lignes de totaux
+      const filteredRows = rows.filter(row => {
+        const cipUpper = row.productCip.toUpperCase().trim();
+        return cipUpper !== "TOTAL" && !cipUpper.includes("TOTAL");
+      });
+
+      const totalRowsIgnored = rows.length - filteredRows.length;
+
+      setPreview(filteredRows);
+      if (filteredRows.length === 0) {
         toast.error("Aucune donnée valide trouvée dans le fichier");
       } else {
-        toast.success(`${rows.length} ligne(s) prête(s) à être importées`);
+        const message = totalRowsIgnored > 0
+          ? `${filteredRows.length} ligne(s) prête(s) à être importées (${totalRowsIgnored} ligne(s) de totaux ignorée(s))`
+          : `${filteredRows.length} ligne(s) prête(s) à être importées`;
+        toast.success(message);
       }
     };
     reader.readAsText(file);
