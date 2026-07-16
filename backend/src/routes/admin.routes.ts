@@ -169,17 +169,65 @@ adminRouter.post("/products/merge-duplicates", async (req, res) => {
       const merged: any[] = [];
 
       for (const deleteId of deleteIds) {
-        // 1. Transférer les prix
-        await tx.productPrice.updateMany({
+        // 1. Transférer les prix (gérer les doublons)
+        const prices = await tx.productPrice.findMany({
           where: { productId: deleteId },
-          data: { productId: keepId },
         });
 
-        // 2. Transférer les objectifs
-        await tx.productObjective.updateMany({
+        for (const price of prices) {
+          // Vérifier si un prix existe déjà pour ce pays sur le produit cible
+          const existing = await tx.productPrice.findUnique({
+            where: {
+              productId_countryCode: {
+                productId: keepId,
+                countryCode: price.countryCode,
+              },
+            },
+          });
+
+          if (existing) {
+            // Un prix existe déjà, garder celui du produit cible et supprimer le doublon
+            console.log(`  ⚠️  Prix déjà existant pour ${price.countryCode}, suppression du doublon`);
+            await tx.productPrice.delete({ where: { id: price.id } });
+          } else {
+            // Pas de conflit, transférer le prix
+            await tx.productPrice.update({
+              where: { id: price.id },
+              data: { productId: keepId },
+            });
+          }
+        }
+
+        // 2. Transférer les objectifs (gérer les doublons)
+        const objectives = await tx.productObjective.findMany({
           where: { productId: deleteId },
-          data: { productId: keepId },
         });
+
+        for (const objective of objectives) {
+          // Vérifier si un objectif existe déjà pour ce pays/période sur le produit cible
+          const existing = await tx.productObjective.findUnique({
+            where: {
+              productId_countryCode_year_month: {
+                productId: keepId,
+                countryCode: objective.countryCode,
+                year: objective.year,
+                month: objective.month,
+              },
+            },
+          });
+
+          if (existing) {
+            // Un objectif existe déjà, garder celui du produit cible et supprimer le doublon
+            console.log(`  ⚠️  Objectif déjà existant pour ${objective.countryCode} ${objective.month}/${objective.year}, suppression du doublon`);
+            await tx.productObjective.delete({ where: { id: objective.id } });
+          } else {
+            // Pas de conflit, transférer l'objectif
+            await tx.productObjective.update({
+              where: { id: objective.id },
+              data: { productId: keepId },
+            });
+          }
+        }
 
         // 3. Transférer les stocks fournisseurs (attention aux conflits)
         const stocks = await tx.supplierStock.findMany({
