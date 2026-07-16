@@ -16,9 +16,10 @@ import {
   type Agency,
   type Grossiste,
 } from "@/lib/agencies";
-import { exportXLSX, exportStyledSortiesLocalesXLSX } from "@/lib/export";
+import { exportStyledSortiesLocalesXLSX } from "@/lib/export";
 import { toast } from "sonner";
 import { apiPost } from "@/lib/api";
+import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/sorties-locales/")({
   head: () => ({ meta: [{ title: "Sorties Locales — Sorties Locales — OBCO" }] }),
@@ -361,7 +362,7 @@ function SortiesIndex() {
         {isSuperAdmin && (
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm"><Upload className="mr-2 h-4 w-4" />Importer CSV</Button>
+              <Button variant="outline" size="sm"><Upload className="mr-2 h-4 w-4" />Importer</Button>
             </DialogTrigger>
             <ImportSortiesDialog
               onClose={() => setImportOpen(false)}
@@ -394,16 +395,21 @@ function SortiesIndex() {
           </>
         ) : (
           <>
-            {scope === "agency" && agencyId && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setEditMode(true)}
-              >
-                <Edit3 className="mr-2 h-4 w-4" />
-                Modifier
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (scope !== "agency" || !agencyId) {
+                  toast.warning("Le mode édition n'est disponible qu'en mode 'Par agence'. Veuillez sélectionner une agence.");
+                  return;
+                }
+                setEditMode(true);
+              }}
+              disabled={scope !== "agency" || !agencyId}
+            >
+              <Edit3 className="mr-2 h-4 w-4" />
+              Modifier
+            </Button>
             <Button size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
               Exporter XLSX
@@ -817,10 +823,17 @@ function ImportSortiesDialog({
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
   const [agencyId, setAgencyId] = useState<string>(agencies[0]?.id || "");
-  const [year, setYear] = useState(selectedYear);
-  const [month, setMonth] = useState(selectedMonth);
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
 
-  const currentYear = new Date().getFullYear();
+  // Calculer le mois maximum autorisé pour l'import (mois actuel - 1)
+  const maxImportMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const maxImportYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+  const [year, setYear] = useState(selectedYear <= maxImportYear ? selectedYear : maxImportYear);
+  const [month, setMonth] = useState(selectedMonth <= maxImportMonth || selectedYear < maxImportYear ? selectedMonth : maxImportMonth);
+
   // Générer les années de 2025 à année courante + 2
   const startYear = 2025;
   const endYear = currentYear + 2;
@@ -844,8 +857,204 @@ function ImportSortiesDialog({
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      parseCSV(selectedFile);
+      // Détecter le type de fichier
+      const fileName = selectedFile.name.toLowerCase();
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        parseXLSX(selectedFile);
+      } else {
+        parseCSV(selectedFile);
+      }
     }
+  };
+
+  const parseXLSX = async (file: File) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+      // Prendre la première feuille
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+
+      // Convertir en JSON
+      const data: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      if (data.length < 2) {
+        toast.error("Le fichier XLSX doit contenir au moins une ligne d'en-tête et une ligne de données");
+        return;
+      }
+
+      // Parser comme CSV en reconstruisant les lignes
+      const rawHeaders = (data[0] as any[]).map(h => String(h || "").trim());
+      const headers = rawHeaders.map(h => h.toLowerCase());
+
+      // Réutiliser la même logique de parsing que CSV
+      const rows = parseDataRows(rawHeaders, headers, data.slice(1).map(row => (row as any[]).map(cell => String(cell || ""))));
+      setPreview(rows);
+
+      if (rows.length === 0) {
+        toast.error("Aucune donnée valide trouvée dans le fichier");
+      } else {
+        toast.success(`${rows.length} ligne(s) prête(s) à être importées`);
+      }
+    } catch (error: any) {
+      console.error("Erreur parsing XLSX:", error);
+      toast.error("Erreur lors de la lecture du fichier XLSX");
+    }
+  };
+
+  // Fonction pour extraire les données depuis les lignes (réutilisée pour CSV et XLSX)
+  const parseDataRows = (rawHeaders: string[], headers: string[], dataLines: string[][]): any[] => {
+    const cipIdx = headers.findIndex(h => h.includes("cip") || h.includes("code"));
+    const nameIdx = headers.findIndex(h => h.includes("nom") || h === "name" || h.includes("produit") || h === "produit");
+    const wholesalerIdx = headers.findIndex(h => h.includes("grossiste") && !h.includes("-"));
+
+    // Détecter les colonnes de grossistes (format: "GROSSISTE - Ventes/Stocks/Cmds")
+    const wholesalerColumns: { name: string; salesIdx: number; stockIdx: number; ordersIdx: number }[] = [];
+    const processedWholesalers = new Set<string>();
+
+    for (let i = 0; i < rawHeaders.length; i++) {
+      const header = rawHeaders[i];
+
+      // Détecter les patterns: "GROSSISTE - Ventes", "GROSSISTE - Stocks", "GROSSISTE - Cmds"
+      const match = header.match(/^(.+?)\s*-\s*(ventes?|sales?|sortie|stocks?|commandes?|cmds?|orders?)$/i);
+      if (match) {
+        const wholesalerName = match[1].trim();
+
+        if (!processedWholesalers.has(wholesalerName)) {
+          processedWholesalers.add(wholesalerName);
+
+          // Trouver les 3 colonnes pour ce grossiste
+          let salesIdx = -1, stockIdx = -1, ordersIdx = -1;
+
+          for (let j = 0; j < rawHeaders.length; j++) {
+            const h = rawHeaders[j];
+            if (h.startsWith(wholesalerName + " -") || h.startsWith(wholesalerName + "-")) {
+              const lower = h.toLowerCase();
+              if (lower.includes("vente") || lower.includes("sales") || lower.includes("sortie")) {
+                salesIdx = j;
+              } else if (lower.includes("stock")) {
+                stockIdx = j;
+              } else if (lower.includes("cmd") || lower.includes("commande") || lower.includes("order")) {
+                ordersIdx = j;
+              }
+            }
+          }
+
+          wholesalerColumns.push({
+            name: wholesalerName,
+            salesIdx,
+            stockIdx,
+            ordersIdx,
+          });
+        }
+      }
+    }
+
+    // Déterminer le format
+    const isWideFormat = wholesalerColumns.length > 0;
+    let rows: any[] = [];
+
+    if (isWideFormat) {
+      // Format WIDE : une ligne = un produit avec plusieurs grossistes en colonnes
+      console.log(`📊 Format détecté: WIDE avec ${wholesalerColumns.length} grossiste(s)`);
+
+      if (nameIdx === -1) {
+        toast.error("Le fichier doit contenir une colonne 'Produit' ou 'Nom'");
+        return [];
+      }
+
+      for (const values of dataLines) {
+        if (values.length < 2) continue;
+
+        const productName = values[nameIdx] || "";
+        if (!productName) continue;
+
+        // Extraire le CIP du nom du produit (souvent au début)
+        let productCip = "";
+        if (cipIdx !== -1 && values[cipIdx]) {
+          productCip = values[cipIdx];
+        } else {
+          // Essayer d'extraire un code numérique du nom
+          const cipMatch = productName.match(/^(\d+)/);
+          if (cipMatch) {
+            productCip = cipMatch[1];
+          } else {
+            productCip = productName.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "");
+          }
+        }
+
+        // Créer une ligne pour chaque grossiste
+        for (const wc of wholesalerColumns) {
+          const sales = wc.salesIdx !== -1 && values[wc.salesIdx]
+            ? parseInt(values[wc.salesIdx].replace(/[^\d]/g, "")) || 0
+            : 0;
+          const stock = wc.stockIdx !== -1 && values[wc.stockIdx]
+            ? parseInt(values[wc.stockIdx].replace(/[^\d]/g, "")) || 0
+            : 0;
+          const orders = wc.ordersIdx !== -1 && values[wc.ordersIdx]
+            ? parseInt(values[wc.ordersIdx].replace(/[^\d]/g, "")) || 0
+            : 0;
+
+          // Ne créer une ligne que si au moins une valeur est non nulle
+          if (sales > 0 || stock > 0 || orders > 0) {
+            rows.push({
+              productCip,
+              productName,
+              wholesalerName: wc.name,
+              sales,
+              stock,
+              orders,
+            });
+          }
+        }
+      }
+    } else {
+      // Format SIMPLE : une ligne = un produit + un grossiste
+      console.log("📊 Format détecté: SIMPLE (une ligne par produit/grossiste)");
+
+      if (cipIdx === -1 || wholesalerIdx === -1) {
+        toast.error("Le fichier doit contenir au minimum les colonnes 'cip' et 'grossiste'");
+        return [];
+      }
+
+      const salesIdx = headers.findIndex(h => h.includes("vente") || h === "sales" || h.includes("sortie"));
+      const stockIdx = headers.findIndex(h => h.includes("stock"));
+      const ordersIdx = headers.findIndex(h => h.includes("commande") || h === "orders" || h.includes("cmd"));
+      const countryIdx = headers.findIndex(h => h.includes("country") || h === "pays" || h.includes("countrycode"));
+      const cityIdx = headers.findIndex(h => h.includes("ville") || h === "city");
+
+      for (const values of dataLines) {
+        if (values.length < 2) continue;
+
+        const row: any = {
+          productCip: values[cipIdx] || "",
+          wholesalerName: values[wholesalerIdx] || "",
+        };
+
+        if (nameIdx !== -1 && values[nameIdx]) row.productName = values[nameIdx];
+        if (salesIdx !== -1 && values[salesIdx]) {
+          const sales = parseInt(values[salesIdx].replace(/[^\d]/g, ""));
+          if (!isNaN(sales)) row.sales = sales;
+        }
+        if (stockIdx !== -1 && values[stockIdx]) {
+          const stock = parseInt(values[stockIdx].replace(/[^\d]/g, ""));
+          if (!isNaN(stock)) row.stock = stock;
+        }
+        if (ordersIdx !== -1 && values[ordersIdx]) {
+          const orders = parseInt(values[ordersIdx].replace(/[^\d]/g, ""));
+          if (!isNaN(orders)) row.orders = orders;
+        }
+        if (countryIdx !== -1 && values[countryIdx]) row.countryCode = values[countryIdx].toUpperCase();
+        if (cityIdx !== -1 && values[cityIdx]) row.city = values[cityIdx];
+
+        if (row.productCip && row.wholesalerName) {
+          rows.push(row);
+        }
+      }
+    }
+
+    return rows;
   };
 
   const parseCSV = (file: File) => {
@@ -864,157 +1073,11 @@ function ImportSortiesDialog({
       const rawHeaders = lines[0].split(separator).map(h => h.trim());
       const headers = rawHeaders.map(h => h.toLowerCase());
 
-      // Détecter le format : simple (cip, grossiste, ventes...) ou wide (produit, GROSSISTE1 - Ventes, GROSSISTE1 - Stocks...)
-      const cipIdx = headers.findIndex(h => h.includes("cip") || h.includes("code"));
-      const nameIdx = headers.findIndex(h => h.includes("nom") || h === "name" || h.includes("produit") || h === "produit");
-      const wholesalerIdx = headers.findIndex(h => h.includes("grossiste") && !h.includes("-"));
+      // Convertir les lignes CSV en tableau 2D
+      const dataLines = lines.slice(1).map(line => line.split(separator).map(v => v.trim()));
 
-      // Détecter les colonnes de grossistes (format: "GROSSISTE - Ventes/Stocks/Cmds")
-      const wholesalerColumns: { name: string; salesIdx: number; stockIdx: number; ordersIdx: number }[] = [];
-      const processedWholesalers = new Set<string>();
-
-      for (let i = 0; i < rawHeaders.length; i++) {
-        const header = rawHeaders[i];
-
-        // Détecter les patterns: "GROSSISTE - Ventes", "GROSSISTE - Stocks", "GROSSISTE - Cmds"
-        const match = header.match(/^(.+?)\s*-\s*(ventes?|sales?|sortie|stocks?|commandes?|cmds?|orders?)$/i);
-        if (match) {
-          const wholesalerName = match[1].trim();
-
-          if (!processedWholesalers.has(wholesalerName)) {
-            processedWholesalers.add(wholesalerName);
-
-            // Trouver les 3 colonnes pour ce grossiste
-            let salesIdx = -1, stockIdx = -1, ordersIdx = -1;
-
-            for (let j = 0; j < rawHeaders.length; j++) {
-              const h = rawHeaders[j];
-              if (h.startsWith(wholesalerName + " -") || h.startsWith(wholesalerName + "-")) {
-                const lower = h.toLowerCase();
-                if (lower.includes("vente") || lower.includes("sales") || lower.includes("sortie")) {
-                  salesIdx = j;
-                } else if (lower.includes("stock")) {
-                  stockIdx = j;
-                } else if (lower.includes("cmd") || lower.includes("commande") || lower.includes("order")) {
-                  ordersIdx = j;
-                }
-              }
-            }
-
-            wholesalerColumns.push({
-              name: wholesalerName,
-              salesIdx,
-              stockIdx,
-              ordersIdx,
-            });
-          }
-        }
-      }
-
-      // Déterminer le format
-      const isWideFormat = wholesalerColumns.length > 0;
-      let rows: any[] = [];
-
-      if (isWideFormat) {
-        // Format WIDE : une ligne = un produit avec plusieurs grossistes en colonnes
-        console.log(`📊 Format détecté: WIDE avec ${wholesalerColumns.length} grossiste(s)`);
-
-        if (nameIdx === -1) {
-          toast.error("Le CSV doit contenir une colonne 'Produit' ou 'Nom'");
-          return;
-        }
-
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(separator).map(v => v.trim());
-          if (values.length < 2) continue;
-
-          const productName = values[nameIdx] || "";
-          if (!productName) continue;
-
-          // Extraire le CIP du nom du produit (souvent au début)
-          let productCip = "";
-          if (cipIdx !== -1 && values[cipIdx]) {
-            productCip = values[cipIdx];
-          } else {
-            // Essayer d'extraire un code numérique du nom
-            const cipMatch = productName.match(/^(\d+)/);
-            if (cipMatch) {
-              productCip = cipMatch[1];
-            } else {
-              productCip = productName.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "");
-            }
-          }
-
-          // Créer une ligne pour chaque grossiste
-          for (const wc of wholesalerColumns) {
-            const sales = wc.salesIdx !== -1 && values[wc.salesIdx]
-              ? parseInt(values[wc.salesIdx].replace(/[^\d]/g, "")) || 0
-              : 0;
-            const stock = wc.stockIdx !== -1 && values[wc.stockIdx]
-              ? parseInt(values[wc.stockIdx].replace(/[^\d]/g, "")) || 0
-              : 0;
-            const orders = wc.ordersIdx !== -1 && values[wc.ordersIdx]
-              ? parseInt(values[wc.ordersIdx].replace(/[^\d]/g, "")) || 0
-              : 0;
-
-            // Ne créer une ligne que si au moins une valeur est non nulle
-            if (sales > 0 || stock > 0 || orders > 0) {
-              rows.push({
-                productCip,
-                productName,
-                wholesalerName: wc.name,
-                sales,
-                stock,
-                orders,
-              });
-            }
-          }
-        }
-      } else {
-        // Format SIMPLE : une ligne = un produit + un grossiste
-        console.log("📊 Format détecté: SIMPLE (une ligne par produit/grossiste)");
-
-        if (cipIdx === -1 || wholesalerIdx === -1) {
-          toast.error("Le CSV doit contenir au minimum les colonnes 'cip' et 'grossiste'");
-          return;
-        }
-
-        const salesIdx = headers.findIndex(h => h.includes("vente") || h === "sales" || h.includes("sortie"));
-        const stockIdx = headers.findIndex(h => h.includes("stock"));
-        const ordersIdx = headers.findIndex(h => h.includes("commande") || h === "orders" || h.includes("cmd"));
-        const countryIdx = headers.findIndex(h => h.includes("country") || h === "pays" || h.includes("countrycode"));
-        const cityIdx = headers.findIndex(h => h.includes("ville") || h === "city");
-
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(separator).map(v => v.trim());
-          if (values.length < 2) continue;
-
-          const row: any = {
-            productCip: values[cipIdx] || "",
-            wholesalerName: values[wholesalerIdx] || "",
-          };
-
-          if (nameIdx !== -1 && values[nameIdx]) row.productName = values[nameIdx];
-          if (salesIdx !== -1 && values[salesIdx]) {
-            const sales = parseInt(values[salesIdx].replace(/[^\d]/g, ""));
-            if (!isNaN(sales)) row.sales = sales;
-          }
-          if (stockIdx !== -1 && values[stockIdx]) {
-            const stock = parseInt(values[stockIdx].replace(/[^\d]/g, ""));
-            if (!isNaN(stock)) row.stock = stock;
-          }
-          if (ordersIdx !== -1 && values[ordersIdx]) {
-            const orders = parseInt(values[ordersIdx].replace(/[^\d]/g, ""));
-            if (!isNaN(orders)) row.orders = orders;
-          }
-          if (countryIdx !== -1 && values[countryIdx]) row.countryCode = values[countryIdx].toUpperCase();
-          if (cityIdx !== -1 && values[cityIdx]) row.city = values[cityIdx];
-
-          if (row.productCip && row.wholesalerName) {
-            rows.push(row);
-          }
-        }
-      }
+      // Utiliser la fonction commune
+      const rows = parseDataRows(rawHeaders, headers, dataLines);
 
       setPreview(rows);
       if (rows.length === 0) {
@@ -1137,7 +1200,15 @@ function ImportSortiesDialog({
           </div>
           <div>
             <Label>Année *</Label>
-            <Select value={year.toString()} onValueChange={v => setYear(parseInt(v))}>
+            <Select value={year.toString()} onValueChange={v => {
+              const newYear = parseInt(v);
+              setYear(newYear);
+              // Ajuster le mois si nécessaire
+              if (newYear === currentYear && month >= currentMonth) {
+                setMonth(maxImportMonth);
+                toast.info(`Le mois a été ajusté automatiquement à ${monthOptions.find(m => m.value === maxImportMonth)?.label}`);
+              }
+            }}>
               <SelectTrigger className="mt-2">
                 <SelectValue />
               </SelectTrigger>
@@ -1150,29 +1221,51 @@ function ImportSortiesDialog({
           </div>
           <div>
             <Label>Mois *</Label>
-            <Select value={month.toString()} onValueChange={v => setMonth(parseInt(v))}>
+            <Select value={month.toString()} onValueChange={v => {
+              const newMonth = parseInt(v);
+              const newDate = new Date(year, newMonth - 1);
+              const maxDate = new Date(maxImportYear, maxImportMonth - 1);
+
+              if (newDate <= maxDate) {
+                setMonth(newMonth);
+              } else {
+                toast.error(`Impossible d'importer pour ${monthOptions.find(m => m.value === newMonth)?.label}. Les imports sont autorisés jusqu'au mois précédent.`);
+              }
+            }}>
               <SelectTrigger className="mt-2">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {monthOptions.map(m => (
-                  <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
-                ))}
+                {monthOptions.map(m => {
+                  const isDisabled = year === currentYear && m.value >= currentMonth;
+                  return (
+                    <SelectItem key={m.value} value={m.value.toString()} disabled={isDisabled}>
+                      {m.label} {isDisabled ? "(non disponible)" : ""}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
         </div>
 
+        <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 mb-4">
+          <p className="text-xs text-warning">
+            ⚠️ <strong>Période d'import :</strong> Vous pouvez importer des données jusqu'au mois de <strong>{monthOptions.find(m => m.value === maxImportMonth)?.label} {maxImportYear}</strong>.
+            Les imports pour le mois en cours ne sont pas autorisés.
+          </p>
+        </div>
+
         <div>
-          <Label>Fichier CSV</Label>
+          <Label>Fichier CSV ou XLSX</Label>
           <Input
             type="file"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls"
             onChange={handleFileChange}
             className="mt-2"
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            Colonnes requises : <b>cip</b>, <b>grossiste</b>. Colonnes optionnelles : nom, ventes, stocks, commandes, countryCode, ville
+            Formats acceptés : CSV, XLSX. Colonnes requises : <b>cip</b>, <b>grossiste</b>. Colonnes optionnelles : nom, ventes, stocks, commandes, countryCode, ville
           </p>
         </div>
 

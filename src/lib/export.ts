@@ -281,6 +281,15 @@ export function exportStyledSortiesLocalesXLSX(
     }
   }
 
+  // Couleurs alternées pour les grossistes
+  const supplierColors = [
+    "E8F4F8", // Bleu clair
+    "F0E8F8", // Violet clair
+    "E8F8E8", // Vert clair
+    "F8F0E8", // Orange clair
+    "F8E8F0", // Rose clair
+  ];
+
   // Style pour les lignes de données
   for (let r = 2; r < 2 + products.length; r++) {
     for (let c = 0; c <= range.e.c; c++) {
@@ -290,9 +299,18 @@ export function exportStyledSortiesLocalesXLSX(
         const isLabCol = c === 1;
         const isTotalCol = c >= totalStartCol;
 
+        // Déterminer la couleur selon le grossiste (colonnes groupées par 3)
+        let bgColor = "FFFFFF";
+        if (!isProductCol && !isLabCol && !isTotalCol) {
+          const supplierIndex = Math.floor((c - 2) / 3); // -2 pour Produit et Laboratoire
+          bgColor = supplierColors[supplierIndex % supplierColors.length];
+        } else if (isTotalCol) {
+          bgColor = "FFF2CC";
+        }
+
         ws[cellAddress].s = {
           font: { sz: 10 },
-          fill: { fgColor: { rgb: isTotalCol ? "FFF2CC" : "FFFFFF" } },
+          fill: { fgColor: { rgb: bgColor } },
           alignment: {
             horizontal: isProductCol || isLabCol ? "left" : "center",
             vertical: "center"
