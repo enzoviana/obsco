@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import {
-  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, LogOut, ChevronDown, ChevronRight,
-  FileBarChart2, Boxes, Upload, FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen, Target, Tag,
+  LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, LogOut, ChevronRight,
+  FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen, Target, Tag,
+  Boxes, Upload, Search, User, Sparkles
 } from "lucide-react";
-import { logout, setRole, useUser } from "@/lib/auth";
+import { logout, useUser } from "@/lib/auth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
@@ -55,10 +57,9 @@ const NAV: NavEntry[] = [
       { to: "/sorties-locales/evolution-ca", label: "R5bis · Évolution (CA)", icon: BarChart3 },
       { to: "/sorties-locales/stocks-pays", label: "R6 · Stocks / Pays", icon: Package },
       { to: "/sorties-locales/stocks-en-cours", label: "R7bis · Stocks en cours", icon: Package },
-       { to: "/sorties-locales/vue-panoramique", label: "R8 · Vue panoramique", icon: LayoutDashboard },
+      { to: "/sorties-locales/vue-panoramique", label: "R8 · Vue panoramique", icon: LayoutDashboard },
     ],
   },
-  { to: "/rapports", label: "Rapports", icon: FileBarChart2, adminOnly: true },
   { to: "/stats", label: "Statistiques", icon: BarChart3 },
   { to: "/stocks", label: "Stocks", icon: Package, agencyOnly: true },
   { to: "/import", label: "Import / Export", icon: Upload, agencyOnly: true },
@@ -93,68 +94,130 @@ export function AppShell({ children, title, subtitle, actions }: {
     return true;
   });
 
+  const getInitials = (name?: string) => {
+    if (!name) return "US";
+    return name.slice(0, 2).toUpperCase();
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-surface lg:flex">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <img src={Logo} alt="OBCO" className="h-10 w-auto" />
+    <div className="min-h-screen bg-zinc-50/40 dark:bg-zinc-950/40">
+      {/* Sidebar de gauche */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-zinc-200/60 bg-white/80 dark:border-zinc-800/60 dark:bg-zinc-900/80 backdrop-blur-md lg:flex">
+        <div className="flex h-16 items-center gap-2.5 px-6 border-b border-zinc-200/40 dark:border-zinc-800/40">
+          <img src={Logo} alt="OBCO" className="h-8 w-auto transition-transform hover:scale-105 duration-200" />
         </div>
 
-        <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+        {/* Navigation principale */}
+        <nav className="mt-6 flex-1 space-y-1 overflow-y-auto px-4 pb-4 scrollbar-thin">
           {filtered.map((n, idx) => {
             if (isGroup(n)) {
               return <NavGroup key={`g-${idx}-${n.group}`} entry={n} pathname={loc.pathname} />;
             }
-            const active = n.exact ? loc.pathname === n.to : loc.pathname === n.to;
+            const active = loc.pathname === n.to;
             const Icon = n.icon;
             return (
               <Link
                 key={n.to}
                 to={n.to as never}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`group flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm transition-all duration-200 ${
                   active
-                    ? "bg-card text-foreground shadow-sm font-medium"
-                    : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                    ? "bg-zinc-900 text-white shadow-md shadow-zinc-950/10 dark:bg-zinc-50 dark:text-zinc-950 dark:shadow-none font-medium"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-50"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className={`h-[18px] w-[18px] transition-transform duration-200 group-hover:scale-105 ${active ? "text-white dark:text-zinc-950" : "text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"}`} />
                 {n.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-border p-3">
+        {/* Footer Sidebar (Déconnexion) */}
+        <div className="border-t border-zinc-200/60 dark:border-zinc-800/60 p-4 bg-zinc-50/50 dark:bg-zinc-900/40">
           <button
             onClick={() => { logout(); navigate({ to: "/login" }); }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground"
+            className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 transition-colors duration-200"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 text-zinc-400 group-hover:text-red-500 transition-colors" />
             Déconnexion
           </button>
         </div>
       </aside>
 
+      {/* Zone droite */}
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-xl">
-          <div className="flex items-center gap-4 px-6 py-4">
+        {/* Header supérieur flottant */}
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-zinc-200/50 bg-white/80 dark:border-zinc-800/50 dark:bg-zinc-950/80 backdrop-blur-md px-8">
+          <div className="flex flex-1 items-center gap-4">
             <SearchCommand />
+          </div>
 
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="relative text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-50 rounded-full h-9 w-9">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-zinc-950" />
+            </Button>
 
+            <span className="h-5 w-px bg-zinc-200 dark:bg-zinc-800" />
+
+            {/* Menu Utilisateur */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 gap-2 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 rounded-full">
+                  <Avatar className="h-7 w-7 border border-zinc-200 dark:border-zinc-700">
+                    <AvatarFallback className="text-[11px] bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold">
+                      {getInitials(user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden text-left sm:block">
+                    <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">{user?.name || "Invité"}</p>
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">{user?.role || "Membre"}</p>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 rotate-90 text-zinc-400" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 mt-1 rounded-xl">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.name}</p>
+                    <p className="text-xs leading-none text-zinc-400">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer gap-2">
+                  <User className="h-4 w-4" /> Profil
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigate({ to: "/parametres" })}>
+                  <Settings className="h-4 w-4" /> Paramètres
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-500 focus:text-red-500 cursor-pointer gap-2" onClick={() => { logout(); navigate({ to: "/login" }); }}>
+                  <LogOut className="h-4 w-4" /> Déconnexion
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
-        <main className="px-6 py-8">
+        {/* Contenu principal */}
+        <main className="px-8 py-10">
           <div className="mx-auto max-w-[1400px]">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 sm:flex sm:flex-wrap sm:justify-between">
-              <div className="min-w-0">
-                {subtitle && <div className="text-xs font-medium uppercase tracking-wider text-primary">{subtitle}</div>}
-                <h1 className="mt-1 truncate font-display text-4xl text-foreground sm:text-5xl">{title}</h1>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                {subtitle && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900/5 dark:bg-white/5 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                    <Sparkles className="h-3 w-3 text-zinc-500" />
+                    {subtitle}
+                  </div>
+                )}
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl">
+                  {title}
+                </h1>
               </div>
-              {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+              {actions && <div className="flex shrink-0 gap-2.5 self-start md:self-center">{actions}</div>}
             </div>
 
-            <div className="mt-8">{children}</div>
+            <div className="mt-10">{children}</div>
           </div>
         </main>
       </div>
@@ -171,23 +234,23 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
   const [open, setOpen] = useState(isChildActive || selfActive);
   const Icon = entry.icon;
 
-  const headerClass = `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+  const headerClass = `group flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm transition-all duration-200 ${
     isChildActive || selfActive
-      ? "bg-card text-foreground shadow-sm font-medium"
-      : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+      ? "bg-zinc-100/80 text-zinc-900 dark:bg-zinc-850 dark:text-zinc-50 font-medium"
+      : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-50"
   }`;
 
   return (
-    <div>
+    <div className="space-y-1">
       <div className={headerClass}>
         {entry.to ? (
           <Link to={entry.to as never} className="flex flex-1 items-center gap-3" onClick={() => setOpen(true)}>
-            <Icon className="h-4 w-4" />
+            <Icon className={`h-[18px] w-[18px] ${isChildActive || selfActive ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-400"}`} />
             <span>{entry.group}</span>
           </Link>
         ) : (
           <button type="button" onClick={() => setOpen(o => !o)} className="flex flex-1 items-center gap-3">
-            <Icon className="h-4 w-4" />
+            <Icon className={`h-[18px] w-[18px] ${isChildActive || selfActive ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-400"}`} />
             <span>{entry.group}</span>
           </button>
         )}
@@ -195,13 +258,14 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
           type="button"
           aria-label={open ? "Réduire" : "Développer"}
           onClick={() => setOpen(o => !o)}
-          className="ml-auto -mr-1 p-1 text-muted-foreground hover:text-foreground"
+          className="ml-auto -mr-1 p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
         >
-          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
+          <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
         </button>
       </div>
+      
       {open && (
-        <div className="mt-0.5 ml-3 border-l border-border pl-2 space-y-0.5">
+        <div className="mt-1 ml-4.5 border-l border-zinc-200 dark:border-zinc-800 pl-3 space-y-1">
           {entry.children.map(c => {
             const [base, hash] = c.to.split("#");
             const active = pathname === base;
@@ -211,13 +275,13 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
                 key={c.to}
                 to={base as never}
                 hash={hash}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition-colors ${
+                className={`group flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-all duration-150 ${
                   active
-                    ? "bg-card text-foreground shadow-sm font-medium"
-                    : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                    ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-950 font-medium"
+                    : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 hover:text-zinc-900 dark:hover:text-zinc-50"
                 }`}
               >
-                <CIcon className="h-3.5 w-3.5" />
+                <CIcon className={`h-4 w-4 transition-transform duration-150 group-hover:scale-105 ${active ? "text-white dark:text-zinc-950" : "text-zinc-400"}`} />
                 {c.label}
               </Link>
             );
@@ -229,22 +293,26 @@ function NavGroup({ entry, pathname }: { entry: GroupItem; pathname: string }) {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; text: string; label: string }> = {
-    critical: { bg: "bg-destructive/10", text: "text-destructive", label: "Critique" },
-    low: { bg: "bg-warning/15", text: "text-warning-foreground", label: "Faible" },
-    ok: { bg: "bg-primary/12", text: "text-primary", label: "OK" },
-    rupture: { bg: "bg-destructive/15", text: "text-destructive", label: "Rupture" },
-    completed: { bg: "bg-primary/12", text: "text-primary", label: "Terminé" },
-    processing: { bg: "bg-accent", text: "text-accent-foreground", label: "En cours" },
-    active: { bg: "bg-primary/12", text: "text-primary", label: "Actif" },
-    warning: { bg: "bg-warning/15", text: "text-warning-foreground", label: "Attention" },
-    inactive: { bg: "bg-muted", text: "text-muted-foreground", label: "Inactif" },
-    blocked: { bg: "bg-destructive/15", text: "text-destructive", label: "Bloqué" },
+  const map: Record<string, { bg: string; text: string; label: string; dot: string }> = {
+    critical: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", dot: "bg-red-500", label: "Critique" },
+    low: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500", label: "Faible" },
+    ok: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500", label: "OK" },
+    rupture: { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-rose-700 dark:text-rose-300", dot: "bg-rose-500", label: "Rupture" },
+    completed: { bg: "bg-teal-50 dark:bg-teal-950/40", text: "text-teal-700 dark:text-teal-300", dot: "bg-teal-500", label: "Terminé" },
+    processing: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500", label: "En cours" },
+    active: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-300", dot: "bg-emerald-500", label: "Actif" },
+    warning: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500", label: "Attention" },
+    inactive: { bg: "bg-zinc-100 dark:bg-zinc-800/60", text: "text-zinc-600 dark:text-zinc-400", dot: "bg-zinc-400", label: "Inactif" },
+    blocked: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", dot: "bg-red-500", label: "Bloqué" },
   };
+  
   const v = map[status] ?? map.active;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${v.bg} ${v.text}`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border border-transparent transition-colors ${v.bg} ${v.text}`}>
+      <span className="relative flex h-1.5 w-1.5">
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${v.dot}`}></span>
+        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${v.dot}`}></span>
+      </span>
       {v.label}
     </span>
   );
