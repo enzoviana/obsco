@@ -8,7 +8,6 @@ import {
 import { AppShell, StatusBadge } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { useUser, getUser } from "@/lib/auth";
-import { ImportModal } from "@/components/dashboard/ImportModal";
 import { getAgencies, type Agency } from "@/lib/agencies";
 
 interface DashboardStats {
@@ -60,7 +59,7 @@ function Dashboard() {
 }
 
 function PharmacyDash() {
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -125,7 +124,7 @@ function PharmacyDash() {
       subtitle="Vue d'ensemble de vos sorties locales"
       actions={<>
         <Button variant="outline" size="sm" asChild><a href="/stats"><Activity className="mr-2 h-4 w-4" />Statistiques</a></Button>
-        <Button size="sm" onClick={() => setOpen(true)}><Upload className="mr-2 h-4 w-4" />Importer des données</Button>
+        <Button size="sm" onClick={() => navigate({ to: "/import" })}><Upload className="mr-2 h-4 w-4" />Importer des données</Button>
       </>}
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
@@ -240,10 +239,8 @@ function PharmacyDash() {
 
         <TopProducts products={dashStats?.topProducts || []} />
         <TopWholesalers wholesalers={dashStats?.topWholesalers || []} />
-        
-      </div>
 
-      <ImportModal open={open} onOpenChange={setOpen} />
+      </div>
     </AppShell>
   );
 }

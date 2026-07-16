@@ -27,23 +27,28 @@ function SettingsPage() {
   const user = useUser();
   const [tab, setTab] = useState<typeof TABS[number]["id"]>("profile");
 
+  // Filtrer les onglets selon le rôle
+  const visibleTabs = user?.role === "pharmacy"
+    ? TABS.filter(t => t.id === "profile" || t.id === "security")
+    : TABS;
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!getUser()) { navigate({ to: "/login" }); return; }
     const sync = () => {
       const h = window.location.hash.replace("#", "");
-      if (h && TABS.some(t => t.id === h)) setTab(h as typeof TABS[number]["id"]);
+      if (h && visibleTabs.some(t => t.id === h)) setTab(h as typeof TABS[number]["id"]);
     };
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
-  }, [navigate]);
+  }, [navigate, visibleTabs]);
 
   return (
     <AppShell title="Paramètres" subtitle="Préférences du compte">
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <nav className="space-y-1">
-          {TABS.map(t => (
+          {visibleTabs.map(t => (
             <button
               key={t.id}
               onClick={() => { setTab(t.id); if (typeof window !== "undefined") history.replaceState(null, "", `#${t.id}`); }}
