@@ -63,13 +63,13 @@ function GrossistesPage() {
 
   return (
     <AppShell
-      title="Fournisseurs"
+      title="Grossistes"
       subtitle={`${list.length} partenaires`}
       actions={<>
         <Button variant="outline" size="sm" onClick={handleExport}><Download className="mr-2 h-4 w-4" />Exporter</Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="mr-2 h-4 w-4" />Ajouter un fournisseur</Button>
+            <Button size="sm"><Plus className="mr-2 h-4 w-4" />Ajouter un Grossiste</Button>
           </DialogTrigger>
           <GrossisteDialog onClose={() => setOpen(false)} g={null} />
         </Dialog>
@@ -127,11 +127,11 @@ function GrossistesPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title={blocked ? "Débloquer" : "Bloquer"}
-                          onClick={() => { setGrossisteStatus(g.id, blocked ? "active" : "blocked"); toast.success(blocked ? "Fournisseur débloqué" : "Fournisseur bloqué"); }}>
+                          onClick={() => { setGrossisteStatus(g.id, blocked ? "active" : "blocked"); toast.success(blocked ? "Grossiste débloqué" : "Grossiste bloqué"); }}>
                           {blocked ? <Play className="h-3.5 w-3.5 text-primary" /> : <Ban className="h-3.5 w-3.5 text-warning" />}
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Supprimer"
-                          onClick={() => { if (confirm(`Supprimer ${g.partenaire} ?`)) { deleteGrossiste(g.id); toast.success("Fournisseur supprimé"); } }}>
+                          onClick={() => { if (confirm(`Supprimer ${g.partenaire} ?`)) { deleteGrossiste(g.id); toast.success("Grossiste supprimé"); } }}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -140,7 +140,7 @@ function GrossistesPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground text-sm">Aucun fournisseur trouvé.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground text-sm">Aucun Grossiste trouvé.</td></tr>
               )}
             </tbody>
           </table>
@@ -163,7 +163,7 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
 
   const submit = () => {
     if (!f.partenaire || !f.email) { toast.error("Champs requis manquants"); return; }
-    if (g) { updateGrossiste(g.id, f); toast.success("Fournisseur mis à jour"); }
+    if (g) { updateGrossiste(g.id, f); toast.success("Grossiste mis à jour"); }
     else { addGrossiste(f); toast.success(`${f.partenaire} ajouté`); }
     onClose();
   };
@@ -171,8 +171,8 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle>{g ? "Modifier le fournisseur" : "Nouveau fournisseur"}</DialogTitle>
-        <DialogDescription>Informations du fournisseur grossiste.</DialogDescription>
+        <DialogTitle>{g ? "Modifier le Grossiste" : "Nouveau Grossiste"}</DialogTitle>
+        <DialogDescription>Informations du grossiste.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
         <div><Label>Partenaire *</Label><Input value={f.partenaire} onChange={e => setF({ ...f, partenaire: e.target.value })} placeholder="ex. CAMED" /></div>
@@ -186,7 +186,7 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
           </div>
           <div>
             <Label>Statut</Label>
-            <Select value={f.status} onValueChange={(v: Fournisseur["status"]) => setF({ ...f, status: v })}>
+            <Select value={f.status} onValueChange={(v: Grossiste["status"]) => setF({ ...f, status: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Actif</SelectItem>

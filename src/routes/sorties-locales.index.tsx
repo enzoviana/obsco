@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Search, Download, Truck, Globe2, MapPin, Building2, Upload } from "lucide-react";
+import { Search, Download, Truck, Globe2, MapPin, Building2, Upload, Edit3, Save, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import {
   type Agency,
   type Grossiste,
 } from "@/lib/agencies";
-import { exportXLSX } from "@/lib/export";
+import { exportXLSX, exportStyledSortiesLocalesXLSX } from "@/lib/export";
 import { toast } from "sonner";
 import { apiPost } from "@/lib/api";
 
@@ -38,17 +38,30 @@ function SortiesIndex() {
   const [grossistes, setGrossistes] = useState<Grossiste[]>([]);
   const [importOpen, setImportOpen] = useState(false);
 
+  // État pour le mode édition
+  const [editMode, setEditMode] = useState(false);
+  const [editedCells, setEditedCells] = useState<Map<string, number>>(new Map());
+  const [saving, setSaving] = useState(false);
+
   // Sélection de la période
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+
+  // Calculer le mois maximum autorisé (mois actuel - 1)
+  const maxMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const maxYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+  const [selectedYear, setSelectedYear] = useState(maxYear);
+  const [selectedMonth, setSelectedMonth] = useState(maxMonth);
 
   // Données importées depuis la BDD
   const [monthlyDataByProduct, setMonthlyDataByProduct] = useState<Record<string, Record<string, { ventes: number; stocks: number; commandes: number }>>>({});
   const [loading, setLoading] = useState(false);
 
-  const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
+  // Générer les années de 2025 à année courante + 2
+  const startYear = 2025;
+  const endYear = currentYear + 2;
+  const yearOptions = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
   const monthOptions = [
     { value: 1, label: "Janvier" },
     { value: 2, label: "Février" },
@@ -207,37 +220,22 @@ function SortiesIndex() {
   const fileSuffix = scope === "all" ? "global" : scope === "country" ? `pays-${countryCode}` : `agence-${agencyId}`;
 
   const handleExport = () => {
-    const rows: Record<string, unknown>[] = [];
-    for (const p of filtered) {
-      const row: Record<string, unknown> = { CIP: p.cip, Produit: p.name, Laboratoire: p.laboratory };
-      const productData = monthlyDataByProduct[p.cip];
-
-      for (const sv of supplierView) {
-        const f = productData?.[sv.name];
-        if (!f) {
-          row[`${sv.name} - Ventes`] = 0;
-          row[`${sv.name} - Stocks`] = 0;
-          row[`${sv.name} - Commandes`] = 0;
-          continue;
-        }
-        row[`${sv.name} - Ventes`] = scale(f.ventes, sv.factor);
-        row[`${sv.name} - Stocks`] = scale(f.stocks, sv.factor);
-        row[`${sv.name} - Commandes`] = scale(f.commandes, sv.factor);
-      }
-      rows.push(row);
-    }
-    exportXLSX(`stocks-fournisseurs-${fileSuffix}`, {
-      Fournisseurs: rows,
-      _Filtre: [{
+    // Utiliser la fonction d'export stylée
+    exportStyledSortiesLocalesXLSX(
+      `sorties-locales-${fileSuffix}`,
+      filtered.map(p => ({ cip: p.cip, name: p.name, laboratory: p.laboratory })),
+      supplierView.map(sv => sv.name),
+      monthlyDataByProduct,
+      {
         scope,
         pays: countryCode,
         agence: agencyId,
         fournisseur: supplierFilter,
         libelle: scopeLabel,
         periode: `${monthOptions.find(m => m.value === selectedMonth)?.label} ${selectedYear}`
-      }],
-    });
-    toast.success("Export XLSX téléchargé");
+      }
+    );
+    toast.success("Export XLSX téléchargé avec style professionnel");
   };
 
   const supplierOptions = useMemo(() => {
@@ -253,10 +251,112 @@ function SortiesIndex() {
   const user = getUser();
   const isSuperAdmin = user?.role === "admin";
 
+  // Fonction pour générer une clé unique pour chaque cellule
+  const getCellKey = (productCip: string, wholesalerId: string, field: "sales" | "stock" | "orders") => {
+    return `${productCip}|${wholesalerId}|${field}`;
+  };
+
+  // Fonction pour récupérer la valeur d'une cellule (éditée ou originale)
+  const getCellValue = (productCip: string, wholesalerId: string, field: "sales" | "stock" | "orders") => {
+    const key = getCellKey(productCip, wholesalerId, field);
+    if (editedCells.has(key)) {
+      return editedCells.get(key)!;
+    }
+
+    const productData = monthlyDataByProduct[productCip];
+    const wholesaler = supplierView.find(sv => {
+      const w = grossistes.find(g => g.partenaire === sv.name);
+      return w?.id === wholesalerId;
+    });
+
+    if (!productData || !wholesaler) return 0;
+
+    const data = productData[wholesaler.name];
+    if (!data) return 0;
+
+    const fieldMap = { sales: "ventes", stock: "stocks", orders: "commandes" } as const;
+    return scale(data[fieldMap[field]], wholesaler.factor);
+  };
+
+  // Fonction pour mettre à jour une cellule
+  const updateCell = (productCip: string, wholesalerId: string, field: "sales" | "stock" | "orders", value: number) => {
+    const key = getCellKey(productCip, wholesalerId, field);
+    const newEditedCells = new Map(editedCells);
+    newEditedCells.set(key, value);
+    setEditedCells(newEditedCells);
+  };
+
+  // Fonction pour enregistrer toutes les modifications
+  const saveChanges = async () => {
+    if (editedCells.size === 0) {
+      toast.info("Aucune modification à enregistrer");
+      return;
+    }
+
+    // Vérifier que nous sommes en mode "agency"
+    if (scope !== "agency" || !agencyId) {
+      toast.error("Le mode édition n'est disponible qu'en mode 'Par agence'");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const updates = [];
+
+      for (const [key, value] of editedCells.entries()) {
+        const [productCip, wholesalerId, field] = key.split("|");
+
+        updates.push({
+          agencyId: agencyId,
+          productCip,
+          wholesalerId,
+          year: selectedYear,
+          month: selectedMonth,
+          [field]: value,
+        });
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/import/sorties-locales/bulk`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
+          },
+          body: JSON.stringify({ updates }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(`${result.count} modification(s) enregistrée(s)`);
+        setEditedCells(new Map());
+        setEditMode(false);
+        // Recharger les données
+        await loadMonthlyData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erreur lors de l'enregistrement");
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'enregistrement:", error);
+      toast.error("Erreur lors de l'enregistrement des modifications");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Fonction pour annuler les modifications
+  const cancelEdit = () => {
+    setEditedCells(new Map());
+    setEditMode(false);
+  };
+
   return (
     <AppShell
-      title="Sorties Locales"
-      subtitle={`Sorties Locales · ${scopeLabel}`}
+      title={editMode ? "Sorties Locales — Mode Édition" : "Sorties Locales"}
+      subtitle={editMode ? `${scopeLabel} · Modifiez les valeurs puis enregistrez` : `Sorties Locales · ${scopeLabel}`}
       actions={<>
         {isSuperAdmin && (
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
@@ -272,29 +372,101 @@ function SortiesIndex() {
             />
           </Dialog>
         )}
-        <Button size="sm" onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4" />
-          Exporter XLSX
-        </Button>
+        {editMode ? (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={cancelEdit}
+              disabled={saving}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={saveChanges}
+              disabled={saving || editedCells.size === 0}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? "Enregistrement..." : `Enregistrer ${editedCells.size > 0 ? `(${editedCells.size})` : ""}`}
+            </Button>
+          </>
+        ) : (
+          <>
+            {scope === "agency" && agencyId && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditMode(true)}
+              >
+                <Edit3 className="mr-2 h-4 w-4" />
+                Modifier
+              </Button>
+            )}
+            <Button size="sm" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Exporter XLSX
+            </Button>
+          </>
+        )}
       </>}
     >
+      {editMode && (
+        <div className="mb-4 rounded-2xl border-2 border-primary bg-primary/5 p-4">
+          <div className="flex items-center gap-3">
+            <Edit3 className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-semibold text-primary">Mode édition activé</p>
+              <p className="text-xs text-muted-foreground">
+                Cliquez dans les cellules pour modifier les valeurs. Les modifications seront mises en surbrillance.
+                {editedCells.size > 0 && ` ${editedCells.size} modification(s) en attente.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="mb-6 rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <span className="text-xs font-medium text-muted-foreground">Période :</span>
           <select
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            onChange={(e) => {
+              const newMonth = Number(e.target.value);
+              const newDate = new Date(selectedYear, newMonth - 1);
+              const maxDate = new Date(maxYear, maxMonth - 1);
+
+              // Vérifier que la date sélectionnée n'est pas dans le futur
+              if (newDate <= maxDate) {
+                setSelectedMonth(newMonth);
+              } else {
+                toast.error(`Impossible de sélectionner ${monthOptions.find(m => m.value === newMonth)?.label}. Les données du mois en cours ne sont disponibles qu'à partir du 1er du mois suivant.`);
+              }
+            }}
             className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
           >
-            {monthOptions.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
+            {monthOptions.map((m) => {
+              const isDisabled = selectedYear === currentYear && m.value >= currentMonth;
+              return (
+                <option key={m.value} value={m.value} disabled={isDisabled}>
+                  {m.label} {isDisabled ? "(non disponible)" : ""}
+                </option>
+              );
+            })}
           </select>
           <select
             value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            onChange={(e) => {
+              const newYear = Number(e.target.value);
+              setSelectedYear(newYear);
+
+              // Ajuster le mois si nécessaire
+              if (newYear === currentYear && selectedMonth >= currentMonth) {
+                setSelectedMonth(maxMonth);
+                toast.info(`Le mois a été ajusté automatiquement à ${monthOptions.find(m => m.value === maxMonth)?.label}`);
+              }
+            }}
             className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
           >
             {yearOptions.map((y) => (
@@ -304,6 +476,12 @@ function SortiesIndex() {
             ))}
           </select>
           {loading && <span className="text-xs text-muted-foreground">Chargement...</span>}
+        </div>
+        <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+          <p className="text-xs text-primary">
+            ⏱️ <strong>Période disponible :</strong> Vous pouvez consulter les données jusqu'au mois de <strong>{monthOptions.find(m => m.value === maxMonth)?.label} {maxYear}</strong>.
+            Les données du mois en cours ne sont disponibles qu'à partir du 1er du mois suivant.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-lg border border-border bg-surface p-1">
@@ -456,8 +634,11 @@ function SortiesIndex() {
                         <div className="text-[10px] text-muted-foreground font-mono">{p.cip}</div>
                       </td>
                       {supplierView.map((sv) => {
+                        const wholesaler = grossistes.find(g => g.partenaire === sv.name);
+                        const wholesalerId = wholesaler?.id || "";
+
                         const f = productData?.[sv.name];
-                        if (!f)
+                        if (!f && !editMode)
                           return (
                             <Fragment key={sv.name}>
                               <td className="px-1.5 py-2.5 text-right text-muted-foreground">—</td>
@@ -467,20 +648,83 @@ function SortiesIndex() {
                               </td>
                             </Fragment>
                           );
-                        const ventes = scale(f.ventes, sv.factor);
-                        const stocks = scale(f.stocks, sv.factor);
-                        const commandes = scale(f.commandes, sv.factor);
-                        rv += ventes; rs += stocks; rc += commandes;
+
+                        const ventes = f ? scale(f.ventes, sv.factor) : 0;
+                        const stocks = f ? scale(f.stocks, sv.factor) : 0;
+                        const commandes = f ? scale(f.commandes, sv.factor) : 0;
+
+                        // Utiliser les valeurs éditées si disponibles
+                        const displayVentes = editMode ? getCellValue(p.cip, wholesalerId, "sales") : ventes;
+                        const displayStocks = editMode ? getCellValue(p.cip, wholesalerId, "stock") : stocks;
+                        const displayCommandes = editMode ? getCellValue(p.cip, wholesalerId, "orders") : commandes;
+
+                        rv += displayVentes;
+                        rs += displayStocks;
+                        rc += displayCommandes;
+
+                        const isSalesEdited = editedCells.has(getCellKey(p.cip, wholesalerId, "sales"));
+                        const isStockEdited = editedCells.has(getCellKey(p.cip, wholesalerId, "stock"));
+                        const isOrdersEdited = editedCells.has(getCellKey(p.cip, wholesalerId, "orders"));
+
                         return (
                           <Fragment key={sv.name}>
-                            <td className="px-1.5 py-2.5 text-right tabular-nums">{ventes}</td>
-                            <td
-                              className={`px-1.5 py-2.5 text-right tabular-nums ${stocks < 50 ? "text-warning font-medium" : ""}`}
-                            >
-                              {stocks}
+                            <td className={`px-1.5 py-2.5 text-right tabular-nums ${isSalesEdited ? "bg-primary/10" : ""}`}>
+                              {editMode ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={displayVentes}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    updateCell(p.cip, wholesalerId, "sales", val);
+                                  }}
+                                  className={`w-full text-right bg-surface border rounded px-1 py-0.5 text-xs tabular-nums focus:outline-none ${
+                                    isSalesEdited ? "border-primary font-semibold" : "border-border"
+                                  }`}
+                                />
+                              ) : (
+                                displayVentes
+                              )}
                             </td>
-                            <td className="px-1.5 py-2.5 text-right tabular-nums text-muted-foreground border-r border-border/60">
-                              {commandes}
+                            <td className={`px-1.5 py-2.5 text-right tabular-nums ${
+                              isStockEdited ? "bg-primary/10" : ""
+                            } ${stocks < 50 && !editMode ? "text-warning font-medium" : ""}`}>
+                              {editMode ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={displayStocks}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    updateCell(p.cip, wholesalerId, "stock", val);
+                                  }}
+                                  className={`w-full text-right bg-surface border rounded px-1 py-0.5 text-xs tabular-nums focus:outline-none ${
+                                    isStockEdited ? "border-primary font-semibold" : "border-border"
+                                  }`}
+                                />
+                              ) : (
+                                displayStocks
+                              )}
+                            </td>
+                            <td className={`px-1.5 py-2.5 text-right tabular-nums text-muted-foreground border-r border-border/60 ${
+                              isOrdersEdited ? "bg-primary/10" : ""
+                            }`}>
+                              {editMode ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={displayCommandes}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    updateCell(p.cip, wholesalerId, "orders", val);
+                                  }}
+                                  className={`w-full text-right bg-surface border rounded px-1 py-0.5 text-xs tabular-nums focus:outline-none ${
+                                    isOrdersEdited ? "border-primary font-semibold" : "border-border"
+                                  }`}
+                                />
+                              ) : (
+                                displayCommandes
+                              )}
                             </td>
                           </Fragment>
                         );
@@ -577,7 +821,10 @@ function ImportSortiesDialog({
   const [month, setMonth] = useState(selectedMonth);
 
   const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
+  // Générer les années de 2025 à année courante + 2
+  const startYear = 2025;
+  const endYear = currentYear + 2;
+  const yearOptions = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
   const monthOptions = [
     { value: 1, label: "Janvier" },
     { value: 2, label: "Février" },

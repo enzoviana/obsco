@@ -945,6 +945,205 @@ importRouter.get("/sorties-locales", requireAuth, async (req, res) => {
   }
 });
 /**
+ * PATCH /api/import/sorties-locales/cell
+ * Mettre à jour une cellule spécifique du tableau Sorties Locales
+ * Body: { agencyId, productCip, wholesalerId, year, month, field: "sales" | "stock" | "orders", value: number }
+ */
+importRouter.patch("/sorties-locales/cell", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+
+    // Schema de validation
+    const CellUpdateSchema = z.object({
+      agencyId: z.string(),
+      productCip: z.string(),
+      wholesalerId: z.string(),
+      year: z.number().int().min(2020).max(2100),
+      month: z.number().int().min(1).max(12),
+      field: z.enum(["sales", "stock", "orders"]),
+      value: z.number().int().min(0),
+    });
+
+    const parsed = CellUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Données invalides", details: parsed.error.errors });
+    }
+
+    const { agencyId, productCip, wholesalerId, year, month, field, value } = parsed.data;
+
+    // Vérifier les permissions: super_admin peut tout, agence peut seulement ses propres données
+    if (user.role !== "super_admin" && user.agencyId !== agencyId) {
+      return res.status(403).json({ error: "Vous ne pouvez modifier que les données de votre agence" });
+    }
+
+    // Vérifier que le wholesaler existe
+    const wholesaler = await prisma.wholesaler.findUnique({ where: { id: wholesalerId } });
+    if (!wholesaler) {
+      return res.status(404).json({ error: "Grossiste introuvable" });
+    }
+
+    // Vérifier que le produit existe (optionnel, on peut le créer automatiquement)
+    let product = await prisma.product.findUnique({ where: { cip: productCip } });
+
+    // Si le produit n'existe pas, le créer automatiquement
+    if (!product) {
+      console.log(`➕ Création automatique du produit avec CIP: ${productCip}`);
+      product = await prisma.product.create({
+        data: {
+          cip: productCip,
+          name: `Produit ${productCip}`,
+          laboratory: "Laboratoire inconnu",
+          category: "Médicament",
+          basePrice: 0,
+        },
+      });
+    }
+
+    // Préparer les données de mise à jour
+    const updateData: any = { updatedAt: new Date() };
+    updateData[field] = value;
+
+    // Upsert les données mensuelles
+    const result = await prisma.monthlyData.upsert({
+      where: {
+        agencyId_productCip_wholesalerId_year_month: {
+          agencyId,
+          productCip,
+          wholesalerId,
+          year,
+          month,
+        },
+      },
+      create: {
+        agencyId,
+        productCip,
+        wholesalerId,
+        year,
+        month,
+        sales: field === "sales" ? value : 0,
+        stock: field === "stock" ? value : 0,
+        orders: field === "orders" ? value : 0,
+      },
+      update: updateData,
+    });
+
+    console.log(`✅ Cellule mise à jour: ${productCip} / ${wholesaler.name} / ${field} = ${value}`);
+
+    res.json({
+      success: true,
+      message: "Cellule mise à jour avec succès",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de la cellule:", error);
+    res.status(500).json({ error: "Erreur lors de la mise à jour" });
+  }
+});
+
+/**
+ * PATCH /api/import/sorties-locales/bulk
+ * Mettre à jour plusieurs cellules en une seule requête
+ * Body: { updates: Array<{ agencyId, productCip, wholesalerId, year, month, sales?, stock?, orders? }> }
+ */
+importRouter.patch("/sorties-locales/bulk", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+
+    const BulkUpdateSchema = z.object({
+      updates: z.array(
+        z.object({
+          agencyId: z.string(),
+          productCip: z.string(),
+          wholesalerId: z.string(),
+          year: z.number().int().min(2020).max(2100),
+          month: z.number().int().min(1).max(12),
+          sales: z.number().int().min(0).optional(),
+          stock: z.number().int().min(0).optional(),
+          orders: z.number().int().min(0).optional(),
+        })
+      ),
+    });
+
+    const parsed = BulkUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Données invalides", details: parsed.error.errors });
+    }
+
+    const { updates } = parsed.data;
+
+    // Vérifier les permissions
+    for (const update of updates) {
+      if (user.role !== "super_admin" && user.agencyId !== update.agencyId) {
+        return res.status(403).json({ error: "Vous ne pouvez modifier que les données de votre agence" });
+      }
+    }
+
+    // Effectuer les mises à jour dans une transaction
+    const operations = [];
+    for (const update of updates) {
+      const { agencyId, productCip, wholesalerId, year, month, sales, stock, orders } = update;
+
+      // Vérifier que le produit existe, sinon le créer
+      let product = await prisma.product.findUnique({ where: { cip: productCip } });
+      if (!product) {
+        product = await prisma.product.create({
+          data: {
+            cip: productCip,
+            name: `Produit ${productCip}`,
+            laboratory: "Laboratoire inconnu",
+            category: "Médicament",
+            basePrice: 0,
+          },
+        });
+      }
+
+      const updateData: any = { updatedAt: new Date() };
+      if (sales !== undefined) updateData.sales = sales;
+      if (stock !== undefined) updateData.stock = stock;
+      if (orders !== undefined) updateData.orders = orders;
+
+      operations.push(
+        prisma.monthlyData.upsert({
+          where: {
+            agencyId_productCip_wholesalerId_year_month: {
+              agencyId,
+              productCip,
+              wholesalerId,
+              year,
+              month,
+            },
+          },
+          create: {
+            agencyId,
+            productCip,
+            wholesalerId,
+            year,
+            month,
+            sales: sales || 0,
+            stock: stock || 0,
+            orders: orders || 0,
+          },
+          update: updateData,
+        })
+      );
+    }
+
+    const results = await prisma.$transaction(operations);
+
+    console.log(`✅ ${results.length} cellules mises à jour en bulk`);
+
+    res.json({
+      success: true,
+      message: `${results.length} cellules mises à jour avec succès`,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour bulk:", error);
+    res.status(500).json({ error: "Erreur lors de la mise à jour" });
+  }
+});
+
+/**
  * GET /api/import/reports-data
  * Récupérer toutes les données pour la page rapports (super admin)
  */
