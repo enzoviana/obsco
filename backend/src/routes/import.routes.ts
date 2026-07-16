@@ -364,7 +364,18 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
 
     const { year, month, agencyId, data } = parsed.data;
 
-    console.log(`📥 Import CSV - ${data.length} lignes reçues pour ${year}/${month}, agence: ${agencyId}`);
+    // Filtrer les lignes de totaux (TOTAL, Total, etc.)
+    const filteredData = data.filter(row => {
+      const cipUpper = row.productCip.toUpperCase().trim();
+      return cipUpper !== "TOTAL" && !cipUpper.includes("TOTAL");
+    });
+
+    const totalRowsIgnored = data.length - filteredData.length;
+    if (totalRowsIgnored > 0) {
+      console.log(`ℹ️  ${totalRowsIgnored} ligne(s) de totaux ignorée(s)`);
+    }
+
+    console.log(`📥 Import CSV - ${filteredData.length} lignes à traiter pour ${year}/${month}, agence: ${agencyId}`);
 
     // Vérifier que l'agence existe
     const agency = await prisma.agency.findUnique({ where: { id: agencyId } });
@@ -395,7 +406,7 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
     const wholesalerCache = new Map<string, string>(); // name -> id
 
     // Traiter chaque ligne
-    for (const row of data) {
+    for (const row of filteredData) {
       try {
         // Créer ou récupérer le grossiste
         let wholesalerId: string;
@@ -1078,6 +1089,34 @@ importRouter.patch("/sorties-locales/bulk", requireAuth, async (req, res) => {
       }
     }
 
+    // Récupérer toutes les données existantes pour éviter d'écraser les valeurs non modifiées
+    const existingDataKeys = updates.map(u => ({
+      agencyId: u.agencyId,
+      productCip: u.productCip,
+      wholesalerId: u.wholesalerId,
+      year: u.year,
+      month: u.month,
+    }));
+
+    const existingData = await prisma.monthlyData.findMany({
+      where: {
+        OR: existingDataKeys.map(k => ({
+          agencyId: k.agencyId,
+          productCip: k.productCip,
+          wholesalerId: k.wholesalerId,
+          year: k.year,
+          month: k.month,
+        })),
+      },
+    });
+
+    // Créer une map pour un accès rapide
+    const existingDataMap = new Map<string, any>();
+    for (const data of existingData) {
+      const key = `${data.agencyId}|${data.productCip}|${data.wholesalerId}|${data.year}|${data.month}`;
+      existingDataMap.set(key, data);
+    }
+
     // Effectuer les mises à jour dans une transaction
     const operations = [];
     for (const update of updates) {
@@ -1096,6 +1135,9 @@ importRouter.patch("/sorties-locales/bulk", requireAuth, async (req, res) => {
           },
         });
       }
+
+      const key = `${agencyId}|${productCip}|${wholesalerId}|${year}|${month}`;
+      const existing = existingDataMap.get(key);
 
       const updateData: any = { updatedAt: new Date() };
       if (sales !== undefined) updateData.sales = sales;
@@ -1119,9 +1161,9 @@ importRouter.patch("/sorties-locales/bulk", requireAuth, async (req, res) => {
             wholesalerId,
             year,
             month,
-            sales: sales || 0,
-            stock: stock || 0,
-            orders: orders || 0,
+            sales: sales ?? (existing?.sales || 0),
+            stock: stock ?? (existing?.stock || 0),
+            orders: orders ?? (existing?.orders || 0),
           },
           update: updateData,
         })
