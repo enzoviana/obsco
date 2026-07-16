@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import {
   LayoutDashboard, Package, BarChart3, Building2, Settings, Bell, LogOut, ChevronRight,
   FlaskConical, Store, Globe2, Users, ShieldCheck, FolderOpen, PackageOpen, Target, Tag,
-  Boxes, Upload, Search, User, Sparkles
+  Boxes, Upload, Search, User, Sparkles, Wrench
 } from "lucide-react";
 import { logout, useUser } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -38,6 +38,7 @@ const NAV: NavEntry[] = [
     children: [
       { to: "/laboratoires", label: "Laboratoires", icon: FlaskConical },
       { to: "/produits", label: "Produits", icon: Boxes },
+      { to: "/admin-produits", label: "🔧 Harmoniser Produits", icon: Wrench },
       { to: "/produits-objectifs", label: "Objectifs produits", icon: Target },
       { to: "/produits-tarifs", label: "Tarifs produits", icon: Tag },
       { to: "/pays", label: "Pays", icon: Globe2 },

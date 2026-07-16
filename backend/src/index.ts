@@ -11,6 +11,7 @@ import laboratoriesRoutes from "./routes/laboratories.routes";
 import passwordRoutes from "./routes/password.routes";
 import { importRouter } from "./routes/import.routes";
 import { reportsRouter } from "./routes/reports.routes";
+import { adminRouter } from "./routes/admin.routes";
 import {
   countriesRouter, agenciesRouter, productsRouter, pricesRouter,
   objectivesRouter, wholesalersRouter, stocksRouter, salesRouter,
@@ -41,6 +42,7 @@ app.use("/api/stocks", stocksRouter);
 app.use("/api/sales", salesRouter);
 app.use("/api/import", importRouter);
 app.use("/api/reports", reportsRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 app.get("/", (_req, res) => res.json({ name: "OBCO API", version: "1.0.0" }));
