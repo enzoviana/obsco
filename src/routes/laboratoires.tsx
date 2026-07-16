@@ -189,6 +189,13 @@ const [f, setF] = useState({
     phone: lab?.phone ?? "",
     address: lab?.address ?? "",
   });
+
+  // Trier les pays par ordre alphabétique
+  const sortedCountries = useMemo(() =>
+    [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    []
+  );
+
   const submit = () => {
     if (!f.name || !f.country || !f.email) { toast.error("Champs requis manquants"); return; }
     if (lab) { updateLaboratoire(lab.id, f); toast.success(`Laboratoire ${f.name} mis à jour`); }
@@ -207,7 +214,7 @@ const [f, setF] = useState({
           <Label>Pays *</Label>
           <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
             <SelectTrigger><SelectValue placeholder="Sélectionner un pays" /></SelectTrigger>
-            <SelectContent>{WORLD_COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">

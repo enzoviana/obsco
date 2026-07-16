@@ -164,6 +164,12 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
   const [city, setCity] = useState(agency?.city ?? "");
   const [loading, setLoading] = useState(false);
 
+  // Trier les pays par ordre alphabétique
+  const sortedCountries = useMemo(() =>
+    [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    []
+  );
+
   const submit = async () => {
     if (!name || !country || !email) { toast.error("Champs requis manquants"); return; }
 
@@ -215,7 +221,7 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
           <Select value={country} onValueChange={setCountry}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+              {sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

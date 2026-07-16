@@ -161,6 +161,12 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
     email: g?.email ?? "", status: g?.status ?? "active",
   });
 
+  // Trier les pays par ordre alphabétique
+  const sortedCountries = useMemo(() =>
+    [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    []
+  );
+
   const submit = () => {
     if (!f.partenaire || !f.email) { toast.error("Champs requis manquants"); return; }
     if (g) { updateGrossiste(g.id, f); toast.success("Grossiste mis à jour"); }
@@ -181,7 +187,7 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
             <Label>Pays *</Label>
             <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}</SelectContent>
+              <SelectContent>{sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>

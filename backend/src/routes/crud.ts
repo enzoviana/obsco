@@ -22,7 +22,10 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
     const countryCode = req.params.code;
     console.log(`🗑️ Attempting to delete country: ${countryCode}`);
 
-    // Check for foreign key references
+    // Suppression en cascade de toutes les données liées à ce pays
+    // L'ordre est important pour respecter les contraintes de clés étrangères
+
+    console.log(`📊 Checking references for country ${countryCode}...`);
     const [agenciesCount, labsCount, wholesalersCount, pricesCount, objectivesCount] = await Promise.all([
       prisma.agency.count({ where: { countryCode } }),
       prisma.laboratory.count({ where: { countryCode } }),
@@ -31,24 +34,85 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
       prisma.productObjective.count({ where: { countryCode } }),
     ]);
 
-    if (agenciesCount > 0 || labsCount > 0 || wholesalersCount > 0 || pricesCount > 0 || objectivesCount > 0) {
-      const references = [];
-      if (agenciesCount > 0) references.push(`${agenciesCount} agence(s)`);
-      if (labsCount > 0) references.push(`${labsCount} laboratoire(s)`);
-      if (wholesalersCount > 0) references.push(`${wholesalersCount} grossiste(s)`);
-      if (pricesCount > 0) references.push(`${pricesCount} prix produit(s)`);
-      if (objectivesCount > 0) references.push(`${objectivesCount} objectif(s)`);
+    console.log(`🔍 Found: ${agenciesCount} agencies, ${labsCount} labs, ${wholesalersCount} wholesalers, ${pricesCount} prices, ${objectivesCount} objectives`);
 
-      console.log(`❌ Cannot delete country ${countryCode}: has references in ${references.join(", ")}`);
+    // 1. Supprimer les agences de ce pays (cela supprimera en cascade leurs utilisateurs, ventes, etc.)
+    if (agenciesCount > 0) {
+      const agencies = await prisma.agency.findMany({ where: { countryCode }, select: { id: true } });
+      for (const agency of agencies) {
+        console.log(`  🗑️ Deleting agency ${agency.id}...`);
 
-      return res.status(400).json({
-        error: `Impossible de supprimer ce pays : il est référencé par ${references.join(", ")}. Supprimez ou modifiez d'abord ces entités.`
-      });
+        // Supprimer les utilisateurs de cette agence
+        await prisma.user.deleteMany({ where: { agencyId: agency.id } });
+
+        // Supprimer les ventes de cette agence
+        await prisma.sale.deleteMany({ where: { agencyId: agency.id } });
+
+        // Supprimer les données mensuelles de cette agence
+        await prisma.monthlyData.deleteMany({ where: { agencyId: agency.id } });
+
+        // Supprimer les grossistes spécifiques à cette agence
+        const agencyWholesalers = await prisma.wholesaler.findMany({
+          where: { agencyId: agency.id },
+          select: { id: true },
+        });
+        const wholesalerIds = agencyWholesalers.map(w => w.id);
+        if (wholesalerIds.length > 0) {
+          await prisma.supplierStock.deleteMany({
+            where: { wholesalerId: { in: wholesalerIds } },
+          });
+        }
+        await prisma.wholesaler.deleteMany({ where: { agencyId: agency.id } });
+
+        // Supprimer l'agence
+        await prisma.agency.delete({ where: { id: agency.id } });
+      }
+      console.log(`  ✅ Deleted ${agenciesCount} agencies and their related data`);
     }
 
-    // Safe to delete
+    // 2. Supprimer les laboratoires de ce pays
+    if (labsCount > 0) {
+      await prisma.laboratory.deleteMany({ where: { countryCode } });
+      console.log(`  ✅ Deleted ${labsCount} laboratories`);
+    }
+
+    // 3. Supprimer les grossistes de ce pays (non liés à une agence)
+    if (wholesalersCount > 0) {
+      const wholesalers = await prisma.wholesaler.findMany({
+        where: { countryCode, agencyId: null },
+        select: { id: true },
+      });
+      const wholesalerIds = wholesalers.map(w => w.id);
+      if (wholesalerIds.length > 0) {
+        // Supprimer les stocks de ces grossistes
+        await prisma.supplierStock.deleteMany({
+          where: { wholesalerId: { in: wholesalerIds } },
+        });
+        // Supprimer les données mensuelles de ces grossistes
+        await prisma.monthlyData.deleteMany({
+          where: { wholesalerId: { in: wholesalerIds } },
+        });
+      }
+      await prisma.wholesaler.deleteMany({ where: { countryCode, agencyId: null } });
+      console.log(`  ✅ Deleted ${wholesalers.length} country-level wholesalers`);
+    }
+
+    // 4. Supprimer les prix des produits pour ce pays
+    if (pricesCount > 0) {
+      await prisma.productPrice.deleteMany({ where: { countryCode } });
+      console.log(`  ✅ Deleted ${pricesCount} product prices`);
+    }
+
+    // 5. Supprimer les objectifs des produits pour ce pays
+    if (objectivesCount > 0) {
+      await prisma.productObjective.deleteMany({ where: { countryCode } });
+      console.log(`  ✅ Deleted ${objectivesCount} product objectives`);
+    }
+
+    // 6. Enfin, supprimer le pays lui-même
     await prisma.country.delete({ where: { code: countryCode } });
-    console.log(`✅ Country ${countryCode} deleted successfully`);
+    console.log(`✅ Country ${countryCode} and all related data deleted successfully`);
+
     res.status(204).end();
   } catch (error) {
     console.error("❌ Error deleting country:", error);
