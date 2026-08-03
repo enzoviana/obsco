@@ -23,9 +23,9 @@ export function syncFire(promise: Promise<unknown>, op: string) {
 
 export function syncCreate(path: string, body: unknown): Promise<unknown> {
   if (!API_ENABLED) return Promise.resolve();
-  const promise = api(path, { method: "POST", body: JSON.stringify(body) });
-  syncFire(promise, `création ${path}`);
-  return promise;
+  // Retourner la promesse directement sans toast automatique
+  // L'appelant gère lui-même les erreurs et affiche les messages appropriés
+  return api(path, { method: "POST", body: JSON.stringify(body) });
 }
 
 export function syncUpdate(path: string, body: unknown) {

@@ -25,7 +25,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(helmet());
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "50mb" })); // Augmenté pour les gros imports CSV
 app.use(morgan(process.env.NODE_ENV === "production" ? "tiny" : "dev"));
 
 app.use("/api/auth", rateLimit({ windowMs: 60_000, max: 60 }), authRoutes);
@@ -49,10 +49,40 @@ app.get("/", (_req, res) => res.json({ name: "OBCO API", version: "1.0.0" }));
 
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 
+// Gestionnaire d'erreur global amélioré
 app.use((err: any, _req: any, res: any, _next: any) => {
-  console.error(err);
-  if (err?.name === "ZodError") return res.status(400).json({ error: err.flatten() });
-  res.status(err?.status || 500).json({ error: err?.message || "Server error" });
+  console.error("❌ Erreur non gérée:", err);
+
+  // Empêcher les crashs en gérant toutes les erreurs
+  try {
+    if (err?.name === "ZodError") {
+      return res.status(400).json({ error: "Données invalides", details: err.flatten() });
+    }
+
+    const status = err?.status || 500;
+    const message = err?.message || "Erreur serveur";
+
+    return res.status(status).json({ error: message });
+  } catch (responseError) {
+    // Si même l'envoi de la réponse échoue, logger et continuer
+    console.error("❌ Erreur lors de l'envoi de la réponse d'erreur:", responseError);
+    try {
+      return res.status(500).json({ error: "Erreur serveur" });
+    } catch {
+      // Dernier recours : ne rien faire pour éviter un crash
+    }
+  }
+});
+
+// Gestionnaires d'erreurs globaux pour éviter les crashes
+process.on('uncaughtException', (error) => {
+  console.error('❌ Exception non gérée:', error);
+  // Ne pas crasher le serveur, juste logger
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promesse rejetée non gérée:', reason);
+  // Ne pas crasher le serveur, juste logger
 });
 
 const port = Number(process.env.PORT || 4000);

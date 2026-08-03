@@ -168,11 +168,28 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
     []
   );
 
-  const submit = () => {
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
     if (!f.partenaire || !f.email) { toast.error("Champs requis manquants"); return; }
-    if (g) { updateGrossiste(g.id, f); toast.success("Grossiste mis à jour"); }
-    else { addGrossiste(f); toast.success(`${f.partenaire} ajouté`); }
-    onClose();
+
+    setLoading(true);
+    try {
+      if (g) {
+        updateGrossiste(g.id, f);
+        toast.success("Grossiste mis à jour");
+      } else {
+        await addGrossiste(f);
+        toast.success(`${f.partenaire} ajouté`);
+      }
+      onClose();
+    } catch (error: any) {
+      console.error("Erreur création grossiste:", error);
+      const errorMessage = error?.message || error?.error || "Erreur lors de la création du grossiste";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -207,8 +224,10 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
         <div><Label>Email *</Label><Input type="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Annuler</Button>
-        <Button onClick={submit}>{g ? "Enregistrer" : "Ajouter"}</Button>
+        <Button variant="outline" onClick={onClose} disabled={loading}>Annuler</Button>
+        <Button onClick={submit} disabled={loading}>
+          {loading ? "Création en cours..." : (g ? "Enregistrer" : "Ajouter")}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

@@ -353,31 +353,62 @@ wholesalersRouter.get("/", async (req, res) => {
   res.json(await prisma.wholesaler.findMany({ where, orderBy: { name: "asc" } }));
 });
 wholesalersRouter.post("/", requireRole("super_admin"), async (req, res) => {
-  const s = z.object({
-    name: z.string(),
-    countryCode: z.string(),
-    city: z.string().optional(),
-    email: z.string().email().optional(),
-    status: z.string().optional(),
-    scope: z.string().optional(),
-    agencyId: z.string().nullable().optional(),
-  }).parse(req.body);
-  res.status(201).json(await prisma.wholesaler.create({ data: s }));
+  try {
+    const s = z.object({
+      name: z.string(),
+      countryCode: z.string(),
+      city: z.string().optional(),
+      email: z.string().email().optional(),
+      status: z.string().optional(),
+      scope: z.string().optional(),
+      agencyId: z.string().nullable().optional(),
+    }).parse(req.body);
+
+    const wholesaler = await prisma.wholesaler.create({ data: s });
+    res.status(201).json(wholesaler);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0]?.message || "Données invalides" });
+    }
+    console.error("Erreur création grossiste:", error);
+    return res.status(500).json({ error: "Erreur lors de la création du grossiste" });
+  }
 });
 wholesalersRouter.patch("/:id", requireRole("super_admin"), async (req, res) => {
-  const s = z.object({
-    name: z.string().optional(),
-    countryCode: z.string().optional(),
-    city: z.string().nullable().optional(),
-    email: z.string().email().nullable().optional(),
-    status: z.string().optional(),
-    scope: z.string().optional(),
-    agencyId: z.string().nullable().optional(),
-  }).parse(req.body);
-  res.json(await prisma.wholesaler.update({ where: { id: req.params.id }, data: s }));
+  try {
+    const s = z.object({
+      name: z.string().optional(),
+      countryCode: z.string().optional(),
+      city: z.string().nullable().optional(),
+      email: z.string().email().nullable().optional(),
+      status: z.string().optional(),
+      scope: z.string().optional(),
+      agencyId: z.string().nullable().optional(),
+    }).parse(req.body);
+
+    const wholesaler = await prisma.wholesaler.update({ where: { id: req.params.id }, data: s });
+    res.json(wholesaler);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors[0]?.message || "Données invalides" });
+    }
+    console.error("Erreur mise à jour grossiste:", error);
+    return res.status(500).json({ error: "Erreur lors de la mise à jour du grossiste" });
+  }
 });
 wholesalersRouter.delete("/:id", requireRole("super_admin"), async (req, res) => {
-  await prisma.wholesaler.delete({ where: { id: req.params.id } }); res.status(204).end();
+  try {
+    // Supprimer d'abord les références
+    await prisma.supplierStock.deleteMany({ where: { wholesalerId: req.params.id } });
+    await prisma.monthlyData.deleteMany({ where: { wholesalerId: req.params.id } });
+
+    // Puis supprimer le grossiste
+    await prisma.wholesaler.delete({ where: { id: req.params.id } });
+    res.status(204).end();
+  } catch (error) {
+    console.error("Erreur suppression grossiste:", error);
+    return res.status(500).json({ error: "Erreur lors de la suppression du grossiste" });
+  }
 });
 
 export const stocksRouter = Router();

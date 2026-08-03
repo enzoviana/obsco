@@ -133,12 +133,28 @@ export function getLaboratoires(): Laboratoire[] {
   return _labs;
 }
 
-export function addLaboratoire(l: Omit<Laboratoire, "id" | "createdAt" | "status">): Laboratoire {
-  const list = getLaboratoires();
-  const next: Laboratoire = { ...l, id: `LAB-${Date.now().toString(36).toUpperCase()}`, createdAt: new Date().toISOString().slice(0, 10), status: "active" };
-  _labs = [next, ...list];
+export async function addLaboratoire(l: Omit<Laboratoire, "id" | "createdAt" | "status">): Promise<Laboratoire> {
+  // Attendre la réponse de l'API avant de mettre à jour le cache
+  const response = await syncCreate("/api/laboratories", {
+    name: l.name,
+    countryCode: l.country,
+    contact: l.contact,
+    email: l.email,
+    phone: l.phone,
+    address: l.address
+  }) as any;
+
+  const next: Laboratoire = {
+    ...l,
+    id: response?.id || `LAB-${Date.now().toString(36).toUpperCase()}`,
+    createdAt: response?.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    status: (response?.status as EntityStatus) || "active"
+  };
+
+  // Mettre à jour le cache uniquement après succès
+  _labs = [next, ...getLaboratoires()];
   persistLabs();
-  syncCreate("/api/laboratories", { name: l.name, countryCode: l.country, contact: l.contact, email: l.email, phone: l.phone, address: l.address });
+
   return next;
 }
 
@@ -201,11 +217,23 @@ export function getGrossistes(): Grossiste[] {
   return _gros;
 }
 
-export function addGrossiste(g: Omit<Grossiste, "id">): Grossiste {
-  const next: Grossiste = { ...g, id: `GR-${Date.now().toString(36).toUpperCase()}` };
+export async function addGrossiste(g: Omit<Grossiste, "id">): Promise<Grossiste> {
+  // Attendre la réponse de l'API avant de mettre à jour le cache
+  const response = await syncCreate("/api/wholesalers", {
+    name: g.partenaire,
+    countryCode: g.country,
+    email: g.email
+  }) as any;
+
+  const next: Grossiste = {
+    ...g,
+    id: response?.id || `GR-${Date.now().toString(36).toUpperCase()}`
+  };
+
+  // Mettre à jour le cache uniquement après succès
   _gros = [next, ...getGrossistes()];
   persistGros();
-  syncCreate("/api/wholesalers", { name: g.partenaire, countryCode: g.country, email: g.email });
+
   return next;
 }
 
@@ -321,41 +349,31 @@ export function getAgencies(): Agency[] {
 }
 
 export async function addAgency(a: Omit<Agency, "id" | "createdAt" | "status">): Promise<Agency & { temporaryPassword?: string }> {
-  const optimisticNext: Agency = {
+  // Ne plus faire de mise à jour optimiste - attendre la réponse de l'API
+  const response = await syncCreate("/api/agencies", {
+    name: a.name,
+    city: a.city,
+    email: a.email,
+    manager: a.manager,
+    countryCode: a.country,
+  }) as any;
+
+  // Créer l'agence avec les données retournées par l'API
+  const newAgency: Agency = {
     ...a,
-    id: `AG-${Date.now().toString(36).toUpperCase()}`,
-    createdAt: new Date().toISOString().slice(0, 10),
-    status: "active",
+    id: response?.id || `AG-${Date.now().toString(36).toUpperCase()}`,
+    createdAt: response?.createdAt?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    status: (response?.status as EntityStatus) || "active",
   };
-  _agencies = [optimisticNext, ...getAgencies()];
+
+  // Mettre à jour le cache uniquement après succès
+  _agencies = [newAgency, ...getAgencies()];
   persistAgencies();
 
-  try {
-    // Envoyer à l'API et attendre la réponse
-    const response = await syncCreate("/api/agencies", {
-      name: a.name,
-      city: a.city,
-      email: a.email,
-      manager: a.manager,
-      countryCode: a.country,
-    }) as any;
-
-    // Si l'API retourne un ID différent et un mot de passe temporaire, mettre à jour
-    if (response?.id && response.id !== optimisticNext.id) {
-      _agencies = _agencies.map(ag => ag.id === optimisticNext.id ? { ...ag, id: response.id } : ag);
-      persistAgencies();
-    }
-
-    return {
-      ...optimisticNext,
-      id: response?.id || optimisticNext.id,
-      temporaryPassword: response?.temporaryPassword,
-    };
-  } catch (error) {
-    // En cas d'erreur, garder l'agence locale quand même
-    console.error("Erreur lors de la création de l'agence:", error);
-    return optimisticNext;
-  }
+  return {
+    ...newAgency,
+    temporaryPassword: response?.temporaryPassword,
+  };
 }
 
 export function updateAgency(id: string, patch: Partial<Agency>) {

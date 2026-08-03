@@ -100,8 +100,13 @@ router.patch("/:id", requireRole("super_admin"), async (req, res) => {
 });
 
 router.delete("/:id", requireRole("super_admin"), async (req, res) => {
-  await prisma.laboratory.delete({ where: { id: req.params.id } });
-  res.status(204).end();
+  try {
+    await prisma.laboratory.delete({ where: { id: req.params.id } });
+    res.status(204).end();
+  } catch (error) {
+    console.error("Erreur suppression laboratoire:", error);
+    return res.status(500).json({ error: "Erreur lors de la suppression du laboratoire" });
+  }
 });
 
 export default router;

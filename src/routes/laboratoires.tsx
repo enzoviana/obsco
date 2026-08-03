@@ -196,11 +196,28 @@ const [f, setF] = useState({
     []
   );
 
-  const submit = () => {
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
     if (!f.name || !f.country || !f.email) { toast.error("Champs requis manquants"); return; }
-    if (lab) { updateLaboratoire(lab.id, f); toast.success(`Laboratoire ${f.name} mis à jour`); }
-    else { addLaboratoire(f); toast.success(`Laboratoire ${f.name} créé`); }
-    onClose();
+
+    setLoading(true);
+    try {
+      if (lab) {
+        updateLaboratoire(lab.id, f);
+        toast.success(`Laboratoire ${f.name} mis à jour`);
+      } else {
+        await addLaboratoire(f);
+        toast.success(`Laboratoire ${f.name} créé`);
+      }
+      onClose();
+    } catch (error: any) {
+      console.error("Erreur création laboratoire:", error);
+      const errorMessage = error?.message || error?.error || "Erreur lors de la création du laboratoire";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <DialogContent className="sm:max-w-lg">
@@ -225,8 +242,10 @@ const [f, setF] = useState({
         <div><Label>Adresse</Label><Textarea rows={2} value={f.address} onChange={e => setF({ ...f, address: e.target.value })} /></div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Annuler</Button>
-        <Button onClick={submit}>{lab ? "Enregistrer" : "Créer le laboratoire"}</Button>
+        <Button variant="outline" onClick={onClose} disabled={loading}>Annuler</Button>
+        <Button onClick={submit} disabled={loading}>
+          {loading ? "Création en cours..." : (lab ? "Enregistrer" : "Créer le laboratoire")}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
