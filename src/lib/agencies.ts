@@ -22,39 +22,16 @@ export const COUNTRIES: Country[] = [
 
 ];
 
-const COUNTRY_KEY = "obco_countries_v1";
-let _countriesLoaded = false;
+// Plus de cache localStorage - uniquement données en mémoire depuis l'API
 function persistCountries() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(COUNTRY_KEY, JSON.stringify(COUNTRIES));
   window.dispatchEvent(new Event("obco:countries"));
 }
 export function ensureCountriesLoaded() {
-  if (_countriesLoaded || typeof window === "undefined") return;
-  _countriesLoaded = true;
-  try {
-    const raw = localStorage.getItem(COUNTRY_KEY);
-    if (raw) {
-      const saved: Country[] = JSON.parse(raw);
-      COUNTRIES.splice(0, COUNTRIES.length, ...saved);
-    }
-  } catch { /* ignore */ }
+  // Les pays sont chargés uniquement via hydrateFromApi()
 }
 export function reloadCountries() {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = localStorage.getItem(COUNTRY_KEY);
-    if (raw) {
-      const saved: Country[] = JSON.parse(raw);
-      COUNTRIES.splice(0, COUNTRIES.length, ...saved);
-      console.log(`✅ ${saved.length} pays rechargés depuis localStorage`);
-    } else {
-      COUNTRIES.splice(0, COUNTRIES.length); // Vider si pas de données
-      console.log("⚠️ Aucune donnée pays dans localStorage");
-    }
-  } catch (e) {
-    console.error("❌ Erreur lors du rechargement des pays:", e);
-  }
+  // Les pays sont rechargés uniquement via hydrateFromApi()
 }
 export function addCountry(c: Country) {
   ensureCountriesLoaded();
@@ -94,42 +71,19 @@ export type Laboratoire = {
   status: EntityStatus;
 };
 
-const LAB_KEY = "obco_laboratoires_v2";
-let _labs: Laboratoire[] | null = null;
-
-function seedLabs(): Laboratoire[] {
-  const seeds: Omit<Laboratoire, "id" | "createdAt" | "status">[] = [
-    { name: "Sanofi Afrique", country: "CI", contact: "Marc Dupont", email: "m.dupont@sanofi.com", phone: "+225 27 22 44 00", address: "Plateau, Abidjan" },
-    { name: "Pfizer West Africa", country: "SN", contact: "Aïssatou Diop", email: "a.diop@pfizer.com", phone: "+221 33 869 00 00", address: "Almadies, Dakar" },
-    { name: "Novartis CEMAC", country: "CM", contact: "Jean Mbarga", email: "j.mbarga@novartis.com", phone: "+237 233 42 00 00", address: "Bonanjo, Douala" },
-    { name: "Servier Mali", country: "ML", contact: "Mariam Touré", email: "m.toure@servier.com", phone: "+223 20 22 00 00", address: "Hamdallaye, Bamako" },
-  ];
-  return seeds.map((s, i) => ({
-    ...s,
-    id: `LAB-${String(i + 1).padStart(3, "0")}`,
-    createdAt: `2025-${String(2 + i).padStart(2, "0")}-10`,
-    status: "active",
-  }));
-}
+// Données en mémoire uniquement - pas de cache localStorage
+let _labs: Laboratoire[] = [];
 
 function persistLabs() {
-  if (typeof window !== "undefined") localStorage.setItem(LAB_KEY, JSON.stringify(_labs));
   if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:labs"));
 }
 
+export function setLaboratoires(labs: Laboratoire[]) {
+  _labs = labs;
+  persistLabs();
+}
+
 export function getLaboratoires(): Laboratoire[] {
-  if (_labs) return _labs;
-  if (typeof window !== "undefined") {
-    try { const raw = localStorage.getItem(LAB_KEY); if (raw) { _labs = JSON.parse(raw); return _labs!; } } catch {}
-  }
-  // En mode Live, retourner un tableau vide si pas de données (ne pas créer de seed)
-  if (API_ENABLED) {
-    _labs = [];
-    return _labs;
-  }
-  // Mode Demo : créer des données de seed
-  _labs = seedLabs();
-  if (typeof window !== "undefined") localStorage.setItem(LAB_KEY, JSON.stringify(_labs));
   return _labs;
 }
 
@@ -182,38 +136,19 @@ export type Grossiste = {
   status: EntityStatus;
 };
 
-const GROS_KEY = "obco_grossistes_v2";
-let _gros: Grossiste[] | null = null;
-
-function seedGros(): Grossiste[] {
-  const seeds: Omit<Grossiste, "id">[] = [
-    { partenaire: "CAMED", type: "Grossiste", country: "CI", email: "contact@camed.ci", status: "active" },
-    { partenaire: "LABOREX MALI", type: "Grossiste", country: "ML", email: "info@laborex.ml", status: "active" },
-    { partenaire: "COPHARMED", type: "Grossiste", country: "SN", email: "contact@copharmed.sn", status: "active" },
-    { partenaire: "UBIPHARM", type: "Grossiste", country: "BF", email: "ubipharm@ubipharm.bf", status: "warning" },
-    { partenaire: "DPM", type: "Grossiste", country: "CM", email: "contact@dpm.cm", status: "active" },
-  ];
-  return seeds.map((s, i) => ({ ...s, id: `GR-${String(i + 1).padStart(3, "0")}` }));
-}
+// Données en mémoire uniquement - pas de cache localStorage
+let _gros: Grossiste[] = [];
 
 function persistGros() {
-  if (typeof window !== "undefined") localStorage.setItem(GROS_KEY, JSON.stringify(_gros));
   if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:gros"));
 }
 
+export function setGrossistes(gros: Grossiste[]) {
+  _gros = gros;
+  persistGros();
+}
+
 export function getGrossistes(): Grossiste[] {
-  if (_gros) return _gros;
-  if (typeof window !== "undefined") {
-    try { const raw = localStorage.getItem(GROS_KEY); if (raw) { _gros = JSON.parse(raw); return _gros!; } } catch {}
-  }
-  // En mode Live, retourner un tableau vide si pas de données (ne pas créer de seed)
-  if (API_ENABLED) {
-    _gros = [];
-    return _gros;
-  }
-  // Mode Demo : créer des données de seed
-  _gros = seedGros();
-  if (typeof window !== "undefined") localStorage.setItem(GROS_KEY, JSON.stringify(_gros));
   return _gros;
 }
 
@@ -254,21 +189,22 @@ export function deleteGrossiste(id: string) {
 }
 
 // ---------------- Pricing & objectives ----------------
-type PriceMap = Record<string, Record<string, number>>;
-type ObjMap = Record<string, Record<string, number>>;
-const PRICE_KEY = "obco_prices";
-const OBJ_KEY = "obco_objectives";
+// Prix et objectifs en mémoire uniquement - pas de localStorage
+let _pricesMap: Record<string, Record<string, number>> = {};
+let _objectivesMap: Record<string, Record<string, number>> = {};
 
-function loadMap(key: string): PriceMap {
-  if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; }
+export function setPricesMap(prices: Record<string, Record<string, number>>) {
+  _pricesMap = prices;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:pricing"));
 }
-function saveMap(key: string, m: PriceMap) {
-  if (typeof window !== "undefined") localStorage.setItem(key, JSON.stringify(m));
+
+export function setObjectivesMap(objectives: Record<string, Record<string, number>>) {
+  _objectivesMap = objectives;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:objectives"));
 }
 
 export function getProductPricing(productId: string, basePrice: number) {
-  const m = loadMap(PRICE_KEY);
+  const m = _pricesMap;
   const existing = m[productId] || {};
   const out: Record<string, number> = {};
   for (const c of COUNTRIES) {
@@ -277,9 +213,7 @@ export function getProductPricing(productId: string, basePrice: number) {
   return out;
 }
 export function setProductPricing(productId: string, prices: Record<string, number>) {
-  const m = loadMap(PRICE_KEY);
-  m[productId] = prices;
-  saveMap(PRICE_KEY, m);
+  _pricesMap[productId] = prices;
   if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:pricing"));
   for (const [countryCode, price] of Object.entries(prices)) {
     syncPut("/api/prices", { productId, countryCode, price });
@@ -287,7 +221,7 @@ export function setProductPricing(productId: string, prices: Record<string, numb
 }
 
 export function getProductObjectives(productId: string, baseQty: number) {
-  const m = loadMap(OBJ_KEY) as ObjMap;
+  const m = _objectivesMap;
   const existing = m[productId] || {};
   const out: Record<string, number> = {};
   for (const c of COUNTRIES) {
@@ -296,9 +230,7 @@ export function getProductObjectives(productId: string, baseQty: number) {
   return out;
 }
 export function setProductObjectives(productId: string, qty: Record<string, number>) {
-  const m = loadMap(OBJ_KEY) as ObjMap;
-  m[productId] = qty;
-  saveMap(OBJ_KEY, m);
+  _objectivesMap[productId] = qty;
   if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:objectives"));
   const now = new Date();
   const year = now.getFullYear();
@@ -309,42 +241,19 @@ export function setProductObjectives(productId: string, qty: Record<string, numb
 }
 
 // ---------------- Agencies ----------------
-let _agencies: Agency[] | null = null;
-const KEY = "obco_agencies_v2";
-
-function seed(): Agency[] {
-  const names = ["ANF Abidjan", "ANF Bamako", "ANF Dakar", "ANF Ouaga", "ANF Douala", "ANF Libreville", "ANF Lomé", "ANF Cotonou"];
-  const mgr = ["A. Koné", "M. Traoré", "F. Diop", "P. Ouédraogo", "J. Mbarga", "S. Ndong", "K. Adjo", "C. Hounsou"];
-  return COUNTRIES.map((c, i) => ({
-    id: `AG-${String(i + 1).padStart(3, "0")}`,
-    name: names[i],
-    country: c.code,
-    email: `${names[i].toLowerCase().replace(/\s/g, ".")}@obco.io`,
-    manager: mgr[i],
-    city: c.name.split(" ")[0],
-    createdAt: `2025-${String(1 + (i % 12)).padStart(2, "0")}-${String(5 + i).padStart(2, "0")}`,
-    status: i % 5 === 4 ? "warning" : "active",
-  }));
-}
+// Données en mémoire uniquement - pas de cache localStorage
+let _agencies: Agency[] = [];
 
 function persistAgencies() {
-  if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(_agencies));
   if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:agencies"));
 }
 
+export function setAgencies(agencies: Agency[]) {
+  _agencies = agencies;
+  persistAgencies();
+}
+
 export function getAgencies(): Agency[] {
-  if (_agencies) return _agencies;
-  if (typeof window !== "undefined") {
-    try { const raw = localStorage.getItem(KEY); if (raw) { _agencies = JSON.parse(raw); return _agencies!; } } catch {}
-  }
-  // En mode Live, retourner un tableau vide si pas de données (ne pas créer de seed)
-  if (API_ENABLED) {
-    _agencies = [];
-    return _agencies;
-  }
-  // Mode Demo : créer des données de seed
-  _agencies = seed();
-  if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(_agencies));
   return _agencies;
 }
 
@@ -572,120 +481,28 @@ export type ProductPanoramic = {
   fournisseurs: Record<string, { ventes: number; stocks: number; commandes: number; prixUnitaire: number }>;
 };
 
-const CUSTOM_KEY = "obco_custom_products";
-const OVERRIDES_KEY = "obco_product_overrides";
+// Produits en mémoire uniquement - pas de cache localStorage
+let _products: ProductPanoramic[] = [];
+let _deletedIds: Set<string> = new Set();
+let _overrides: Record<string, { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus }> = {};
 
-let _products: ProductPanoramic[] | null = null;
-
-function seedPanoramic(): ProductPanoramic[] {
-  const r = rand(101);
-  const roots = ["Paracétamol 500", "Amoxicilline 1g", "Doliprane 1000", "Spasfon", "Vitamine C 500", "Smecta", "Imodium", "Voltarène 50", "Augmentin 1g", "Ibuprofène 400",
-                 "Lévothyrox 50", "Ventoline", "Daflon 500", "Maalox", "Bétadine", "Aspirine 500", "Tramadol 100", "Lidocaïne 5%", "Oméprazole 20", "Cétirizine 10"];
-  const labs = ["Sanofi", "Pfizer", "Novartis", "Bayer", "Servier", "GSK", "Biogaran"];
-  const list: ProductPanoramic[] = [];
-  for (let i = 0; i < 80; i++) {
-    const name = `${roots[i % roots.length]} ${["bte/20", "bte/30", "fl/200ml", "tube/50g"][i % 4]}`;
-    const budgetMois = Math.round(800 + r() * 6000);
-    const ventes = Math.round(budgetMois * (0.5 + r() * 0.9));
-    const ventesAn1 = Math.round(ventes * (0.6 + r() * 0.6));
-    const ca = +(ventes * 10).toFixed(2);
-    const budgetMoisCa = +(budgetMois * 10).toFixed(2);
-    const cumulBudget = budgetMois * (3 + Math.floor(r() * 8));
-    const cumulRealise = Math.round(cumulBudget * (0.55 + r() * 0.55));
-    const fournisseurs: ProductPanoramic["fournisseurs"] = {};
-    for (const s of SUPPLIERS) {
-      fournisseurs[s] = {
-        prixUnitaire: +(10 * (0.9 + r() * 0.3)).toFixed(2),
-        ventes: Math.round(r() * (ventes / 2)),
-        stocks: Math.round(20 + r() * 400),
-        commandes: Math.round(r() * 120),
-      };
-    }
-    list.push({
-      id: `PR-${String(i + 1).padStart(4, "0")}`,
-      cip: String(3400900000000 + Math.floor(r() * 999_999_999)),
-      name, laboratory: labs[i % labs.length],
-      type: PRODUCT_TYPES[i % PRODUCT_TYPES.length],
-      productStatus: "active",
-      ventes, budgetMois,
-      tauxReal: +((ventes / budgetMois) * 100).toFixed(1),
-      ventesAn1, tauxEvol: +(((ventes - ventesAn1) / (ventesAn1 || 1)) * 100).toFixed(1),
-      ca, budgetMoisCa, txRealBudgetCa: +((ca / budgetMoisCa) * 100).toFixed(1),
-      cumulBudget, cumulRealise, txRealPrev: +((cumulRealise / cumulBudget) * 100).toFixed(1),
-      poids: 0, fournisseurs,
-    });
-  }
-  const totCA = list.reduce((s, x) => s + x.ca, 0);
-  for (const p of list) p.poids = +((p.ca / totCA) * 100).toFixed(2);
-  return list;
-}
-
-type ProductOverride = { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus; deleted?: boolean };
-
-const DELETED_KEY = "obco_deleted_products";
-
-function loadDeleted(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const arr = JSON.parse(localStorage.getItem(DELETED_KEY) || "[]");
-    return new Set(arr);
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDeleted(deletedIds: Set<string>) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(DELETED_KEY, JSON.stringify([...deletedIds]));
-}
-
-function loadOverrides(): Record<string, ProductOverride> {
-  if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(OVERRIDES_KEY) || "{}"); } catch { return {}; }
-}
-function saveOverrides(o: Record<string, ProductOverride>) {
-  if (typeof window !== "undefined") localStorage.setItem(OVERRIDES_KEY, JSON.stringify(o));
-}
-function loadCustom(): ProductPanoramic[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]"); } catch { return []; }
-}
-function saveCustom(list: ProductPanoramic[]) {
+// Fonction pour charger les produits depuis l'API (appelée par hydrate.ts)
+export function setProducts(products: ProductPanoramic[]) {
+  _products = products;
   if (typeof window !== "undefined") {
-    localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
-    console.log(`✅ ${list.length} produits sauvegardés, dispatch événement`);
+    console.log(`✅ ${products.length} produits chargés en mémoire`);
     window.dispatchEvent(new Event("obco:products"));
   }
 }
 
 export function getPanoramicProducts(): ProductPanoramic[] {
-  // En mode Live, ne pas créer de seed automatiquement
-  if (!_products) {
-    if (API_ENABLED) {
-      _products = []; // Tableau vide en mode Live
-    } else {
-      _products = seedPanoramic(); // Mode Demo : créer des données de seed
-    }
-  }
-  const overrides = loadOverrides();
-  const deletedIds = loadDeleted();
-
   // Filtrer les produits supprimés et appliquer les overrides
-  const merged = _products
-    .filter(p => !deletedIds.has(p.id))
+  return _products
+    .filter(p => !_deletedIds.has(p.id))
     .map(p => {
-      const o = overrides[p.id];
+      const o = _overrides[p.id];
       return o ? { ...p, ...o } : p;
     });
-
-  // Filtrer aussi les produits custom (qui incluent les produits de l'API en mode Live)
-  const allCustom = loadCustom();
-  const customProducts = allCustom.filter(p => !deletedIds.has(p.id));
-
-  const total = [...customProducts, ...merged];
-  console.log(`📦 getPanoramicProducts: ${allCustom.length} custom, ${deletedIds.size} supprimés → ${total.length} total`);
-
-  return total;
 }
 
 export function getProductLaboratories(): string[] {
@@ -703,7 +520,6 @@ export function addCustomProduct(input: {
   }
   const obj = input.objectives ?? {};
   const budgetMois = Object.values(obj).reduce((a, b) => a + b, 0) || 1000;
-  // Utiliser le CIP fourni ou générer un code NOCIP unique
   const cipValue = input.cip && input.cip.trim()
     ? input.cip.trim()
     : `NOCIP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -715,50 +531,43 @@ export function addCustomProduct(input: {
     budgetMoisCa: budgetMois * 10, txRealBudgetCa: 0,
     cumulBudget: budgetMois * 12, cumulRealise: 0, txRealPrev: 0, poids: 0, fournisseurs,
   };
-  saveCustom([product, ...loadCustom()]);
+  _products = [product, ..._products];
   if (input.pricing) setProductPricing(id, input.pricing);
   if (input.objectives) setProductObjectives(id, input.objectives);
   syncCreate("/api/products", { cip: product.cip, name: input.name, category: input.type, laboratory: input.laboratory });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:products"));
   return product;
 }
 
-export function updateProduct(id: string, patch: ProductOverride) {
-  if (id.startsWith("PRC-")) {
-    const list = loadCustom().map(p => p.id === id ? { ...p, ...patch } : p);
-    saveCustom(list);
-  } else {
-    const o = loadOverrides();
-    o[id] = { ...(o[id] || {}), ...patch };
-    saveOverrides(o);
-    if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:products"));
-  }
+export function updateProduct(id: string, patch: { name?: string; laboratory?: string; type?: string; productStatus?: EntityStatus }) {
+  _products = _products.map(p => p.id === id ? { ...p, ...patch } : p);
+  _overrides[id] = { ...(_overrides[id] || {}), ...patch };
+
   const apiPatch: Record<string, unknown> = {};
   if (patch.name) apiPatch.name = patch.name;
   if (patch.laboratory) apiPatch.laboratory = patch.laboratory;
   if (patch.type) apiPatch.category = patch.type;
   if (Object.keys(apiPatch).length) syncUpdate(`/api/products/${id}`, apiPatch);
+
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:products"));
 }
 
 export function deleteProduct(id: string) {
   console.log(`🗑️ Suppression produit ${id}`);
 
-  // Marquer comme supprimé (fonctionne pour tous les types de produits)
-  const deletedIds = loadDeleted();
-  deletedIds.add(id);
-  saveDeleted(deletedIds);
-  console.log(`   - Ajouté à deletedIds (${deletedIds.size} supprimés au total)`);
+  // Marquer comme supprimé
+  _deletedIds.add(id);
+  console.log(`   - Ajouté à deletedIds (${_deletedIds.size} supprimés au total)`);
 
-  // Retirer aussi de la liste custom (en mode API, tous les produits y sont)
-  const customBefore = loadCustom().length;
-  const filtered = loadCustom().filter(p => p.id !== id);
-  console.log(`   - Produits custom: ${customBefore} → ${filtered.length}`);
-  saveCustom(filtered);
+  // Retirer de la liste
+  _products = _products.filter(p => p.id !== id);
+  console.log(`   - Produits restants: ${_products.length}`);
 
   // Nettoyer les overrides
-  const o = loadOverrides();
-  delete o[id];
-  saveOverrides(o);
+  delete _overrides[id];
 
   // Appel API pour supprimer côté serveur
   syncDelete(`/api/products/${id}`);
+
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("obco:products"));
 }
