@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { requireAuth, requireRole } from "../auth";
+import { getCountryInfo } from "../utils/countries-data";
 
 const router = Router();
 router.use(requireAuth);
@@ -24,16 +25,23 @@ router.post("/", requireRole("super_admin"), async (req, res) => {
   try {
     const data = labSchema.parse(req.body);
 
-    // Verify that the country exists
-    const countryExists = await prisma.country.findUnique({
+    // Vérifier si le pays existe, sinon le créer automatiquement
+    let country = await prisma.country.findUnique({
       where: { code: data.countryCode }
     });
 
-    if (!countryExists) {
-      console.log(`❌ Country ${data.countryCode} does not exist`);
-      return res.status(400).json({
-        error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer ce pays.`
+    if (!country) {
+      console.log(`📍 Pays ${data.countryCode} non trouvé, création automatique...`);
+      const countryInfo = getCountryInfo(data.countryCode);
+      country = await prisma.country.create({
+        data: {
+          code: countryInfo.code,
+          name: countryInfo.name,
+          currency: countryInfo.currency,
+          region: countryInfo.region,
+        },
       });
+      console.log(`✅ Pays créé: ${country.name} (${country.code})`);
     }
 
     const laboratory = await prisma.laboratory.create({ data });
@@ -62,17 +70,24 @@ router.patch("/:id", requireRole("super_admin"), async (req, res) => {
     // Validate with partial schema (allow partial updates)
     const data = labSchema.partial().parse(req.body);
 
-    // If countryCode is being updated, verify it exists
+    // If countryCode is being updated, verify it exists or create it
     if (data.countryCode) {
-      const countryExists = await prisma.country.findUnique({
+      let country = await prisma.country.findUnique({
         where: { code: data.countryCode }
       });
 
-      if (!countryExists) {
-        console.log(`❌ Country ${data.countryCode} does not exist`);
-        return res.status(400).json({
-          error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer ce pays.`
+      if (!country) {
+        console.log(`📍 Pays ${data.countryCode} non trouvé, création automatique...`);
+        const countryInfo = getCountryInfo(data.countryCode);
+        country = await prisma.country.create({
+          data: {
+            code: countryInfo.code,
+            name: countryInfo.name,
+            currency: countryInfo.currency,
+            region: countryInfo.region,
+          },
         });
+        console.log(`✅ Pays créé: ${country.name} (${country.code})`);
       }
     }
 

@@ -6,6 +6,7 @@ import { prisma } from "../db";
 import { requireAuth, requireRole } from "../auth";
 import { generateTemporaryPassword } from "../utils/password";
 import { sendEmail, generateWelcomeEmail } from "../services/email.service";
+import { getCountryInfo } from "../utils/countries-data";
 
 export const countriesRouter = Router();
 countriesRouter.use(requireAuth);
@@ -160,6 +161,22 @@ agenciesRouter.post("/", requireRole("super_admin"), async (req, res) => {
       return res.status(400).json({ error: "Un utilisateur avec cet email existe déjà" });
     }
 
+    // Vérifier si le pays existe, sinon le créer automatiquement
+    let country = await prisma.country.findUnique({ where: { code: s.countryCode } });
+    if (!country) {
+      console.log(`📍 Pays ${s.countryCode} non trouvé, création automatique...`);
+      const countryInfo = getCountryInfo(s.countryCode);
+      country = await prisma.country.create({
+        data: {
+          code: countryInfo.code,
+          name: countryInfo.name,
+          currency: countryInfo.currency,
+          region: countryInfo.region,
+        },
+      });
+      console.log(`✅ Pays créé: ${country.name} (${country.code})`);
+    }
+
   // Créer l'agence
   const agency = await prisma.agency.create({ data: s });
 
@@ -200,10 +217,19 @@ agenciesRouter.post("/", requireRole("super_admin"), async (req, res) => {
     user: { id: user.id, email: user.email, name: user.name },
     temporaryPassword: temporaryPassword, // Retourner aussi dans la réponse pour que l'admin puisse le communiquer manuellement si besoin
   });
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0]?.message || "Données invalides" });
     }
+
+    // Capturer spécifiquement les erreurs de contrainte Prisma
+    if (error.code === 'P2003') {
+      console.error("❌ Erreur contrainte clé étrangère:", error.meta);
+      return res.status(400).json({
+        error: `Le pays sélectionné n'existe pas. Erreur: ${error.meta?.field_name || 'contrainte de clé étrangère'}`
+      });
+    }
+
     console.error("Erreur création agence:", error);
     return res.status(500).json({ error: "Erreur lors de la création de l'agence" });
   }
@@ -364,12 +390,37 @@ wholesalersRouter.post("/", requireRole("super_admin"), async (req, res) => {
       agencyId: z.string().nullable().optional(),
     }).parse(req.body);
 
+    // Vérifier si le pays existe, sinon le créer automatiquement
+    let country = await prisma.country.findUnique({ where: { code: s.countryCode } });
+    if (!country) {
+      console.log(`📍 Pays ${s.countryCode} non trouvé, création automatique...`);
+      const countryInfo = getCountryInfo(s.countryCode);
+      country = await prisma.country.create({
+        data: {
+          code: countryInfo.code,
+          name: countryInfo.name,
+          currency: countryInfo.currency,
+          region: countryInfo.region,
+        },
+      });
+      console.log(`✅ Pays créé: ${country.name} (${country.code})`);
+    }
+
     const wholesaler = await prisma.wholesaler.create({ data: s });
     res.status(201).json(wholesaler);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0]?.message || "Données invalides" });
     }
+
+    // Capturer spécifiquement les erreurs de contrainte Prisma
+    if (error.code === 'P2003') {
+      console.error("❌ Erreur contrainte clé étrangère:", error.meta);
+      return res.status(400).json({
+        error: `Erreur de référence: ${error.meta?.field_name || 'contrainte de clé étrangère'}`
+      });
+    }
+
     console.error("Erreur création grossiste:", error);
     return res.status(500).json({ error: "Erreur lors de la création du grossiste" });
   }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../auth.js";
 import { prisma } from "../db.js";
 import { z } from "zod";
+import { getCountryInfo } from "../utils/countries-data.js";
 
 export const importRouter = Router();
 
@@ -419,14 +420,27 @@ importRouter.post("/sorties-locales-csv", requireAuth, requireRole("super_admin"
           });
 
           if (!wholesaler) {
-            // Vérifier si le pays existe
-            const countryExists = await prisma.country.findUnique({
+            // Vérifier si le pays existe, sinon le créer automatiquement
+            let country = await prisma.country.findUnique({
               where: { code: row.countryCode },
             });
 
-            const finalCountryCode = countryExists
-              ? row.countryCode
-              : defaultCountry.code;
+            let finalCountryCode = row.countryCode;
+
+            if (!country) {
+              console.log(`📍 Pays ${row.countryCode} non trouvé, création automatique...`);
+              const countryInfo = getCountryInfo(row.countryCode);
+              country = await prisma.country.create({
+                data: {
+                  code: countryInfo.code,
+                  name: countryInfo.name,
+                  currency: countryInfo.currency,
+                  region: countryInfo.region,
+                },
+              });
+              console.log(`✅ Pays créé: ${country.name} (${country.code})`);
+              finalCountryCode = country.code;
+            }
 
             // Créer le grossiste
             wholesaler = await prisma.wholesaler.create({

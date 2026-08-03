@@ -76,13 +76,24 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 // Gestionnaires d'erreurs globaux pour éviter les crashes
 process.on('uncaughtException', (error) => {
-  console.error('❌ Exception non gérée:', error);
-  // Ne pas crasher le serveur, juste logger
+  console.error('❌ CRITICAL: Exception non gérée:', error);
+  console.error('Stack:', error.stack);
+  // Ne PAS crasher le serveur - continuer à fonctionner
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Promesse rejetée non gérée:', reason);
-  // Ne pas crasher le serveur, juste logger
+process.on('unhandledRejection', (reason: any, promise) => {
+  console.error('❌ CRITICAL: Promesse rejetée non gérée:', reason);
+  if (reason?.stack) {
+    console.error('Stack:', reason.stack);
+  }
+  // Ne PAS crasher le serveur - continuer à fonctionner
+});
+
+// Intercepter les erreurs qui quittent le process
+process.on('exit', (code) => {
+  if (code !== 0) {
+    console.error(`⚠️ Process exiting with code ${code}`);
+  }
 });
 
 const port = Number(process.env.PORT || 4000);
