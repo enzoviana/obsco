@@ -12,6 +12,7 @@ import { CountrySelect } from "@/components/ui/country-select";
 import { getUser } from "@/lib/auth";
 import {
   COUNTRIES, getAgencies, ensureCountriesLoaded, reloadCountries, addCountry, updateCountry, deleteCountry, type Country,
+  getLaboratoires,
 } from "@/lib/agencies";
 import { exportCSV } from "@/lib/export";
 import { toast } from "sonner";
@@ -146,6 +147,13 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
     isANF: pays?.isANF ?? false,
   });
 
+  // Récupérer les pays utilisés par les laboratoires pour les exclure
+  const laboratoires = typeof window !== "undefined" ? getLaboratoires() : [];
+  const labCountryCodes = useMemo(() =>
+    Array.from(new Set(laboratoires.map(lab => lab.country))),
+    [laboratoires]
+  );
+
   // Handler pour la sélection d'un pays
   const handleCountrySelect = (country: CountryData) => {
     if (country.code) {
@@ -201,8 +209,14 @@ function PaysDialog({ onClose, pays }: { onClose: () => void; pays: Country | nu
                 value={selectedCountryCode}
                 onSelect={handleCountrySelect}
                 placeholder="Rechercher un pays..."
+                excludeCountryCodes={labCountryCodes}
               />
             </div>
+            {labCountryCodes.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Les pays déjà utilisés par des laboratoires sont exclus de cette liste.
+              </p>
+            )}
           </div>
         )}
 

@@ -14,6 +14,7 @@ import {
   getAgencies,
   getGrossistes,
   getPanoramicProducts,
+  PRODUCT_TYPES,
   type Agency,
   type Grossiste,
 } from "@/lib/agencies";
@@ -36,6 +37,7 @@ function SortiesIndex() {
   const [countryCode, setCountryCode] = useState<string>("CI");
   const [agencyId, setAgencyId] = useState<string>("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [productTypeFilter, setProductTypeFilter] = useState<string>("all");
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [grossistes, setGrossistes] = useState<Grossiste[]>([]);
   const [importOpen, setImportOpen] = useState(false);
@@ -187,8 +189,11 @@ function SortiesIndex() {
 
   const filtered = useMemo(() => {
     const ql = q.toLowerCase().trim();
-    return products.filter((p) => !ql || p.name.toLowerCase().includes(ql) || p.cip.includes(ql));
-  }, [products, q]);
+    return products.filter((p) =>
+      (!ql || p.name.toLowerCase().includes(ql) || p.cip.includes(ql)) &&
+      (productTypeFilter === "all" || p.type === productTypeFilter)
+    );
+  }, [products, q, productTypeFilter]);
 
   const scale = (n: number, f: number) => Math.round(n * f);
 
@@ -560,6 +565,19 @@ function SortiesIndex() {
               ))}
             </select>
           </div>
+          <Select value={productTypeFilter} onValueChange={setProductTypeFilter}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Type de produit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous types</SelectItem>
+              {PRODUCT_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <span className="ml-auto text-xs text-muted-foreground">{supplierView.length} fournisseur(s) visible(s)</span>
         </div>
       </section>
@@ -1232,6 +1250,38 @@ function ImportSortiesDialog({
   };
 
   const downloadTemplate = () => {
+    // Vérifier qu'une agence est sélectionnée
+    if (!agencyId) {
+      toast.error("Veuillez sélectionner une agence avant de télécharger le modèle");
+      return;
+    }
+
+    // Récupérer l'agence sélectionnée
+    const selectedAgency = agencies.find(a => a.id === agencyId);
+    if (!selectedAgency) {
+      toast.error("Agence introuvable");
+      return;
+    }
+
+    // Récupérer les produits et grossistes
+    const products = getPanoramicProducts();
+    const allGrossistes = getGrossistes();
+
+    // Filtrer les grossistes actifs pour le pays de l'agence
+    const activeGrossistes = allGrossistes.filter(
+      g => g.country === selectedAgency.country && g.status === "active"
+    );
+
+    if (activeGrossistes.length === 0) {
+      toast.error(`Aucun grossiste actif trouvé pour le pays ${selectedAgency.country}`);
+      return;
+    }
+
+    if (products.length === 0) {
+      toast.error("Aucun produit trouvé dans la base de données");
+      return;
+    }
+
     // Offrir deux formats de template
     const choice = confirm("Quel format de CSV souhaitez-vous télécharger ?\n\nOK = Format WIDE (colonnes par grossiste)\nAnnuler = Format SIMPLE (une ligne par grossiste)");
 
@@ -1239,17 +1289,37 @@ function ImportSortiesDialog({
     let filename: string;
 
     if (choice) {
-      // Format WIDE (ancien format Excel)
-      csvContent = "Produit;DUOPHARM - Ventes;DUOPHARM - Stocks;DUOPHARM - Cmds;LABOREX SENEGAL - Ventes;LABOREX SENEGAL - Stocks;LABOREX SENEGAL - Cmds;SODIPHARM - Ventes;SODIPHARM - Stocks;SODIPHARM - Cmds\n";
-      csvContent += "Paracétamol 500mg;150;200;50;120;180;30;80;100;20\n";
-      csvContent += "Ibuprofène 400mg;200;250;60;150;200;40;90;120;25";
-      filename = "template_sorties_locales_wide.csv";
+      // Format WIDE avec vrais grossistes et produits
+      const headers = ["Produit"];
+      activeGrossistes.forEach(g => {
+        headers.push(`${g.partenaire} - Ventes`);
+        headers.push(`${g.partenaire} - Stocks`);
+        headers.push(`${g.partenaire} - Cmds`);
+      });
+      csvContent = headers.join(";") + "\n";
+
+      // Ajouter quelques produits exemples (max 10 pour ne pas surcharger)
+      products.slice(0, 10).forEach(p => {
+        const row = [p.name];
+        activeGrossistes.forEach(() => {
+          row.push("0", "0", "0"); // Valeurs par défaut
+        });
+        csvContent += row.join(";") + "\n";
+      });
+
+      filename = `template_sorties_locales_${selectedAgency.country}_wide.csv`;
     } else {
-      // Format SIMPLE
+      // Format SIMPLE avec vrais produits et grossistes
       csvContent = "cip,nom,grossiste,ventes,stocks,commandes,countryCode,ville\n";
-      csvContent += "3400936000001,Paracétamol 500mg,CAMED,150,200,50,CI,Abidjan\n";
-      csvContent += "3400938000002,Ibuprofène 400mg,LABOREX MALI,120,180,30,ML,Bamako";
-      filename = "template_sorties_locales_simple.csv";
+
+      // Ajouter quelques lignes exemples (max 10 produits)
+      products.slice(0, 10).forEach(p => {
+        activeGrossistes.forEach(g => {
+          csvContent += `${p.cip},${p.name},${g.partenaire},0,0,0,${selectedAgency.country},${selectedAgency.city || ""}\n`;
+        });
+      });
+
+      filename = `template_sorties_locales_${selectedAgency.country}_simple.csv`;
     }
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -1257,7 +1327,7 @@ function ImportSortiesDialog({
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     link.click();
-    toast.success("Modèle téléchargé");
+    toast.success(`Modèle téléchargé avec ${products.slice(0, 10).length} produits et ${activeGrossistes.length} grossiste(s)`);
   };
 
   return (

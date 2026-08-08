@@ -13,9 +13,10 @@ type CountrySelectProps = {
   onSelect: (country: CountryData) => void;
   disabled?: boolean;
   placeholder?: string;
+  excludeCountryCodes?: string[]; // Codes ISO des pays à exclure
 };
 
-export function CountrySelect({ value, onSelect, disabled, placeholder = "Sélectionner un pays..." }: CountrySelectProps) {
+export function CountrySelect({ value, onSelect, disabled, placeholder = "Sélectionner un pays...", excludeCountryCodes = [] }: CountrySelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -27,14 +28,22 @@ export function CountrySelect({ value, onSelect, disabled, placeholder = "Sélec
 
   const filteredCountries = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return WORLD_COUNTRIES;
+    let countries = WORLD_COUNTRIES;
 
-    return WORLD_COUNTRIES.filter(c =>
+    // Filtrer les pays exclus
+    if (excludeCountryCodes.length > 0) {
+      countries = countries.filter(c => !excludeCountryCodes.includes(c.code));
+    }
+
+    // Filtrer par recherche
+    if (!q) return countries;
+
+    return countries.filter(c =>
       c.name.toLowerCase().includes(q) ||
       c.code.toLowerCase().includes(q) ||
       c.region.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, excludeCountryCodes]);
 
   // Fermer le dropdown si on clique en dehors
   useEffect(() => {

@@ -15,8 +15,9 @@ import {
   addGrossiste, deleteGrossiste, getGrossistes, updateGrossiste, setGrossisteStatus,
   getAgencies, type Grossiste,
 } from "@/lib/agencies";
-import { WORLD_COUNTRIES } from "@/lib/countries-data";
+import { WORLD_COUNTRIES, type CountryData } from "@/lib/countries-data";
 import { exportCSV } from "@/lib/export";
+import { CountrySelect } from "@/components/ui/country-select";
 
 export const Route = createFileRoute("/grossistes")({
   head: () => ({ meta: [{ title: "Grossistes — OBCO" }] }),
@@ -158,17 +159,17 @@ function GrossistesPage() {
 function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | null }) {
   const [f, setF] = useState<Omit<Grossiste, "id">>({
     partenaire: g?.partenaire ?? "", type: "Grossiste",
-    country: g?.country ?? WORLD_COUNTRIES[0].code,
+    country: g?.country ?? "",
     email: g?.email ?? "", status: g?.status ?? "active",
   });
 
-  // Trier les pays par ordre alphabétique
-  const sortedCountries = useMemo(() =>
-    [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
-    []
-  );
-
   const [loading, setLoading] = useState(false);
+
+  const handleCountrySelect = (country: CountryData) => {
+    if (country.code) {
+      setF({ ...f, country: country.code });
+    }
+  };
 
   const submit = async () => {
     if (!f.partenaire || !f.email) { toast.error("Champs requis manquants"); return; }
@@ -199,14 +200,15 @@ function GrossisteDialog({ onClose, g }: { onClose: () => void; g: Grossiste | n
         <DialogDescription>Informations du grossiste.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
-        <div><Label>Partenaire *</Label><Input value={f.partenaire} onChange={e => setF({ ...f, partenaire: e.target.value })} placeholder="ex. CAMED" /></div>
+        <div><Label>Grossistes *</Label><Input value={f.partenaire} onChange={e => setF({ ...f, partenaire: e.target.value })} placeholder="ex. CAMED" /></div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Pays *</Label>
-            <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}</SelectContent>
-            </Select>
+            <CountrySelect
+              value={f.country}
+              onSelect={handleCountrySelect}
+              placeholder="Sélectionner un pays..."
+            />
           </div>
           <div>
             <Label>Statut</Label>

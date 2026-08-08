@@ -17,7 +17,8 @@ import {
   type Laboratoire,
 } from "@/lib/agencies";
 import { exportCSV } from "@/lib/export";
-import { WORLD_COUNTRIES } from "@/lib/countries-data";
+import { WORLD_COUNTRIES, type CountryData } from "@/lib/countries-data";
+import { CountrySelect } from "@/components/ui/country-select";
 
 export const Route = createFileRoute("/laboratoires")({
   head: () => ({ meta: [{ title: "Laboratoires — OBCO" }] }),
@@ -190,13 +191,13 @@ const [f, setF] = useState({
     address: lab?.address ?? "",
   });
 
-  // Trier les pays par ordre alphabétique
-  const sortedCountries = useMemo(() =>
-    [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
-    []
-  );
-
   const [loading, setLoading] = useState(false);
+
+  const handleCountrySelect = (country: CountryData) => {
+    if (country.code) {
+      setF({ ...f, country: country.code });
+    }
+  };
 
   const submit = async () => {
     if (!f.name || !f.country || !f.email) { toast.error("Champs requis manquants"); return; }
@@ -229,10 +230,11 @@ const [f, setF] = useState({
         <div><Label>Nom du laboratoire *</Label><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="ex. Sanofi Afrique" /></div>
         <div>
           <Label>Pays *</Label>
-          <Select value={f.country} onValueChange={v => setF({ ...f, country: v })}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner un pays" /></SelectTrigger>
-            <SelectContent>{sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}</SelectContent>
-          </Select>
+          <CountrySelect
+            value={f.country}
+            onSelect={handleCountrySelect}
+            placeholder="Sélectionner un pays..."
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Contact</Label><Input value={f.contact} onChange={e => setF({ ...f, contact: e.target.value })} /></div>

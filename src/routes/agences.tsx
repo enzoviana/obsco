@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { getUser } from "@/lib/auth";
 import { addAgency, deleteAgency, getAgencies, updateAgency, setAgencyStatus, type Agency } from "@/lib/agencies";
-import { WORLD_COUNTRIES } from "@/lib/countries-data";
+import { WORLD_COUNTRIES, type CountryData } from "@/lib/countries-data";
 import { exportCSV } from "@/lib/export";
+import { CountrySelect } from "@/components/ui/country-select";
 
 export const Route = createFileRoute("/agences")({
   head: () => ({ meta: [{ title: "Agences — OBCO" }] }),
@@ -159,17 +160,17 @@ function AgencesPage() {
 
 function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency | null }) {
   const [name, setName] = useState(agency?.name ?? "");
-  const [country, setCountry] = useState(agency?.country ?? WORLD_COUNTRIES[0].code);
+  const [country, setCountry] = useState(agency?.country ?? "");
   const [manager, setManager] = useState(agency?.manager ?? "");
   const [email, setEmail] = useState(agency?.email ?? "");
   const [city, setCity] = useState(agency?.city ?? "");
   const [loading, setLoading] = useState(false);
 
-  // Trier les pays par ordre alphabétique
-  const sortedCountries = useMemo(() =>
-    [...WORLD_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
-    []
-  );
+  const handleCountrySelect = (selectedCountry: CountryData) => {
+    if (selectedCountry.code) {
+      setCountry(selectedCountry.code);
+    }
+  };
 
   const submit = async () => {
     if (!name || !country || !email) { toast.error("Champs requis manquants"); return; }
@@ -219,12 +220,11 @@ function AgencyDialog({ onClose, agency }: { onClose: () => void; agency: Agency
         <div><Label>Nom de l'agence *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="ANF …" /></div>
         <div>
           <Label>Pays *</Label>
-          <Select value={country} onValueChange={setCountry}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {sortedCountries.map(c => <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <CountrySelect
+            value={country}
+            onSelect={handleCountrySelect}
+            placeholder="Sélectionner un pays..."
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Ville</Label><Input value={city} onChange={e => setCity(e.target.value)} /></div>
