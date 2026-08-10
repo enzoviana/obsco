@@ -59,8 +59,8 @@ export function useScopeState() {
   };
 }
 
-export function ScopeSelector(props: ReturnType<typeof useScopeState>) {
-  const { scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth } = props;
+export function ScopeSelector(props: ReturnType<typeof useScopeState> & { hidePeriodFilter?: boolean }) {
+  const { scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth, hidePeriodFilter } = props;
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
@@ -81,32 +81,34 @@ export function ScopeSelector(props: ReturnType<typeof useScopeState>) {
 
   return (
     <section className="mb-6 rounded-2xl border border-border bg-card p-4">
-      {/* Sélecteur de période */}
-      <div className="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-border">
-        <span className="text-xs font-medium text-muted-foreground">Période :</span>
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
-        >
-          {monthOptions.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
-        >
-          {yearOptions.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Sélecteur de période - masqué si hidePeriodFilter = true */}
+      {!hidePeriodFilter && (
+        <div className="flex flex-wrap items-center gap-3 mb-3 pb-3 border-b border-border">
+          <span className="text-xs font-medium text-muted-foreground">Période :</span>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+          >
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-surface px-3 text-sm"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Sélecteur de scope */}
       <div className="flex flex-wrap items-center gap-3">
@@ -121,7 +123,7 @@ export function ScopeSelector(props: ReturnType<typeof useScopeState>) {
           </select>
         )}
         {scope === "agency" && (
-          <select value={agencyId} onChange={e => setAgencyId(e.target.value)} className="h-9 rounded-lg border border-border bg-surface px-3 text-sm">
+          <select value={agencyId} onChange(e => setAgencyId(e.target.value)} className="h-9 rounded-lg border border-border bg-surface px-3 text-sm">
             {agencies.map(a => <option key={a.id} value={a.id}>{a.name} — {a.country}</option>)}
           </select>
         )}
@@ -445,15 +447,15 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
       id: p.id, produit: p.name, ventes, budgetMois,
-      tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
-      ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
-      ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
-      cumulBudget, cumulRealise, txRealDate: +((cumulRealise / Math.max(cumulBudget, 1)) * 100).toFixed(1),
+      tauxReal: budgetMois > 0 ? +((ventes / budgetMois) * 100).toFixed(1) : 0,
+      ventesAn1, tauxEvol: ventesAn1 > 0 ? +(((ventes - ventesAn1) / ventesAn1) * 100).toFixed(1) : 0,
+      ca, budgetMoisCa, txRealBudgetCa: budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0,
+      cumulBudget, cumulRealise, txRealDate: cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0,
       poids: 0,
     };
   });
-  const totalCa = rows.reduce((s, r) => s + r.ca, 0) || 1;
-  rows.forEach(r => { r.poids = +((r.ca / totalCa) * 100).toFixed(2); });
+  const totalCa = rows.reduce((s, r) => s + r.ca, 0);
+  rows.forEach(r => { r.poids = totalCa > 0 ? +((r.ca / totalCa) * 100).toFixed(2) : 0; });
   return rows;
 }
 
@@ -546,10 +548,10 @@ function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
       id: p.id, produit: p.name, ventes, budgetMois,
-      tauxReal: +((ventes / Math.max(budgetMois, 1)) * 100).toFixed(1),
-      ventesAn1, tauxEvol: +(((ventes - ventesAn1) / Math.max(ventesAn1, 1)) * 100).toFixed(1),
-      ca, budgetMoisCa, txRealBudgetCa: +((ca / Math.max(budgetMoisCa, 1)) * 100).toFixed(1),
-      cumulBudget, cumulRealise, txRealPrev: +((cumulRealise / Math.max(cumulBudget, 1)) * 100).toFixed(1),
+      tauxReal: budgetMois > 0 ? +((ventes / budgetMois) * 100).toFixed(1) : 0,
+      ventesAn1, tauxEvol: ventesAn1 > 0 ? +(((ventes - ventesAn1) / ventesAn1) * 100).toFixed(1) : 0,
+      ca, budgetMoisCa, txRealBudgetCa: budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0,
+      cumulBudget, cumulRealise, txRealPrev: cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0,
       poids: p.poids,
     };
   });

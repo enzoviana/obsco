@@ -18,7 +18,7 @@ function Page() {
   }, [navigate]);
   return (
     <AppShell title="Rapport 8 — Vue panoramique produit" subtitle={`Sorties Locales · ${state.scopeLabel}`}>
-      <ScopeSelector {...state} />
+      <ScopeSelector {...state} hidePeriodFilter={true} />
       <ReportVuePanoramique data={data} suffix={state.fileSuffix} year={state.selectedYear} />
     </AppShell>
   );
