@@ -241,6 +241,164 @@ reportsRouter.get("/by-country", requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/reports/objectives-summary
+ * Résumé complet pour le rapport objectifs : ventes + prix + objectifs
+ */
+reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
+  try {
+    const { year, month, scope, countryCode, agencyId } = req.query;
+
+    if (!year || !month) {
+      return res.status(400).json({ error: "Année et mois requis" });
+    }
+
+    const y = parseInt(year as string);
+    const m = parseInt(month as string);
+
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) {
+      return res.status(400).json({ error: "Année ou mois invalide" });
+    }
+
+    // Récupérer les IDs d'agences selon le scope
+    const agencyIds = await getAgencyIds(
+      scope as string || "all",
+      countryCode as string,
+      agencyId as string
+    );
+
+    // Récupérer toutes les données mensuelles
+    const monthlyData = await prisma.monthlyData.findMany({
+      where: {
+        agencyId: { in: agencyIds },
+        year: y,
+        month: m,
+      },
+    });
+
+    // Agréger par produit
+    const salesByProduct = new Map<string, { sales: number; stock: number; orders: number }>();
+
+    for (const data of monthlyData) {
+      if (!salesByProduct.has(data.productCip)) {
+        salesByProduct.set(data.productCip, { sales: 0, stock: 0, orders: 0 });
+      }
+
+      const agg = salesByProduct.get(data.productCip)!;
+      agg.sales += data.sales;
+      agg.stock += data.stock;
+      agg.orders += data.orders;
+    }
+
+    // Déterminer le(s) code(s) pays à utiliser pour les prix et objectifs
+    let targetCountryCodes: string[] = [];
+    if (scope === "country" && countryCode) {
+      targetCountryCodes = [countryCode as string];
+    } else if (scope === "agency" && agencyId) {
+      const agency = await prisma.agency.findUnique({
+        where: { id: agencyId as string },
+        select: { countryCode: true },
+      });
+      if (agency) {
+        targetCountryCodes = [agency.countryCode];
+      }
+    } else {
+      // scope === "all" : récupérer tous les pays
+      const countries = await prisma.country.findMany({
+        select: { code: true },
+      });
+      targetCountryCodes = countries.map(c => c.code);
+    }
+
+    // Récupérer les prix des produits
+    const prices = await prisma.productPrice.findMany({
+      where: {
+        countryCode: { in: targetCountryCodes },
+      },
+      include: {
+        product: {
+          select: { cip: true },
+        },
+      },
+    });
+
+    // Organiser les prix par CIP et pays
+    const pricesByCipAndCountry = new Map<string, Map<string, number>>();
+    for (const price of prices) {
+      const cip = price.product.cip;
+      if (!pricesByCipAndCountry.has(cip)) {
+        pricesByCipAndCountry.set(cip, new Map());
+      }
+      pricesByCipAndCountry.get(cip)!.set(price.countryCode, price.price);
+    }
+
+    // Récupérer les objectifs des produits
+    const objectives = await prisma.productObjective.findMany({
+      where: {
+        countryCode: { in: targetCountryCodes },
+        year: y,
+        month: m,
+      },
+      include: {
+        product: {
+          select: { cip: true },
+        },
+      },
+    });
+
+    // Organiser les objectifs par CIP et pays
+    const objectivesByCipAndCountry = new Map<string, Map<string, { targetUnits: number; targetCA: number }>>();
+    for (const objective of objectives) {
+      const cip = objective.product.cip;
+      if (!objectivesByCipAndCountry.has(cip)) {
+        objectivesByCipAndCountry.set(cip, new Map());
+      }
+      objectivesByCipAndCountry.get(cip)!.set(objective.countryCode, {
+        targetUnits: objective.targetUnits,
+        targetCA: objective.targetCA,
+      });
+    }
+
+    // Construire la réponse finale
+    const result: Record<string, any> = {};
+
+    for (const [cip, salesData] of salesByProduct.entries()) {
+      // Récupérer le prix (moyenne si plusieurs pays)
+      let price = 0;
+      const cipPrices = pricesByCipAndCountry.get(cip);
+      if (cipPrices && cipPrices.size > 0) {
+        const pricesArray = Array.from(cipPrices.values());
+        price = pricesArray.reduce((sum, p) => sum + p, 0) / pricesArray.length;
+      }
+
+      // Récupérer les objectifs (somme si plusieurs pays)
+      let targetUnits = 0;
+      let targetCA = 0;
+      const cipObjectives = objectivesByCipAndCountry.get(cip);
+      if (cipObjectives && cipObjectives.size > 0) {
+        for (const obj of cipObjectives.values()) {
+          targetUnits += obj.targetUnits;
+          targetCA += obj.targetCA;
+        }
+      }
+
+      result[cip] = {
+        sales: salesData.sales,
+        stock: salesData.stock,
+        orders: salesData.orders,
+        price,
+        targetUnits,
+        targetCA,
+      };
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error("Erreur récupération objectives-summary:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+/**
  * GET /api/reports/panoramic
  * Vue panoramique pour un produit : évolution par mois et par pays
  */

@@ -175,6 +175,55 @@ export function useScopedReportDataANF(scope: Scope, countryCode: string, agency
 type Data = ReturnType<typeof useScopedReportData>;
 
 /* ---------- API Data hooks ---------- */
+export function useObjectivesSummary(year: number, month: number, scope: Scope, countryCode: string, agencyId: string) {
+  const [data, setData] = useState<Record<string, { sales: number; stock: number; orders: number; price: number; targetUnits: number; targetCA: number }>>({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          year: year.toString(),
+          month: month.toString(),
+          scope,
+        });
+
+        if (scope === "country") params.append("countryCode", countryCode);
+        if (scope === "agency") params.append("agencyId", agencyId);
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/objectives-summary?${params}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          setData(result);
+        } else {
+          console.error("Erreur chargement objectives-summary");
+          setData({});
+        }
+      } catch (error) {
+        console.error("Erreur chargement objectives-summary:", error);
+        setData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (agencyId || scope !== "agency") {
+      loadData();
+    }
+  }, [year, month, scope, countryCode, agencyId]);
+
+  return { data, loading };
+}
+
 export function useMonthlyData(year: number, month: number, scope: Scope, countryCode: string, agencyId: string) {
   const [data, setData] = useState<Record<string, { sales: number; stock: number; orders: number }>>({});
   const [loading, setLoading] = useState(false);
@@ -435,15 +484,16 @@ const TD = ({ children, right, mute }: { children: React.ReactNode; right?: bool
 /* ===================================================================== */
 /* RAPPORT 1 — Suivi objectifs ventes mensuelles par produit             */
 /* ===================================================================== */
-function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number }>) {
+function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number; price: number; targetUnits: number; targetCA: number }>) {
   const rows = d.products.slice(0, 60).map(p => {
     // Utiliser les données API
-    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0 };
+    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0, price: 0, targetUnits: 0, targetCA: 0 };
     const ventes = productData.sales;
-    const budgetMois = Math.round(p.budgetMois * d.agencyFactor);
+    const budgetMois = productData.targetUnits;
     const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
-    const ca = +(ventes * 10).toFixed(2);
-    const budgetMoisCa = +(budgetMois * 10).toFixed(2);
+    const price = productData.price || 0;
+    const ca = +(ventes * price).toFixed(2);
+    const budgetMoisCa = productData.targetCA || +(budgetMois * price).toFixed(2);
     const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
 
@@ -451,6 +501,9 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
     const warnings: string[] = [];
     if (!apiData[p.cip] || (productData.sales === 0 && productData.stock === 0)) {
       warnings.push("Aucune donnée de vente pour cette période");
+    }
+    if (price === 0) {
+      warnings.push("Prix manquant pour ce produit");
     }
     if (budgetMois === 0) {
       warnings.push("Objectif mensuel non défini");
@@ -477,7 +530,7 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
 export function ReportObjectifsPays({ data, suffix, year, month, scope, countryCode, agencyId }: {
   data: Data; suffix: string; year: number; month: number; scope: Scope; countryCode: string; agencyId: string;
 }) {
-  const { data: apiData, loading } = useMonthlyData(year, month, scope, countryCode, agencyId);
+  const { data: apiData, loading } = useObjectivesSummary(year, month, scope, countryCode, agencyId);
   const rows = useMemo(() => buildR1(data, apiData), [data, apiData]);
   const tot = useMemo(() => ({
     ventes: rows.reduce((s, r) => s + r.ventes, 0),
@@ -572,15 +625,16 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
 /* ===================================================================== */
 /* RAPPORT 2 — Objectifs ventes mensuelles ANF (par produit)             */
 /* ===================================================================== */
-function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number }>) {
+function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number; price: number; targetUnits: number; targetCA: number }>) {
   return d.products.slice(0, 60).map(p => {
     // Utiliser les données API
-    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0 };
+    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0, price: 0, targetUnits: 0, targetCA: 0 };
     const ventes = productData.sales;
-    const budgetMois = Math.round(p.budgetMois * d.agencyFactor);
+    const budgetMois = productData.targetUnits;
     const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
-    const ca = +(ventes * 10).toFixed(2);
-    const budgetMoisCa = +(budgetMois * 10).toFixed(2);
+    const price = productData.price || 0;
+    const ca = +(ventes * price).toFixed(2);
+    const budgetMoisCa = productData.targetCA || +(budgetMois * price).toFixed(2);
     const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
     return {
@@ -597,7 +651,7 @@ function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number
 export function ReportObjectifsANF({ data, suffix, year, month, scope, countryCode, agencyId }: {
   data: Data; suffix: string; year: number; month: number; scope: Scope; countryCode: string; agencyId: string;
 }) {
-  const { data: apiData, loading } = useMonthlyData(year, month, scope, countryCode, agencyId);
+  const { data: apiData, loading } = useObjectivesSummary(year, month, scope, countryCode, agencyId);
   const rows = useMemo(() => buildR2(data, apiData), [data, apiData]);
 
   if (loading) {
