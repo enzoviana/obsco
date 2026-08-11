@@ -27,6 +27,7 @@ import { Route as FournisseursRouteImport } from './routes/fournisseurs'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as AgencesRouteImport } from './routes/agences'
+import { Route as AdminProduitsRouteImport } from './routes/admin-produits'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SortiesLocalesIndexRouteImport } from './routes/sorties-locales.index'
 import { Route as SortiesLocalesVuePanoramiqueRouteImport } from './routes/sorties-locales.vue-panoramique'
@@ -129,6 +130,11 @@ const AgencesRoute = AgencesRouteImport.update({
   path: '/agences',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminProduitsRoute = AdminProduitsRouteImport.update({
+  id: '/admin-produits',
+  path: '/admin-produits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -194,6 +200,7 @@ const SortiesLocalesEvolutionCaRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin-produits': typeof AdminProduitsRoute
   '/agences': typeof AgencesRoute
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -225,6 +232,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin-produits': typeof AdminProduitsRoute
   '/agences': typeof AgencesRoute
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -256,6 +264,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin-produits': typeof AdminProduitsRoute
   '/agences': typeof AgencesRoute
   '/change-password': typeof ChangePasswordRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -289,6 +298,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin-produits'
     | '/agences'
     | '/change-password'
     | '/forgot-password'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin-produits'
     | '/agences'
     | '/change-password'
     | '/forgot-password'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin-produits'
     | '/agences'
     | '/change-password'
     | '/forgot-password'
@@ -382,6 +394,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminProduitsRoute: typeof AdminProduitsRoute
   AgencesRoute: typeof AgencesRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -530,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgencesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-produits': {
+      id: '/admin-produits'
+      path: '/admin-produits'
+      fullPath: '/admin-produits'
+      preLoaderRoute: typeof AdminProduitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -642,6 +662,7 @@ const SortiesLocalesRouteWithChildren = SortiesLocalesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminProduitsRoute: AdminProduitsRoute,
   AgencesRoute: AgencesRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

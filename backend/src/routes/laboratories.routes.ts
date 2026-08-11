@@ -25,23 +25,15 @@ router.post("/", requireRole("super_admin"), async (req, res) => {
   try {
     const data = labSchema.parse(req.body);
 
-    // Vérifier si le pays existe, sinon le créer automatiquement
-    let country = await prisma.country.findUnique({
+    // Vérifier si le pays existe
+    const country = await prisma.country.findUnique({
       where: { code: data.countryCode }
     });
 
     if (!country) {
-      console.log(`📍 Pays ${data.countryCode} non trouvé, création automatique...`);
-      const countryInfo = getCountryInfo(data.countryCode);
-      country = await prisma.country.create({
-        data: {
-          code: countryInfo.code,
-          name: countryInfo.name,
-          currency: countryInfo.currency,
-          region: countryInfo.region,
-        },
+      return res.status(400).json({
+        error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer le pays avant d'ajouter un laboratoire.`
       });
-      console.log(`✅ Pays créé: ${country.name} (${country.code})`);
     }
 
     const laboratory = await prisma.laboratory.create({ data });
@@ -70,24 +62,16 @@ router.patch("/:id", requireRole("super_admin"), async (req, res) => {
     // Validate with partial schema (allow partial updates)
     const data = labSchema.partial().parse(req.body);
 
-    // If countryCode is being updated, verify it exists or create it
+    // If countryCode is being updated, verify it exists
     if (data.countryCode) {
-      let country = await prisma.country.findUnique({
+      const country = await prisma.country.findUnique({
         where: { code: data.countryCode }
       });
 
       if (!country) {
-        console.log(`📍 Pays ${data.countryCode} non trouvé, création automatique...`);
-        const countryInfo = getCountryInfo(data.countryCode);
-        country = await prisma.country.create({
-          data: {
-            code: countryInfo.code,
-            name: countryInfo.name,
-            currency: countryInfo.currency,
-            region: countryInfo.region,
-          },
+        return res.status(400).json({
+          error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer le pays avant de modifier le laboratoire.`
         });
-        console.log(`✅ Pays créé: ${country.name} (${country.code})`);
       }
     }
 

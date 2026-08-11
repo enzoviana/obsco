@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileSpreadsheet, Globe2, MapPin, Building2 } from "lucide-react";
+import { Download, FileSpreadsheet, Globe2, MapPin, Building2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   COUNTRIES, getAgencies, getPanoramicProducts, MONTHS, type Agency, type ProductPanoramic,
 } from "@/lib/agencies";
@@ -123,7 +124,7 @@ export function ScopeSelector(props: ReturnType<typeof useScopeState> & { hidePe
           </select>
         )}
         {scope === "agency" && (
-          <select value={agencyId} onChange(e => setAgencyId(e.target.value)} className="h-9 rounded-lg border border-border bg-surface px-3 text-sm">
+          <select value={agencyId} onChange={e => setAgencyId(e.target.value)} className="h-9 rounded-lg border border-border bg-surface px-3 text-sm">
             {agencies.map(a => <option key={a.id} value={a.id}>{a.name} — {a.country}</option>)}
           </select>
         )}
@@ -445,6 +446,19 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
     const budgetMoisCa = +(budgetMois * 10).toFixed(2);
     const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
     const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
+
+    // Détection des données manquantes
+    const warnings: string[] = [];
+    if (!apiData[p.cip] || (productData.sales === 0 && productData.stock === 0)) {
+      warnings.push("Aucune donnée de vente pour cette période");
+    }
+    if (budgetMois === 0) {
+      warnings.push("Objectif mensuel non défini");
+    }
+    if (ventesAn1 === 0) {
+      warnings.push("Pas de données de l'année précédente");
+    }
+
     return {
       id: p.id, produit: p.name, ventes, budgetMois,
       tauxReal: budgetMois > 0 ? +((ventes / budgetMois) * 100).toFixed(1) : 0,
@@ -452,6 +466,7 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
       ca, budgetMoisCa, txRealBudgetCa: budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0,
       cumulBudget, cumulRealise, txRealDate: cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0,
       poids: 0,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   });
   const totalCa = rows.reduce((s, r) => s + r.ca, 0);
@@ -489,46 +504,68 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
     "Tx de réalisation à date (%)": r.txRealDate, "Poids (%)": r.poids,
   }));
   return (
-    <ReportCard title="Rapport 1 · Objectifs ventes par produit" subtitle="Suivi mensuel par produit — performance, CA, cumul, poids"
-      rows={exportRows} filename={`r1-objectifs-pays-${suffix}`}>
-      <Table minWidth={1400}>
-        <thead className="bg-surface"><tr>
-          <TH>Produit</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
-          <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
-          <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
-          <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. à date %</TH><TH right>Poids %</TH>
-        </tr></thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.id} className="border-t border-border/60">
-              <TD>{r.produit}</TD>
-              <TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
-              <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
-              <TD right mute>{fmt(r.ventesAn1)}</TD>
-              <TD right><span className={r.tauxEvol >= 0 ? "text-primary" : "text-destructive"}>{pct(r.tauxEvol)}</span></TD>
-              <TD right>{eur(r.ca)}</TD><TD right mute>{eur(r.budgetMoisCa)}</TD>
-              <TD right>{pct(r.txRealBudgetCa)}</TD>
-              <TD right mute>{fmt(r.cumulBudget)}</TD><TD right>{fmt(r.cumulRealise)}</TD>
-              <TD right>{pct(r.txRealDate)}</TD><TD right>{r.poids}%</TD>
+    <TooltipProvider>
+      <ReportCard title="Rapport 1 · Objectifs ventes par produit" subtitle="Suivi mensuel par produit — performance, CA, cumul, poids"
+        rows={exportRows} filename={`r1-objectifs-pays-${suffix}`}>
+        <Table minWidth={1500}>
+          <thead className="bg-surface"><tr>
+            <TH>Produit</TH><TH right>Ventes</TH><TH right>Budget Mois</TH>
+            <TH right>Tx réal. %</TH><TH right>Ventes An-1</TH><TH right>Tx évol. %</TH>
+            <TH right>CA</TH><TH right>Budget CA</TH><TH right>Tx Real CA %</TH>
+            <TH right>Cumul Budget</TH><TH right>Cumul Réalisé</TH><TH right>Tx réal. à date %</TH><TH right>Poids %</TH>
+            <TH>Alerte</TH>
+          </tr></thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id} className="border-t border-border/60">
+                <TD>{r.produit}</TD>
+                <TD right>{fmt(r.ventes)}</TD><TD right mute>{fmt(r.budgetMois)}</TD>
+                <TD right><span className={r.tauxReal >= 100 ? "text-primary" : "text-amber-500"}>{pct(r.tauxReal)}</span></TD>
+                <TD right mute>{fmt(r.ventesAn1)}</TD>
+                <TD right><span className={r.tauxEvol >= 0 ? "text-primary" : "text-destructive"}>{pct(r.tauxEvol)}</span></TD>
+                <TD right>{eur(r.ca)}</TD><TD right mute>{eur(r.budgetMoisCa)}</TD>
+                <TD right>{pct(r.txRealBudgetCa)}</TD>
+                <TD right mute>{fmt(r.cumulBudget)}</TD><TD right>{fmt(r.cumulRealise)}</TD>
+                <TD right>{pct(r.txRealDate)}</TD><TD right>{r.poids}%</TD>
+                <TD>
+                  {r.warnings && (
+                    <div className="flex justify-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertCircle className="h-4 w-4 text-amber-500 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <div className="space-y-1">
+                            {r.warnings.map((warning, idx) => (
+                              <div key={idx} className="text-xs">• {warning}</div>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  )}
+                </TD>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border bg-surface text-[11px] font-semibold uppercase tracking-wider">
+              <TD>Total</TD>
+              <TD right>{fmt(tot.ventes)}</TD><TD right>{fmt(tot.budgetMois)}</TD>
+              <TD right>{tot.budgetMois > 0 ? pct((tot.ventes / tot.budgetMois) * 100) : "-"}</TD>
+              <TD right>{fmt(tot.ventesAn1)}</TD>
+              <TD right>{tot.ventesAn1 > 0 ? pct(((tot.ventes - tot.ventesAn1) / tot.ventesAn1) * 100) : "-"}</TD>
+              <TD right>{eur(tot.ca)}</TD><TD right>{eur(tot.budgetMoisCa)}</TD>
+              <TD right>{tot.budgetMoisCa > 0 ? pct((tot.ca / tot.budgetMoisCa) * 100) : "-"}</TD>
+              <TD right>{fmt(tot.cumulBudget)}</TD><TD right>{fmt(tot.cumulRealise)}</TD>
+              <TD right>{tot.cumulBudget > 0 ? pct((tot.cumulRealise / tot.cumulBudget) * 100) : "-"}</TD>
+              <TD right>100%</TD>
+              <TD></TD>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-border bg-surface text-[11px] font-semibold uppercase tracking-wider">
-            <TD>Total</TD>
-            <TD right>{fmt(tot.ventes)}</TD><TD right>{fmt(tot.budgetMois)}</TD>
-            <TD right>{pct((tot.ventes / Math.max(tot.budgetMois, 1)) * 100)}</TD>
-            <TD right>{fmt(tot.ventesAn1)}</TD>
-            <TD right>{pct(((tot.ventes - tot.ventesAn1) / Math.max(tot.ventesAn1, 1)) * 100)}</TD>
-            <TD right>{eur(tot.ca)}</TD><TD right>{eur(tot.budgetMoisCa)}</TD>
-            <TD right>{pct((tot.ca / Math.max(tot.budgetMoisCa, 1)) * 100)}</TD>
-            <TD right>{fmt(tot.cumulBudget)}</TD><TD right>{fmt(tot.cumulRealise)}</TD>
-            <TD right>{pct((tot.cumulRealise / Math.max(tot.cumulBudget, 1)) * 100)}</TD>
-            <TD right>100%</TD>
-          </tr>
-        </tfoot>
-      </Table>
-    </ReportCard>
+          </tfoot>
+        </Table>
+      </ReportCard>
+    </TooltipProvider>
   );
 }
 

@@ -23,9 +23,7 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
     const countryCode = req.params.code;
     console.log(`🗑️ Attempting to delete country: ${countryCode}`);
 
-    // Suppression en cascade de toutes les données liées à ce pays
-    // L'ordre est important pour respecter les contraintes de clés étrangères
-
+    // Vérifier si des entités sont liées à ce pays
     console.log(`📊 Checking references for country ${countryCode}...`);
     const [agenciesCount, labsCount, wholesalersCount, pricesCount, objectivesCount] = await Promise.all([
       prisma.agency.count({ where: { countryCode } }),
@@ -37,47 +35,23 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
 
     console.log(`🔍 Found: ${agenciesCount} agencies, ${labsCount} labs, ${wholesalersCount} wholesalers, ${pricesCount} prices, ${objectivesCount} objectives`);
 
-    // 1. Supprimer les agences de ce pays (cela supprimera en cascade leurs utilisateurs, ventes, etc.)
+    // Empêcher la suppression si des agences ou laboratoires existent
     if (agenciesCount > 0) {
-      const agencies = await prisma.agency.findMany({ where: { countryCode }, select: { id: true } });
-      for (const agency of agencies) {
-        console.log(`  🗑️ Deleting agency ${agency.id}...`);
-
-        // Supprimer les utilisateurs de cette agence
-        await prisma.user.deleteMany({ where: { agencyId: agency.id } });
-
-        // Supprimer les ventes de cette agence
-        await prisma.sale.deleteMany({ where: { agencyId: agency.id } });
-
-        // Supprimer les données mensuelles de cette agence
-        await prisma.monthlyData.deleteMany({ where: { agencyId: agency.id } });
-
-        // Supprimer les grossistes spécifiques à cette agence
-        const agencyWholesalers = await prisma.wholesaler.findMany({
-          where: { agencyId: agency.id },
-          select: { id: true },
-        });
-        const wholesalerIds = agencyWholesalers.map(w => w.id);
-        if (wholesalerIds.length > 0) {
-          await prisma.supplierStock.deleteMany({
-            where: { wholesalerId: { in: wholesalerIds } },
-          });
-        }
-        await prisma.wholesaler.deleteMany({ where: { agencyId: agency.id } });
-
-        // Supprimer l'agence
-        await prisma.agency.delete({ where: { id: agency.id } });
-      }
-      console.log(`  ✅ Deleted ${agenciesCount} agencies and their related data`);
+      return res.status(400).json({
+        error: `Impossible de supprimer ce pays : ${agenciesCount} agence(s) y sont liées. Supprimez d'abord les agences.`
+      });
     }
 
-    // 2. Supprimer les laboratoires de ce pays
     if (labsCount > 0) {
-      await prisma.laboratory.deleteMany({ where: { countryCode } });
-      console.log(`  ✅ Deleted ${labsCount} laboratories`);
+      return res.status(400).json({
+        error: `Impossible de supprimer ce pays : ${labsCount} laboratoire(s) y sont liés. Supprimez d'abord les laboratoires.`
+      });
     }
 
-    // 3. Supprimer les grossistes de ce pays (non liés à une agence)
+    // Suppression en cascade de toutes les données liées à ce pays
+    // L'ordre est important pour respecter les contraintes de clés étrangères
+
+    // 1. Supprimer les grossistes de ce pays (non liés à une agence)
     if (wholesalersCount > 0) {
       const wholesalers = await prisma.wholesaler.findMany({
         where: { countryCode, agencyId: null },
@@ -98,19 +72,19 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
       console.log(`  ✅ Deleted ${wholesalers.length} country-level wholesalers`);
     }
 
-    // 4. Supprimer les prix des produits pour ce pays
+    // 2. Supprimer les prix des produits pour ce pays
     if (pricesCount > 0) {
       await prisma.productPrice.deleteMany({ where: { countryCode } });
       console.log(`  ✅ Deleted ${pricesCount} product prices`);
     }
 
-    // 5. Supprimer les objectifs des produits pour ce pays
+    // 3. Supprimer les objectifs des produits pour ce pays
     if (objectivesCount > 0) {
       await prisma.productObjective.deleteMany({ where: { countryCode } });
       console.log(`  ✅ Deleted ${objectivesCount} product objectives`);
     }
 
-    // 6. Enfin, supprimer le pays lui-même
+    // 4. Enfin, supprimer le pays lui-même
     await prisma.country.delete({ where: { code: countryCode } });
     console.log(`✅ Country ${countryCode} and all related data deleted successfully`);
 
