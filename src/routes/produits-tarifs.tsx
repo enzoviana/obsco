@@ -137,7 +137,7 @@ function TarifsPage() {
                   <tr key={p.id} className="border-t border-border/60 hover:bg-surface/40 group">
                     <td className="sticky left-0 z-10 bg-card group-hover:bg-surface/40 px-3 py-2 border-r border-border/60">
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{p.cip} · {p.laboratory}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono"></div>
                     </td>
                     {visibleCountries.map(c => (
                       <td key={c.code} className="px-1 py-1 border-r border-border/60">
