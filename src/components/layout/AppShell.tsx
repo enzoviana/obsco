@@ -57,7 +57,7 @@ const NAV: NavEntry[] = [
       { to: "/sorties-locales/evolution-un", label: "R5 · Évolution (UN)", icon: BarChart3 },
       { to: "/sorties-locales/evolution-ca", label: "R5bis · Évolution (CA)", icon: BarChart3 },
       { to: "/sorties-locales/stocks-pays", label: "R6 · Stocks / Pays", icon: Package },
-      { to: "/sorties-locales/stocks-en-cours", label: "R7bis · Stocks en cours", icon: Package },
+      { to: "/sorties-locales/stocks-en-cours", label: "R7 · Stocks en cours", icon: Package },
       { to: "/sorties-locales/vue-panoramique", label: "R8 · Vue panoramique", icon: LayoutDashboard },
     ],
   },

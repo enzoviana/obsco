@@ -33,8 +33,11 @@ export function useScopeState() {
   // Sélection de la période
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  // Initialiser au mois précédent (si janvier, décembre de l'année précédente)
+  const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+  const [selectedYear, setSelectedYear] = useState(previousYear);
+  const [selectedMonth, setSelectedMonth] = useState(previousMonth);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -64,8 +67,10 @@ export function ScopeSelector(props: ReturnType<typeof useScopeState> & { hidePe
   const { scope, setScope, countryCode, setCountryCode, agencyId, setAgencyId, agencies, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth, hidePeriodFilter } = props;
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1; // 1-12
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i);
-  const monthOptions = [
+
+  const allMonthOptions = [
     { value: 1, label: "Janvier" },
     { value: 2, label: "Février" },
     { value: 3, label: "Mars" },
@@ -79,6 +84,21 @@ export function ScopeSelector(props: ReturnType<typeof useScopeState> & { hidePe
     { value: 11, label: "Novembre" },
     { value: 12, label: "Décembre" },
   ];
+
+  // Ne montrer que les mois précédents (pas le mois actuel ni les mois futurs)
+  const monthOptions = selectedYear < currentYear
+    ? allMonthOptions // Année passée : tous les mois
+    : selectedYear === currentYear
+      ? allMonthOptions.filter(m => m.value < currentMonth) // Année courante : seulement les mois précédents
+      : []; // Année future : aucun mois
+
+  // Ajuster le mois sélectionné si il n'est plus valide
+  useEffect(() => {
+    if (monthOptions.length > 0 && !monthOptions.find(m => m.value === selectedMonth)) {
+      // Si le mois sélectionné n'est plus dans les options, prendre le dernier mois disponible
+      setSelectedMonth(monthOptions[monthOptions.length - 1].value);
+    }
+  }, [monthOptions, selectedMonth, setSelectedMonth]);
 
   return (
     <section className="mb-6 rounded-2xl border border-border bg-card p-4">
@@ -963,7 +983,7 @@ export function ReportStocks({ data, suffix, year }: { data: Data; suffix: strin
 }
 export function ReportStocksEnCours({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
   return <StocksGrid data={data} suffix={suffix} kind="encours" year={year}
-    title="Rapport 7 bis · Stocks en cours de livraison"
+    title="Rapport 7 · Stocks en cours de livraison"
     subtitle="Quantités en cours par mois et par pays" file="r5bis-stocks-encours" />;
 }
 

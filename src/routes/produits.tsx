@@ -108,7 +108,7 @@ function ProduitsPage() {
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="mr-2 h-4 w-4" />Créer un produit</Button>
           </DialogTrigger>
-          <ProductDialog onClose={() => setCreateOpen(false)} product={null} />
+          {createOpen && <ProductDialog onClose={() => setCreateOpen(false)} product={null} />}
         </Dialog>
       </>}
     >
