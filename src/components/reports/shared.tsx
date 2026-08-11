@@ -605,7 +605,9 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
                     <div className="flex justify-center">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <AlertCircle className="h-4 w-4 text-amber-500 cursor-help" />
+                          <button type="button" className="inline-flex items-center justify-center">
+                            <AlertCircle className="h-4 w-4 text-amber-500 cursor-help" />
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <div className="space-y-1">
