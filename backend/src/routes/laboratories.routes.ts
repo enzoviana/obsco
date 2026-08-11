@@ -24,18 +24,6 @@ const labSchema = z.object({
 router.post("/", requireRole("super_admin"), async (req, res) => {
   try {
     const data = labSchema.parse(req.body);
-
-    // Vérifier si le pays existe
-    const country = await prisma.country.findUnique({
-      where: { code: data.countryCode }
-    });
-
-    if (!country) {
-      return res.status(400).json({
-        error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer le pays avant d'ajouter un laboratoire.`
-      });
-    }
-
     const laboratory = await prisma.laboratory.create({ data });
     console.log(`✅ Laboratory created successfully:`, laboratory);
     res.status(201).json(laboratory);
@@ -61,19 +49,6 @@ router.patch("/:id", requireRole("super_admin"), async (req, res) => {
 
     // Validate with partial schema (allow partial updates)
     const data = labSchema.partial().parse(req.body);
-
-    // If countryCode is being updated, verify it exists
-    if (data.countryCode) {
-      const country = await prisma.country.findUnique({
-        where: { code: data.countryCode }
-      });
-
-      if (!country) {
-        return res.status(400).json({
-          error: `Le pays avec le code "${data.countryCode}" n'existe pas. Veuillez d'abord créer le pays avant de modifier le laboratoire.`
-        });
-      }
-    }
 
     const updated = await prisma.laboratory.update({
       where: { id: req.params.id },

@@ -36,7 +36,6 @@ model Country {
   agencies  Agency[]
   prices    ProductPrice[]
   objectives ProductObjective[]
-  labs      Laboratory[]
   wholesalers Wholesaler[]
 }
 
@@ -59,7 +58,6 @@ model Laboratory {
   id          String   @id @default(cuid())
   name        String
   countryCode String
-  country     Country  @relation(fields: [countryCode], references: [code])
   contact     String   @default("")
   email       String   @default("")
   phone       String   @default("")

@@ -25,26 +25,19 @@ countriesRouter.delete("/:code", requireRole("super_admin"), async (req, res) =>
 
     // Vérifier si des entités sont liées à ce pays
     console.log(`📊 Checking references for country ${countryCode}...`);
-    const [agenciesCount, labsCount, wholesalersCount, pricesCount, objectivesCount] = await Promise.all([
+    const [agenciesCount, wholesalersCount, pricesCount, objectivesCount] = await Promise.all([
       prisma.agency.count({ where: { countryCode } }),
-      prisma.laboratory.count({ where: { countryCode } }),
       prisma.wholesaler.count({ where: { countryCode } }),
       prisma.productPrice.count({ where: { countryCode } }),
       prisma.productObjective.count({ where: { countryCode } }),
     ]);
 
-    console.log(`🔍 Found: ${agenciesCount} agencies, ${labsCount} labs, ${wholesalersCount} wholesalers, ${pricesCount} prices, ${objectivesCount} objectives`);
+    console.log(`🔍 Found: ${agenciesCount} agencies, ${wholesalersCount} wholesalers, ${pricesCount} prices, ${objectivesCount} objectives`);
 
-    // Empêcher la suppression si des agences ou laboratoires existent
+    // Empêcher la suppression si des agences existent
     if (agenciesCount > 0) {
       return res.status(400).json({
         error: `Impossible de supprimer ce pays : ${agenciesCount} agence(s) y sont liées. Supprimez d'abord les agences.`
-      });
-    }
-
-    if (labsCount > 0) {
-      return res.status(400).json({
-        error: `Impossible de supprimer ce pays : ${labsCount} laboratoire(s) y sont liés. Supprimez d'abord les laboratoires.`
       });
     }
 
