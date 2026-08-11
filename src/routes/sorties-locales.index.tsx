@@ -720,7 +720,7 @@ function SortiesIndex() {
                     <tr key={p.id} className="border-t border-border/60 hover:bg-surface/40">
                       <td className="px-3 py-2.5 border-r border-border/60">
                         <div className="font-medium">{p.name}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">{p.cip}</div>
+                        
                       </td>
                       {supplierView.map((sv) => {
                         const wholesaler = grossistes.find(g => g.partenaire === sv.name);
