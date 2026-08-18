@@ -604,10 +604,8 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
                   {r.warnings && (
                     <div className="flex justify-center">
                       <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button type="button" className="inline-flex items-center justify-center">
-                            <AlertCircle className="h-4 w-4 text-amber-500 cursor-help" />
-                          </button>
+                        <TooltipTrigger className="inline-flex items-center justify-center cursor-help">
+                          <AlertCircle className="h-4 w-4 text-amber-500" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <div className="space-y-1">
@@ -980,7 +978,7 @@ function StocksGrid({ data, suffix, kind, title, subtitle, file, year }: {
 
 export function ReportStocks({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
   return <StocksGrid data={data} suffix={suffix} kind="stock" year={year}
-    title="Rapport 7 · Situation stocks locaux par pays"
+    title="Rapport 6 · Situation stocks locaux par pays"
     subtitle="Stocks disponibles par mois et par pays" file="r5-stocks" />;
 }
 export function ReportStocksEnCours({ data, suffix, year }: { data: Data; suffix: string; year: number }) {
