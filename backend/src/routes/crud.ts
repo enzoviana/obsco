@@ -330,11 +330,68 @@ objectivesRouter.put("/", requireRole("super_admin"), async (req, res) => {
     productId: z.string(), countryCode: z.string(),
     year: z.number().int(), month: z.number().int().min(1).max(12),
     targetUnits: z.number().int().nonnegative(), targetCA: z.number().nonnegative(),
+    propagate: z.boolean().optional(), // Propager aux mois précédents
   }).parse(req.body);
+
+  // Créer/Mettre à jour l'objectif pour le mois demandé
   const row = await prisma.productObjective.upsert({
     where: { productId_countryCode_year_month: { productId: s.productId, countryCode: s.countryCode, year: s.year, month: s.month } },
     create: s, update: { targetUnits: s.targetUnits, targetCA: s.targetCA },
   });
+
+  // Si propagate = true (par défaut) ET targetUnits > 0, propager aux mois PRÉCÉDENTS
+  if (s.propagate !== false && s.targetUnits > 0) {
+    // Récupérer les objectifs existants pour les mois précédents
+    const previousObjectives = await prisma.productObjective.findMany({
+      where: {
+        productId: s.productId,
+        countryCode: s.countryCode,
+        year: s.year,
+        month: { lt: s.month }, // Mois < mois actuel
+      },
+    });
+
+    // Map des mois avec objectifs existants
+    const existingMonths = new Map(previousObjectives.map(obj => [obj.month, obj]));
+
+    // Pour chaque mois précédent (1 à M-1)
+    let updated = 0;
+    let created = 0;
+
+    for (let m = 1; m < s.month; m++) {
+      const existing = existingMonths.get(m);
+
+      if (existing) {
+        // Si objectif existe ET targetUnits = 0 → mettre à jour
+        if (existing.targetUnits === 0) {
+          await prisma.productObjective.update({
+            where: { id: existing.id },
+            data: { targetUnits: s.targetUnits, targetCA: s.targetCA },
+          });
+          updated++;
+        }
+        // Si targetUnits > 0 → ne rien faire (garder la valeur existante)
+      } else {
+        // Si pas d'objectif → créer
+        await prisma.productObjective.create({
+          data: {
+            productId: s.productId,
+            countryCode: s.countryCode,
+            year: s.year,
+            month: m,
+            targetUnits: s.targetUnits,
+            targetCA: s.targetCA,
+          },
+        });
+        created++;
+      }
+    }
+
+    if (updated > 0 || created > 0) {
+      console.log(`📅 [Propagation rétroactive] Mois ${s.month} (${s.targetUnits} unités) → ${created} mois créés, ${updated} mois mis à jour (objectifs à 0)`);
+    }
+  }
+
   res.json(row);
 });
 
