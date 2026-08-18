@@ -196,7 +196,17 @@ type Data = ReturnType<typeof useScopedReportData>;
 
 /* ---------- API Data hooks ---------- */
 export function useObjectivesSummary(year: number, month: number, scope: Scope, countryCode: string, agencyId: string) {
-  const [data, setData] = useState<Record<string, { sales: number; stock: number; orders: number; price: number; targetUnits: number; targetCA: number }>>({});
+  const [data, setData] = useState<Record<string, {
+    sales: number;
+    stock: number;
+    orders: number;
+    price: number;
+    targetUnits: number;
+    targetCA: number;
+    salesPreviousYear: number;
+    cumulativeSales: number;
+    cumulativeTarget: number;
+  }>>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -212,22 +222,78 @@ export function useObjectivesSummary(year: number, month: number, scope: Scope, 
         if (scope === "country") params.append("countryCode", countryCode);
         if (scope === "agency") params.append("agencyId", agencyId);
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com"}/api/reports/objectives-summary?${params}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("obco_token")}`,
-            },
-          }
-        );
+        const baseUrl = import.meta.env.VITE_API_URL || "https://evening-sierra-79086-961c10c199fc.herokuapp.com";
+        const headers = { Authorization: `Bearer ${localStorage.getItem("obco_token")}` };
 
-        if (response.ok) {
-          const result = await response.json();
-          setData(result);
-        } else {
-          console.error("Erreur chargement objectives-summary");
-          setData({});
+        // Charger les données du mois courant
+        const currentResponse = await fetch(`${baseUrl}/api/reports/objectives-summary?${params}`, { headers });
+
+        // Charger les données de l'année précédente (même mois)
+        const previousYearParams = new URLSearchParams({
+          year: (year - 1).toString(),
+          month: month.toString(),
+          scope,
+        });
+        if (scope === "country") previousYearParams.append("countryCode", countryCode);
+        if (scope === "agency") previousYearParams.append("agencyId", agencyId);
+        const previousYearResponse = await fetch(`${baseUrl}/api/reports/objectives-summary?${previousYearParams}`, { headers });
+
+        // Charger les données cumulatives de janvier au mois courant
+        const cumulativePromises = [];
+        for (let m = 1; m <= month; m++) {
+          const cumulParams = new URLSearchParams({
+            year: year.toString(),
+            month: m.toString(),
+            scope,
+          });
+          if (scope === "country") cumulParams.append("countryCode", countryCode);
+          if (scope === "agency") cumulParams.append("agencyId", agencyId);
+          cumulativePromises.push(fetch(`${baseUrl}/api/reports/objectives-summary?${cumulParams}`, { headers }));
         }
+
+        const [currentData, previousYearData, ...cumulativeResponses] = await Promise.all([
+          currentResponse.ok ? currentResponse.json() : {},
+          previousYearResponse.ok ? previousYearResponse.json() : {},
+          ...cumulativePromises.map(p => p.then(r => r.ok ? r.json() : {})),
+        ]);
+
+        // Agréger les données
+        const result: Record<string, {
+          sales: number;
+          stock: number;
+          orders: number;
+          price: number;
+          targetUnits: number;
+          targetCA: number;
+          salesPreviousYear: number;
+          cumulativeSales: number;
+          cumulativeTarget: number;
+        }> = {};
+
+        // Pour chaque produit dans les données courantes
+        for (const [cip, currentProduct] of Object.entries(currentData)) {
+          const prevYearProduct = previousYearData[cip] || { sales: 0 };
+
+          // Calculer les cumuls
+          let cumulativeSales = 0;
+          let cumulativeTarget = 0;
+
+          for (const monthData of cumulativeResponses) {
+            if (monthData[cip]) {
+              cumulativeSales += monthData[cip].sales || 0;
+              cumulativeTarget += monthData[cip].targetUnits || 0;
+            }
+          }
+
+          result[cip] = {
+            ...(currentProduct as any),
+            salesPreviousYear: prevYearProduct.sales || 0,
+            cumulativeSales,
+            cumulativeTarget,
+          };
+        }
+
+        setData(result);
       } catch (error) {
         console.error("Erreur chargement objectives-summary:", error);
         setData({});
@@ -504,18 +570,46 @@ const TD = ({ children, right, mute }: { children: React.ReactNode; right?: bool
 /* ===================================================================== */
 /* RAPPORT 1 — Suivi objectifs ventes mensuelles par produit             */
 /* ===================================================================== */
-function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number; price: number; targetUnits: number; targetCA: number }>) {
+function buildR1(d: Data, apiData: Record<string, {
+  sales: number;
+  stock: number;
+  orders: number;
+  price: number;
+  targetUnits: number;
+  targetCA: number;
+  salesPreviousYear: number;
+  cumulativeSales: number;
+  cumulativeTarget: number;
+}>) {
   const rows = d.products.slice(0, 60).map(p => {
     // Utiliser les données API
-    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0, price: 0, targetUnits: 0, targetCA: 0 };
-    const ventes = productData.sales;
-    const budgetMois = productData.targetUnits;
-    const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
-    const price = productData.price || 0;
-    const ca = +(ventes * price).toFixed(2);
-    const budgetMoisCa = productData.targetCA || +(budgetMois * price).toFixed(2);
-    const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
-    const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
+    const productData = apiData[p.cip] || {
+      sales: 0,
+      stock: 0,
+      orders: 0,
+      price: 0,
+      targetUnits: 0,
+      targetCA: 0,
+      salesPreviousYear: 0,
+      cumulativeSales: 0,
+      cumulativeTarget: 0,
+    };
+
+    // Colonnes du tableau selon les spécifications
+    const ventes = productData.sales; // Ventes en unités
+    const budgetMois = productData.targetUnits; // Objectif du mois en unité
+    const ventesAn1 = productData.salesPreviousYear; // Ventes An-1
+    const price = productData.price || 0; // PGHT pays
+    const ca = +(ventes * price).toFixed(2); // CA = Ventes * PGHT pays
+    const budgetMoisCa = productData.targetCA || +(budgetMois * price).toFixed(2); // Budget Mois CA = Budget Mois * PGHT pays
+    const cumulBudget = productData.cumulativeTarget; // Cumul des Budget Mois (en qté)
+    const cumulRealise = productData.cumulativeSales; // Cumul des Ventes de Jan à date (en qté)
+
+    // Calculs des taux
+    const tauxReal = budgetMois > 0 ? +((ventes / budgetMois) * 100).toFixed(1) : 0; // Taux de réalisation (%) = Ventes/Budget Mois
+    const tauxEvol = ventesAn1 > 0 ? +(((ventes / ventesAn1) - 1) * 100).toFixed(1) : 0; // Taux d'évolution (%) = (Ventes Mois / Ventes An-1) - 1
+    const txRealBudgetCa = budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0; // Tx Real Budget CA (%) = CA/Budget Mois CA
+    const txRealDate = cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0; // Tx de réalisation à date (%) = Cumul réalisé/Cumul budget
 
     // Détection des données manquantes
     const warnings: string[] = [];
@@ -523,7 +617,7 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
       warnings.push("Aucune donnée de vente pour cette période");
     }
     if (price === 0) {
-      warnings.push("Prix manquant pour ce produit");
+      warnings.push("Prix (PGHT) manquant pour ce produit");
     }
     if (budgetMois === 0) {
       warnings.push("Objectif mensuel non défini");
@@ -533,17 +627,28 @@ function buildR1(d: Data, apiData: Record<string, { sales: number; stock: number
     }
 
     return {
-      id: p.id, produit: p.name, ventes, budgetMois,
-      tauxReal: budgetMois > 0 ? +((ventes / budgetMois) * 100).toFixed(1) : 0,
-      ventesAn1, tauxEvol: ventesAn1 > 0 ? +(((ventes - ventesAn1) / ventesAn1) * 100).toFixed(1) : 0,
-      ca, budgetMoisCa, txRealBudgetCa: budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0,
-      cumulBudget, cumulRealise, txRealDate: cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0,
+      id: p.id,
+      produit: p.name,
+      ventes,
+      budgetMois,
+      tauxReal,
+      ventesAn1,
+      tauxEvol,
+      ca,
+      budgetMoisCa,
+      txRealBudgetCa,
+      cumulBudget,
+      cumulRealise,
+      txRealDate,
       poids: 0,
       warnings: warnings.length > 0 ? warnings : undefined,
     };
   });
+
+  // Calcul du poids (%) = CA par produit / CA Global
   const totalCa = rows.reduce((s, r) => s + r.ca, 0);
   rows.forEach(r => { r.poids = totalCa > 0 ? +((r.ca / totalCa) * 100).toFixed(2) : 0; });
+
   return rows;
 }
 
@@ -633,7 +738,7 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
               <TD right>{fmt(tot.cumulBudget)}</TD><TD right>{fmt(tot.cumulRealise)}</TD>
               <TD right>{tot.cumulBudget > 0 ? pct((tot.cumulRealise / tot.cumulBudget) * 100) : "-"}</TD>
               <TD right>100%</TD>
-              <TD></TD>
+              <TD>{""}</TD>
             </tr>
           </tfoot>
         </Table>
@@ -645,27 +750,63 @@ export function ReportObjectifsPays({ data, suffix, year, month, scope, countryC
 /* ===================================================================== */
 /* RAPPORT 2 — Objectifs ventes mensuelles ANF (par produit)             */
 /* ===================================================================== */
-function buildR2(d: Data, apiData: Record<string, { sales: number; stock: number; orders: number; price: number; targetUnits: number; targetCA: number }>) {
-  return d.products.slice(0, 60).map(p => {
+function buildR2(d: Data, apiData: Record<string, {
+  sales: number;
+  stock: number;
+  orders: number;
+  price: number;
+  targetUnits: number;
+  targetCA: number;
+  salesPreviousYear: number;
+  cumulativeSales: number;
+  cumulativeTarget: number;
+}>) {
+  const rows = d.products.slice(0, 60).map(p => {
     // Utiliser les données API
-    const productData = apiData[p.cip] || { sales: 0, stock: 0, orders: 0, price: 0, targetUnits: 0, targetCA: 0 };
+    const productData = apiData[p.cip] || {
+      sales: 0,
+      stock: 0,
+      orders: 0,
+      price: 0,
+      targetUnits: 0,
+      targetCA: 0,
+      salesPreviousYear: 0,
+      cumulativeSales: 0,
+      cumulativeTarget: 0,
+    };
+
     const ventes = productData.sales;
     const budgetMois = productData.targetUnits;
-    const ventesAn1 = Math.round(p.ventesAn1 * d.agencyFactor);
+    const ventesAn1 = productData.salesPreviousYear;
     const price = productData.price || 0;
     const ca = +(ventes * price).toFixed(2);
     const budgetMoisCa = productData.targetCA || +(budgetMois * price).toFixed(2);
-    const cumulBudget = Math.round(p.cumulBudget * d.agencyFactor);
-    const cumulRealise = Math.round(p.cumulRealise * d.agencyFactor);
+    const cumulBudget = productData.cumulativeTarget;
+    const cumulRealise = productData.cumulativeSales;
+
     return {
-      id: p.id, produit: p.name, ventes, budgetMois,
+      id: p.id,
+      produit: p.name,
+      ventes,
+      budgetMois,
       tauxReal: budgetMois > 0 ? +((ventes / budgetMois) * 100).toFixed(1) : 0,
-      ventesAn1, tauxEvol: ventesAn1 > 0 ? +(((ventes - ventesAn1) / ventesAn1) * 100).toFixed(1) : 0,
-      ca, budgetMoisCa, txRealBudgetCa: budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0,
-      cumulBudget, cumulRealise, txRealPrev: cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0,
-      poids: p.poids,
+      ventesAn1,
+      tauxEvol: ventesAn1 > 0 ? +(((ventes / ventesAn1) - 1) * 100).toFixed(1) : 0,
+      ca,
+      budgetMoisCa,
+      txRealBudgetCa: budgetMoisCa > 0 ? +((ca / budgetMoisCa) * 100).toFixed(1) : 0,
+      cumulBudget,
+      cumulRealise,
+      txRealPrev: cumulBudget > 0 ? +((cumulRealise / cumulBudget) * 100).toFixed(1) : 0,
+      poids: 0,
     };
   });
+
+  // Calcul du poids pour chaque produit
+  const totalCa = rows.reduce((s, r) => s + r.ca, 0);
+  rows.forEach(r => { r.poids = totalCa > 0 ? +((r.ca / totalCa) * 100).toFixed(2) : 0; });
+
+  return rows;
 }
 
 export function ReportObjectifsANF({ data, suffix, year, month, scope, countryCode, agencyId }: {
