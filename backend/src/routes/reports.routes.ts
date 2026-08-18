@@ -358,6 +358,19 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
       });
     }
 
+    console.log("📊 [objectives-summary] Objectifs récupérés:", {
+      year: y,
+      month: m,
+      scope,
+      targetCountryCodes,
+      totalObjectives: objectives.length,
+      uniqueCips: objectivesByCipAndCountry.size,
+      sampleObjectives: Array.from(objectivesByCipAndCountry.entries()).slice(0, 3).map(([cip, countries]) => ({
+        cip,
+        countries: Array.from(countries.entries()).map(([code, obj]) => ({ code, ...obj })),
+      })),
+    });
+
     // Construire la réponse finale
     const result: Record<string, any> = {};
 
@@ -399,6 +412,13 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
         targetCA,
       };
     }
+
+    console.log("✅ [objectives-summary] Résultat final:", {
+      totalCips: Object.keys(result).length,
+      cipsWithObjectives: Object.values(result).filter((r: any) => r.targetUnits > 0).length,
+      cipsWithSales: Object.values(result).filter((r: any) => r.sales > 0).length,
+      sampleResult: Object.entries(result).slice(0, 3).map(([cip, data]) => ({ cip, ...data })),
+    });
 
     res.json(result);
   } catch (error) {

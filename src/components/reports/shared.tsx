@@ -625,6 +625,8 @@ function buildR1(d: Data, apiData: Record<string, {
     productsToDisplay: Math.min(60, d.products.length),
     apiDataKeys: Object.keys(apiData).length,
     sampleApiData: Object.entries(apiData).slice(0, 2).map(([cip, data]) => ({ cip, ...data })),
+    sampleProductCips: d.products.slice(0, 5).map(p => ({ id: p.id, cip: p.cip, name: p.name })),
+    cipMatches: d.products.slice(0, 10).filter(p => apiData[p.cip]).length + "/" + Math.min(10, d.products.length),
   });
 
   const rows = d.products.slice(0, 60).map((p, index) => {
