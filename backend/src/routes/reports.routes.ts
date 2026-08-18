@@ -331,12 +331,26 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
       pricesByCipAndCountry.get(cip)!.set(price.countryCode, price.price);
     }
 
-    // Récupérer les objectifs des produits
+    // Récupérer les objectifs des produits pour le mois demandé
     const objectives = await prisma.productObjective.findMany({
       where: {
         countryCode: { in: targetCountryCodes },
         year: y,
         month: m,
+      },
+      include: {
+        product: {
+          select: { cip: true },
+        },
+      },
+    });
+
+    // Récupérer aussi les objectifs des mois suivants (fallback si mois actuel = 0)
+    const futureObjectives = await prisma.productObjective.findMany({
+      where: {
+        countryCode: { in: targetCountryCodes },
+        year: y,
+        month: { gt: m }, // Mois > mois actuel
       },
       include: {
         product: {
@@ -358,12 +372,29 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
       });
     }
 
+    // Organiser les objectifs futurs par CIP, pays et mois
+    const futureObjectivesByCipCountryMonth = new Map<string, Map<string, Map<number, { targetUnits: number; targetCA: number }>>>();
+    for (const objective of futureObjectives) {
+      const cip = objective.product.cip;
+      if (!futureObjectivesByCipCountryMonth.has(cip)) {
+        futureObjectivesByCipCountryMonth.set(cip, new Map());
+      }
+      if (!futureObjectivesByCipCountryMonth.get(cip)!.has(objective.countryCode)) {
+        futureObjectivesByCipCountryMonth.get(cip)!.set(objective.countryCode, new Map());
+      }
+      futureObjectivesByCipCountryMonth.get(cip)!.get(objective.countryCode)!.set(objective.month, {
+        targetUnits: objective.targetUnits,
+        targetCA: objective.targetCA,
+      });
+    }
+
     console.log("📊 [objectives-summary] Objectifs récupérés:", {
       year: y,
       month: m,
       scope,
       targetCountryCodes,
       totalObjectives: objectives.length,
+      totalFutureObjectives: futureObjectives.length,
       uniqueCips: objectivesByCipAndCountry.size,
       sampleObjectives: Array.from(objectivesByCipAndCountry.entries()).slice(0, 3).map(([cip, countries]) => ({
         cip,
@@ -374,11 +405,12 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
     // Construire la réponse finale
     const result: Record<string, any> = {};
 
-    // Récupérer tous les CIPs (union des ventes + objectifs + prix)
+    // Récupérer tous les CIPs (union des ventes + objectifs + prix + objectifs futurs)
     const allCips = new Set<string>();
     for (const cip of salesByProduct.keys()) allCips.add(cip);
     for (const cip of objectivesByCipAndCountry.keys()) allCips.add(cip);
     for (const cip of pricesByCipAndCountry.keys()) allCips.add(cip);
+    for (const cip of futureObjectivesByCipCountryMonth.keys()) allCips.add(cip);
 
     // Boucler sur tous les CIPs, pas seulement ceux avec ventes
     for (const cip of allCips) {
@@ -397,9 +429,44 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
       let targetCA = 0;
       const cipObjectives = objectivesByCipAndCountry.get(cip);
       if (cipObjectives && cipObjectives.size > 0) {
-        for (const obj of cipObjectives.values()) {
-          targetUnits += obj.targetUnits;
-          targetCA += obj.targetCA;
+        for (const [countryCode, obj] of cipObjectives.entries()) {
+          // Si objectif actuel = 0, chercher dans les mois futurs
+          if (obj.targetUnits === 0) {
+            const futureObjsForCountry = futureObjectivesByCipCountryMonth.get(cip)?.get(countryCode);
+            if (futureObjsForCountry) {
+              // Chercher le premier mois futur avec un objectif > 0
+              for (let futureMonth = m + 1; futureMonth <= 12; futureMonth++) {
+                const futureObj = futureObjsForCountry.get(futureMonth);
+                if (futureObj && futureObj.targetUnits > 0) {
+                  targetUnits += futureObj.targetUnits;
+                  targetCA += futureObj.targetCA;
+                  console.log(`🔄 [Fallback] Mois ${m} → Mois ${futureMonth} pour CIP ${cip} pays ${countryCode} (${futureObj.targetUnits} unités)`);
+                  break; // Utiliser le premier mois futur trouvé
+                }
+              }
+            }
+          } else {
+            // Objectif actuel > 0, l'utiliser
+            targetUnits += obj.targetUnits;
+            targetCA += obj.targetCA;
+          }
+        }
+      } else {
+        // Pas d'objectif pour le mois actuel, chercher dans les mois futurs
+        const futureObjs = futureObjectivesByCipCountryMonth.get(cip);
+        if (futureObjs) {
+          for (const [countryCode, monthsMap] of futureObjs.entries()) {
+            // Chercher le premier mois futur avec un objectif > 0
+            for (let futureMonth = m + 1; futureMonth <= 12; futureMonth++) {
+              const futureObj = monthsMap.get(futureMonth);
+              if (futureObj && futureObj.targetUnits > 0) {
+                targetUnits += futureObj.targetUnits;
+                targetCA += futureObj.targetCA;
+                console.log(`🔄 [Fallback] Aucun objectif pour mois ${m} → Mois ${futureMonth} pour CIP ${cip} pays ${countryCode} (${futureObj.targetUnits} unités)`);
+                break; // Utiliser le premier mois futur trouvé
+              }
+            }
+          }
         }
       }
 
