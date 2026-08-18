@@ -257,6 +257,14 @@ export function useObjectivesSummary(year: number, month: number, scope: Scope, 
           ...cumulativePromises.map(p => p.then(r => r.ok ? r.json() : {})),
         ]);
 
+        console.log("🌐 [useObjectivesSummary] Réponses API brutes:", {
+          currentDataKeys: Object.keys(currentData as Record<string, any>).length,
+          previousYearDataKeys: Object.keys(previousYearData as Record<string, any>).length,
+          cumulativeMonths: cumulativeResponses.length,
+          sampleCurrentData: Object.entries(currentData as Record<string, any>).slice(0, 2),
+          samplePreviousYearData: Object.entries(previousYearData as Record<string, any>).slice(0, 2),
+        });
+
         // Agréger les données
         const result: Record<string, {
           sales: number;
@@ -307,9 +315,26 @@ export function useObjectivesSummary(year: number, month: number, scope: Scope, 
           };
         }
 
+        console.log("📊 [useObjectivesSummary] Données agrégées:", {
+          year,
+          month,
+          scope,
+          countryCode,
+          agencyId,
+          totalProducts: Object.keys(result).length,
+          sampleData: Object.entries(result).slice(0, 3).map(([cip, data]) => ({ cip, ...data })),
+        });
+
         setData(result);
       } catch (error) {
-        console.error("Erreur chargement objectives-summary:", error);
+        console.error("❌ [useObjectivesSummary] Erreur chargement objectives-summary:", {
+          error,
+          year,
+          month,
+          scope,
+          countryCode,
+          agencyId,
+        });
         setData({});
       } finally {
         setLoading(false);
@@ -595,7 +620,14 @@ function buildR1(d: Data, apiData: Record<string, {
   cumulativeSales: number;
   cumulativeTarget: number;
 }>) {
-  const rows = d.products.slice(0, 60).map(p => {
+  console.log("🔧 [buildR1] Construction du rapport avec:", {
+    totalProducts: d.products.length,
+    productsToDisplay: Math.min(60, d.products.length),
+    apiDataKeys: Object.keys(apiData).length,
+    sampleApiData: Object.entries(apiData).slice(0, 2).map(([cip, data]) => ({ cip, ...data })),
+  });
+
+  const rows = d.products.slice(0, 60).map((p, index) => {
     // Utiliser les données API
     const productData = apiData[p.cip] || {
       sales: 0,
@@ -640,7 +672,7 @@ function buildR1(d: Data, apiData: Record<string, {
       warnings.push("Pas de données de l'année précédente");
     }
 
-    return {
+    const row = {
       id: p.id,
       produit: p.name,
       ventes,
@@ -657,11 +689,31 @@ function buildR1(d: Data, apiData: Record<string, {
       poids: 0,
       warnings: warnings.length > 0 ? warnings : undefined,
     };
+
+    // Log pour les 3 premiers produits ou si c'est AMOXICILLINE
+    if (index < 3 || p.name.toUpperCase().includes("AMOXICILLINE")) {
+      console.log(`📝 [buildR1] Produit #${index + 1}: ${p.name}`, {
+        cip: p.cip,
+        productDataFromAPI: productData,
+        calculatedRow: row,
+        warnings,
+      });
+    }
+
+    return row;
   });
 
   // Calcul du poids (%) = CA par produit / CA Global
   const totalCa = rows.reduce((s, r) => s + r.ca, 0);
   rows.forEach(r => { r.poids = totalCa > 0 ? +((r.ca / totalCa) * 100).toFixed(2) : 0; });
+
+  console.log("✅ [buildR1] Rapport construit:", {
+    totalRows: rows.length,
+    totalCA: totalCa,
+    rowsWithWarnings: rows.filter(r => r.warnings).length,
+    rowsWithObjectives: rows.filter(r => r.budgetMois > 0).length,
+    rowsWithSales: rows.filter(r => r.ventes > 0).length,
+  });
 
   return rows;
 }
@@ -669,6 +721,15 @@ function buildR1(d: Data, apiData: Record<string, {
 export function ReportObjectifsPays({ data, suffix, year, month, scope, countryCode, agencyId }: {
   data: Data; suffix: string; year: number; month: number; scope: Scope; countryCode: string; agencyId: string;
 }) {
+  console.log("🎯 [ReportObjectifsPays] Rendu du rapport avec:", {
+    year,
+    month,
+    scope,
+    countryCode,
+    agencyId,
+    productsCount: data.products.length,
+  });
+
   const { data: apiData, loading } = useObjectivesSummary(year, month, scope, countryCode, agencyId);
   const rows = useMemo(() => buildR1(data, apiData), [data, apiData]);
   const tot = useMemo(() => ({
