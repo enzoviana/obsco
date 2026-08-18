@@ -270,23 +270,37 @@ export function useObjectivesSummary(year: number, month: number, scope: Scope, 
           cumulativeTarget: number;
         }> = {};
 
-        // Pour chaque produit dans les données courantes
-        for (const [cip, currentProduct] of Object.entries(currentData)) {
-          const prevYearProduct = previousYearData[cip] || { sales: 0 };
+        // Récupérer tous les CIPs (union de tous les mois + année précédente)
+        const allCips = new Set<string>();
+        for (const cip of Object.keys(currentData as Record<string, any>)) allCips.add(cip);
+        for (const cip of Object.keys(previousYearData as Record<string, any>)) allCips.add(cip);
+        for (const monthData of cumulativeResponses) {
+          for (const cip of Object.keys(monthData as Record<string, any>)) allCips.add(cip);
+        }
 
-          // Calculer les cumuls
+        // Pour chaque produit, calculer toutes les données
+        for (const cip of allCips) {
+          const currentProduct = (currentData as any)[cip] || { sales: 0, stock: 0, orders: 0, price: 0, targetUnits: 0, targetCA: 0 };
+          const prevYearProduct = (previousYearData as any)[cip] || { sales: 0 };
+
+          // Calculer les cumuls de janvier au mois courant
           let cumulativeSales = 0;
           let cumulativeTarget = 0;
 
           for (const monthData of cumulativeResponses) {
-            if (monthData[cip]) {
-              cumulativeSales += monthData[cip].sales || 0;
-              cumulativeTarget += monthData[cip].targetUnits || 0;
+            if ((monthData as any)[cip]) {
+              cumulativeSales += (monthData as any)[cip].sales || 0;
+              cumulativeTarget += (monthData as any)[cip].targetUnits || 0;
             }
           }
 
           result[cip] = {
-            ...(currentProduct as any),
+            sales: currentProduct.sales || 0,
+            stock: currentProduct.stock || 0,
+            orders: currentProduct.orders || 0,
+            price: currentProduct.price || 0,
+            targetUnits: currentProduct.targetUnits || 0,
+            targetCA: currentProduct.targetCA || 0,
             salesPreviousYear: prevYearProduct.sales || 0,
             cumulativeSales,
             cumulativeTarget,

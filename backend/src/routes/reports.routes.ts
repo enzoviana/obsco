@@ -361,7 +361,16 @@ reportsRouter.get("/objectives-summary", requireAuth, async (req, res) => {
     // Construire la réponse finale
     const result: Record<string, any> = {};
 
-    for (const [cip, salesData] of salesByProduct.entries()) {
+    // Récupérer tous les CIPs (union des ventes + objectifs + prix)
+    const allCips = new Set<string>();
+    for (const cip of salesByProduct.keys()) allCips.add(cip);
+    for (const cip of objectivesByCipAndCountry.keys()) allCips.add(cip);
+    for (const cip of pricesByCipAndCountry.keys()) allCips.add(cip);
+
+    // Boucler sur tous les CIPs, pas seulement ceux avec ventes
+    for (const cip of allCips) {
+      const salesData = salesByProduct.get(cip) || { sales: 0, stock: 0, orders: 0 };
+
       // Récupérer le prix (moyenne si plusieurs pays)
       let price = 0;
       const cipPrices = pricesByCipAndCountry.get(cip);
